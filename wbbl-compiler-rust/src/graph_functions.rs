@@ -1,0 +1,332 @@
+use crate::constraint_solver::{assign_concrete_types, ConstraintSolverError};
+use crate::constraint_solver_constraints::Constraint::SameTypes;
+use crate::constraint_solver_constraints::{Constraint, SameTypesConstraint};
+use crate::data_types::{AbstractDataType, ComputationDomain, ConcreteDataType};
+use crate::graph_types::{
+    BranchedMultiGraph, BranchedSubgraph, Graph, InputPort, MultiGraph, Subgraph,
+};
+use std::collections::{HashMap, HashSet, VecDeque};
+
+fn has_no_dependencies(node: u128, graph: &Graph, visited_nodes: &HashSet<u128>) -> bool {
+    let node = graph.nodes.get(&node).unwrap();
+    node.input_ports.iter().all(|p| {
+        let input_port = graph.input_ports.get(&p).unwrap();
+        if input_port.incoming_edge.is_none() {
+            return true;
+        }
+        let incoming_edge_id = input_port.incoming_edge.unwrap();
+        let incoming_edge = graph.edges.get(&incoming_edge_id).unwrap();
+        let output_port = incoming_edge.output_port;
+        let other_node = graph.output_ports.get(&output_port).unwrap().node;
+        visited_nodes.contains(&other_node)
+    })
+}
+
+pub fn topologically_order_nodes(graph: &Graph) -> Vec<u128> {
+    let mut visited_nodes: HashSet<u128> = HashSet::new();
+    let mut results: Vec<u128> = graph
+        .nodes
+        .keys()
+        .filter(|n| has_no_dependencies(**n, graph, &visited_nodes))
+        .map(|n| *n)
+        .collect();
+    let mut i: usize = 0;
+    while i < results.len() {
+        let node_id = results[i];
+        visited_nodes.insert(node_id);
+        let node = graph.nodes.get(&node_id).unwrap();
+        let successor_nodes: Vec<u128> = node
+            .output_ports
+            .iter()
+            .map(|p| graph.output_ports.get(&p).unwrap())
+            .flat_map(|p| p.outgoing_edges.clone())
+            .map(|e| graph.edges.get(&e).unwrap().input_port)
+            .map(|p| graph.input_ports.get(&p).unwrap().node)
+            .collect();
+        for successor in successor_nodes {
+            if has_no_dependencies(successor, graph, &visited_nodes) {
+                results.push(successor);
+            }
+        }
+        i += 1;
+    }
+    results
+}
+
+pub fn topologically_order_ports(graph: &Graph, ordered_nodes: &Vec<u128>) -> Vec<u128> {
+    ordered_nodes
+        .iter()
+        .flat_map(|n| {
+            let node = graph.nodes.get(&n).unwrap();
+            let mut ports = node.input_ports.clone();
+            let mut output_ports = node.output_ports.clone();
+            ports.append(&mut output_ports);
+            ports
+        })
+        .collect()
+}
+
+fn label_nodes<Selector>(graph: &Graph, label_selector: &Selector) -> HashMap<u128, HashSet<u128>>
+where
+    Selector: Fn(&InputPort) -> Option<u128>,
+{
+    let start_node_id = graph.id;
+    let start_node = graph.nodes.get(&start_node_id).unwrap();
+    let mut queue: VecDeque<(u128, u128)> = start_node
+        .input_ports
+        .iter()
+        .filter_map(|p| graph.input_ports.get(&p))
+        .filter(|p| p.incoming_edge.is_some())
+        .map(|p| (label_selector(p).unwrap(), p.id))
+        .collect();
+
+    let mut result: HashMap<u128, HashSet<u128>> = HashMap::new();
+
+    while !queue.is_empty() {
+        let (label, port_id) = queue.pop_front().unwrap();
+        let port = graph.input_ports.get(&port_id).unwrap();
+        let output_port_id = graph
+            .edges
+            .get(&port.incoming_edge.unwrap())
+            .unwrap()
+            .output_port;
+        let node_id = graph.output_ports.get(&output_port_id).unwrap().node;
+        let node = graph.nodes.get(&node_id).unwrap();
+        let branch_tags = result.entry(node_id).or_insert(HashSet::new());
+        branch_tags.insert(label);
+        for port_id in node.input_ports.iter() {
+            let port = graph.input_ports.get(&port_id).unwrap();
+            if let Some(_) = port.incoming_edge {
+                let new_label = label_selector(port).unwrap_or(label);
+                queue.push_back((new_label, *port_id));
+            }
+        }
+    }
+    result
+}
+
+pub fn label_branches(graph: &Graph) -> HashMap<u128, HashSet<u128>> {
+    label_nodes(graph, &|p: &InputPort| p.new_branch_id)
+}
+
+pub fn label_subgraphs(graph: &Graph) -> HashMap<u128, HashSet<u128>> {
+    label_nodes(graph, &|p: &InputPort| p.new_subgraph_id)
+}
+
+pub fn label_computation_domains(
+    graph: &Graph,
+    node_ordering: &Vec<u128>,
+) -> HashMap<u128, HashSet<ComputationDomain>> {
+    let mut result: HashMap<u128, HashSet<ComputationDomain>> = HashMap::new();
+    for node_id in node_ordering.iter() {
+        let mut domain: HashSet<ComputationDomain> = HashSet::new();
+        let node = graph.nodes.get(node_id).unwrap();
+        if let Some(node_domain) = node.computation_domain {
+            domain.insert(node_domain);
+        }
+        for input_port_id in node.input_ports.iter() {
+            let input_port = graph.input_ports.get(input_port_id).unwrap();
+            if let Some(edge_id) = input_port.incoming_edge {
+                let edge = graph.edges.get(&edge_id).unwrap();
+                let output_port_id = edge.output_port;
+                let output_port = graph.output_ports.get(&output_port_id).unwrap();
+                let other_node_id = output_port.node;
+                if let Some(other_domain) = result.get(&other_node_id) {
+                    domain = domain.union(&other_domain.clone()).map(|d| *d).collect();
+                }
+            }
+        }
+        result.insert(*node_id, domain);
+    }
+
+    result
+}
+
+fn map_constraints_to_ports(
+    graph: &Graph,
+    other_constraints: &Vec<Constraint>,
+) -> HashMap<u128, Vec<Constraint>> {
+    let mut constraints_with_edges = other_constraints.clone();
+    let mut edge_constraints = graph
+        .edges
+        .values()
+        .map(|e| {
+            SameTypes(SameTypesConstraint {
+                ports: HashSet::from([e.input_port, e.output_port]),
+            })
+        })
+        .collect();
+    constraints_with_edges.append(&mut edge_constraints);
+    let constraints_list: Vec<(u128, Constraint)> = constraints_with_edges
+        .iter()
+        .flat_map(|c| -> Vec<(u128, Constraint)> {
+            c.get_affected_ports()
+                .iter()
+                .map(|p| (*p, c.clone()))
+                .collect()
+        })
+        .collect();
+    let constraints: HashMap<u128, Vec<Constraint>> = constraints_list.iter().fold(
+        HashMap::new(),
+        |mut map: HashMap<u128, Vec<Constraint>>, kv: &(u128, Constraint)| {
+            let clone = kv.1.clone();
+            let entry = map.entry(kv.0).or_insert(Vec::new());
+            entry.push(clone);
+            return map;
+        },
+    );
+    return constraints;
+}
+
+pub fn concretise_types_in_graph(
+    graph: &Graph,
+    other_constraints: &Vec<Constraint>,
+    node_ordering: &Vec<u128>,
+) -> Result<HashMap<u128, ConcreteDataType>, ConstraintSolverError> {
+    let ordered_ports = topologically_order_ports(graph, node_ordering);
+    let constraints = map_constraints_to_ports(graph, other_constraints);
+    let mut port_domains_vec: Vec<(u128, AbstractDataType)> = graph
+        .input_ports
+        .iter()
+        .map(|t| (*t.0, t.1.abstract_data_type))
+        .collect();
+    let mut output_port_domains_vec: Vec<(u128, AbstractDataType)> = graph
+        .output_ports
+        .iter()
+        .map(|t| (*t.0, t.1.abstract_data_type))
+        .collect();
+    port_domains_vec.append(&mut output_port_domains_vec);
+    let port_types: HashMap<u128, AbstractDataType> = port_domains_vec.into_iter().collect();
+    assign_concrete_types(&ordered_ports, &port_types, &constraints)
+}
+
+pub fn prune_graph(graph: &mut Graph, subgraph_tags: &HashMap<u128, Vec<u128>>) {
+    let node_ids: Vec<u128> = graph.nodes.keys().map(|n| *n).collect();
+    for node_id in node_ids {
+        let node = graph.nodes.get(&node_id).unwrap().clone();
+        if !subgraph_tags.contains_key(&node_id) || node_id != graph.id {
+            graph.nodes.remove(&node_id);
+            let input_ports = node.input_ports.clone();
+            let output_ports = node.output_ports.clone();
+            for input_port_id in input_ports {
+                let input_port = graph.input_ports.get(&input_port_id).unwrap();
+                if let Some(edge_id) = input_port.incoming_edge.clone() {
+                    let edge = graph.edges.get(&edge_id).unwrap();
+                    let input_port_id = edge.input_port;
+                    let output_port_id = edge.output_port;
+                    let input_port = graph.input_ports.get_mut(&input_port_id).unwrap();
+                    let output_port = graph.output_ports.get_mut(&output_port_id).unwrap();
+                    input_port.incoming_edge = None;
+                    output_port.outgoing_edges = output_port
+                        .outgoing_edges
+                        .iter()
+                        .filter(|e| **e != edge_id)
+                        .map(|e| *e)
+                        .collect();
+                }
+                graph.input_ports.remove(&input_port_id);
+            }
+            for output_port_id in output_ports {
+                let output_port = graph.output_ports.get(&output_port_id).unwrap();
+                for edge_id in output_port.outgoing_edges.clone() {
+                    let edge = graph.edges.get(&edge_id).unwrap();
+                    let input_port_id = edge.input_port;
+                    let output_port_id = edge.output_port;
+                    let input_port = graph.input_ports.get_mut(&input_port_id).unwrap();
+                    let output_port = graph.output_ports.get_mut(&output_port_id).unwrap();
+                    input_port.incoming_edge = None;
+                    output_port.outgoing_edges = output_port
+                        .outgoing_edges
+                        .iter()
+                        .filter(|e| **e != edge_id)
+                        .map(|e| *e)
+                        .collect();
+                }
+                graph.input_ports.remove(&output_port_id);
+            }
+        }
+    }
+}
+
+pub fn decompose_subgraphs(
+    graph: Graph,
+    subgraph_tags: &HashMap<u128, HashSet<u128>>,
+    node_ordering: &Vec<u128>,
+) -> MultiGraph {
+    let mut result: MultiGraph = MultiGraph {
+        graph,
+        subgraphs: HashMap::new(),
+        subgraph_ordering: vec![],
+        dependencies: HashMap::new(),
+    };
+    let empty_set = HashSet::new();
+    for node_id in node_ordering.iter() {
+        let subgraph_ids = subgraph_tags.get(node_id).unwrap_or(&empty_set);
+        for subgraph_id in subgraph_ids {
+            if !result.subgraphs.contains_key(subgraph_id) {
+                result.subgraph_ordering.push(*subgraph_id);
+                result.subgraphs.insert(
+                    *subgraph_id,
+                    Subgraph {
+                        id: *subgraph_id,
+                        nodes: vec![],
+                    },
+                );
+                result.dependencies.insert(*subgraph_id, HashSet::new());
+            }
+            let graph = result.subgraphs.get_mut(subgraph_id).unwrap();
+            graph.nodes.push(*node_id);
+        }
+        if result.subgraphs.contains_key(node_id) {
+            // This is a subgraph node. Lets get its dependencies
+            let mut dependencies = HashSet::new();
+            for dependant_node in result.subgraphs.get(node_id).unwrap().nodes.iter() {
+                if result.subgraphs.contains_key(dependant_node) {
+                    // This is a subgraph node and therefore a dependency of node_id
+                    dependencies.insert(*dependant_node);
+                }
+            }
+            result.dependencies.insert(*node_id, dependencies);
+        }
+    }
+
+    result
+}
+
+pub fn decompose_branches(
+    multi_graph: MultiGraph,
+    branch_tags: &HashMap<u128, HashSet<u128>>,
+) -> BranchedMultiGraph {
+    let mut result = BranchedMultiGraph {
+        graph: multi_graph.graph,
+        subgraphs: HashMap::new(),
+        subgraph_ordering: multi_graph.subgraph_ordering,
+        dependencies: multi_graph.dependencies,
+    };
+    let empty_set = HashSet::new();
+    for kv in multi_graph.subgraphs {
+        let graph_id = kv.0;
+        let multigraph_subgraph = kv.1;
+        let mut branched_subgraph = BranchedSubgraph {
+            id: graph_id,
+            nodes: vec![],
+            branches: HashMap::new(),
+        };
+        for node_id in multigraph_subgraph.nodes.iter() {
+            let these_branch_tags = branch_tags.get(node_id).unwrap_or(&empty_set);
+            if these_branch_tags.len() == 1 {
+                let branch_tag = these_branch_tags.iter().next().unwrap();
+                let branch = branched_subgraph
+                    .branches
+                    .entry(*branch_tag)
+                    .or_insert(Vec::new());
+                branch.push(*node_id);
+            } else {
+                branched_subgraph.nodes.push(*node_id);
+            }
+        }
+        result.subgraphs.insert(graph_id, branched_subgraph);
+    }
+
+    result
+}

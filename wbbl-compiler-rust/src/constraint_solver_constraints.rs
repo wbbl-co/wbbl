@@ -4,6 +4,7 @@ use crate::constraint_solver_constraints::Constraint::{
 use crate::constraint_solver_constraints::ConstraintApplicationResult::{
     Contradiction, Dirty, Unchanged,
 };
+use crate::data_types::{CompositeSize, Dimensionality};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, LinkedList};
 use std::hash::Hash;
@@ -12,23 +13,6 @@ pub enum ConstraintApplicationResult {
     Dirty(LinkedList<u128>),
     Unchanged,
     Contradiction,
-}
-
-#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
-pub enum CompositeSize {
-    S1 = 0,
-    S2 = 1,
-    S3 = 2,
-    S4 = 3,
-}
-
-#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
-
-pub enum Dimensionality {
-    D1 = 0,
-    D2 = 1,
-    D3 = 2,
-    D4 = 4,
 }
 
 pub trait HasCompositeSize {

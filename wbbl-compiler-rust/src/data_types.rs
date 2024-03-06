@@ -1,6 +1,6 @@
-use crate::constraint_solver_constraints::CompositeSize::*;
-use crate::constraint_solver_constraints::Dimensionality::*;
 use crate::constraint_solver_constraints::*;
+use crate::data_types::CompositeSize::*;
+use crate::data_types::Dimensionality::*;
 use serde::{Deserialize, Serialize};
 use AbstractDataType::*;
 use ConcreteDataType::*;
@@ -33,6 +33,13 @@ pub enum AbstractDataType {
     AnyFloat123,
 
     ConcreteType(ConcreteDataType),
+}
+
+#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+pub enum ComputeOutputType {
+    Float(CompositeSize),
+    Int,
+    Bool,
 }
 
 #[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
@@ -425,4 +432,21 @@ impl AbstractDataType {
 
         domain
     }
+}
+
+#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+pub enum CompositeSize {
+    S1 = 0,
+    S2 = 1,
+    S3 = 2,
+    S4 = 3,
+}
+
+#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+
+pub enum Dimensionality {
+    D1 = 0,
+    D2 = 1,
+    D3 = 2,
+    D4 = 4,
 }

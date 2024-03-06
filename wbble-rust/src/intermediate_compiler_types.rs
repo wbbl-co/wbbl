@@ -43,4 +43,4 @@ pub struct Stage {
 
 pub struct BaseSizeMultiplier(pub f32);
 
-pub struct Output(pub Vec<Stage>);
+pub struct IntermediateOutput(pub Vec<Stage>);

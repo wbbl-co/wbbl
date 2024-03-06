@@ -4,13 +4,13 @@ use crate::{
     data_types::ComputationDomain,
     data_types::ComputationDomain::ModelDependant,
     graph_types::BranchedMultiGraph,
-    intermediate_compiler_types::{Output, Stage},
+    intermediate_compiler_types::{IntermediateOutput, Stage},
 };
 
 pub fn compile_to_naga_ir(
     branched_multi_graph: &BranchedMultiGraph,
     computation_domains: &HashMap<u128, HashSet<ComputationDomain>>,
-) -> Output {
+) -> IntermediateOutput {
     let mut output: Vec<Stage> = vec![];
     let empty_domain: HashSet<ComputationDomain> = HashSet::new();
     let model_dependant: ComputationDomain = ModelDependant;
@@ -27,5 +27,5 @@ pub fn compile_to_naga_ir(
         // TODO: Add compute rasterizer stage and patch up dependencies
     }
 
-    Output(output)
+    IntermediateOutput(output)
 }

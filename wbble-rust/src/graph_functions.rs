@@ -172,10 +172,10 @@ fn map_constraints_to_ports(
             let clone = kv.1.clone();
             let entry = map.entry(kv.0).or_insert(Vec::new());
             entry.push(clone);
-            return map;
+            map
         },
     );
-    return constraints;
+    constraints
 }
 
 pub fn concretise_types_in_graph(

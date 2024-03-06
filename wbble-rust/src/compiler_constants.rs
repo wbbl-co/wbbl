@@ -1,0 +1,11 @@
+pub const GEOMETRY_GROUP: u32 = 0;
+pub const VERTICES_BINDING: u32 = 0;
+pub const INDICES_BINDING: u32 = 1;
+
+pub const FRAME_DATA_GROUP: u32 = 1;
+pub const FRAME_DATA_BINDING: u32 = 0;
+
+pub const ARGUMENTS_INPUT_GROUP: u32 = 2;
+
+pub const COMPUTE_TEXTURE_INPUT_OUTPUT_GROUP: u32 = 3;
+pub const COMPUTE_TEXTURE_OUTPUT_BINDING: u32 = 0;

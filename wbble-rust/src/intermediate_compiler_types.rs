@@ -9,7 +9,7 @@ use crate::data_types::Dimensionality;
 
 pub struct ComputeRasterizerShader {
     pub shader: Module,
-    pub size_multiplier: BaseSizeMultiplier,
+    pub output_size_multiplier: BaseSizeMultiplier,
     pub generate_mip_maps: bool,
 }
 

@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    data_types::ComputationDomain,
-    data_types::ComputationDomain::ModelDependant,
+    compute_rasterizer::generate_compute_rasterizer,
+    data_types::ComputationDomain::{self, ModelDependant},
     graph_types::BranchedMultiGraph,
-    intermediate_compiler_types::{IntermediateOutput, Stage},
+    intermediate_compiler_types::Shader::*,
+    intermediate_compiler_types::{BaseSizeMultiplier, IntermediateOutput, Stage},
 };
 
 pub fn compile_to_naga_ir(
@@ -24,8 +25,17 @@ pub fn compile_to_naga_ir(
         .map(|subgraph| *subgraph)
         .collect();
     if !model_dependent_subgraphs.is_empty() {
-        // TODO: Add compute rasterizer stage and patch up dependencies
+        let compute_rasterizer = generate_compute_rasterizer(BaseSizeMultiplier(2.0), true);
+        let mut rasterizer_stage = Stage {
+            id: 0,
+            dependencies: vec![],
+            dependants: model_dependent_subgraphs.clone().into(),
+            shader: ComputeRasterizer(compute_rasterizer),
+            domain: HashSet::new(),
+        };
+        rasterizer_stage.domain.insert(model_dependant);
+        // TODO: Patch up dependencies
+        output.push(rasterizer_stage);
     }
-
     IntermediateOutput(output)
 }

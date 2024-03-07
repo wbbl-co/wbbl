@@ -1,5 +1,5 @@
 [package]
-name = "wbbl-rust"
+name = "wbbl"
 version = "0.1.0"
 authors = ["ncthbrt"]
 edition = "2021"

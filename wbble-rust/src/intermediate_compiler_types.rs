@@ -8,7 +8,8 @@ use crate::data_types::ComputeOutputType;
 use crate::data_types::Dimensionality;
 
 pub struct ComputeRasterizerShader {
-    pub shader: Module,
+    pub primary_shader: Module,
+    pub buffer_to_image_shader: Module,
     pub output_size_multiplier: BaseSizeMultiplier,
     pub generate_mip_maps: bool,
 }

@@ -1,7 +1,7 @@
 use naga::{
-    AddressSpace, BinaryOperator, Binding::*, Block, Constant, GlobalVariable, ImageClass,
-    ImageDimension, Literal, LocalVariable, MathFunction, Override, Range, ResourceBinding,
-    Statement, StorageAccess,
+    AddressSpace, AtomicFunction, BinaryOperator, Binding::*, Block, Constant, GlobalVariable,
+    ImageClass, ImageDimension, Literal, LocalVariable, MathFunction, Override, Range,
+    ResourceBinding, Statement, StorageAccess, SwizzleComponent,
 };
 use naga::{
     Arena, ArraySize::Dynamic, BuiltIn, EntryPoint, Expression, Function, FunctionArgument, Module,
@@ -9,15 +9,12 @@ use naga::{
 };
 
 use crate::compiler_constants::{
-    COMPUTE_TEXTURE_INPUT_OUTPUT_GROUP, COMPUTE_TEXTURE_OUTPUT_BINDING, GEOMETRY_GROUP,
-    INDICES_BINDING, VERTICES_BINDING,
+    ARGUMENTS_GROUP, COMPUTE_TEXTURE_OUTPUT_BINDING, GEOMETRY_GROUP, INDICES_BINDING,
+    PER_SHADER_INPUT_OUTPUT_GROUP, TRIANGLE_INDEX_BUFFER_ARGUMENT_BINDING, VERTICES_BINDING,
 };
 use crate::intermediate_compiler_types::{BaseSizeMultiplier, ComputeRasterizerShader};
 
-pub fn generate_compute_rasterizer(
-    output_size_multiplier: BaseSizeMultiplier,
-    generate_mip_maps: bool,
-) -> ComputeRasterizerShader {
+fn make_primary_rasterizer_module() -> Module {
     let mut shader: Module = Default::default();
     let empty_span = Span::default();
 
@@ -204,7 +201,7 @@ pub fn generate_compute_rasterizer(
     };
 
     let mut main_function = Function {
-        name: Some("computeRasterizerMain".to_owned()),
+        name: Some("computeMain".to_owned()),
         arguments: vec![global_invocation_id],
         result: None,
         local_variables: Arena::new(),
@@ -413,51 +410,57 @@ pub fn generate_compute_rasterizer(
         .named_expressions
         .insert(vertex_3, "vertex_3".to_owned());
 
-    let type_output_image = shader.types.insert(
+    let type_output_buffer = shader.types.insert(
         Type {
             name: None,
-            inner: TypeInner::Image {
-                dim: ImageDimension::D2,
-                arrayed: false,
-                class: ImageClass::Storage {
-                    format: naga::StorageFormat::R32Sint,
-                    access: StorageAccess::LOAD | StorageAccess::STORE,
-                },
+            inner: TypeInner::Array {
+                base: type_uint32,
+                size: Dynamic,
+                stride: 4,
             },
         },
         empty_span.clone(),
     );
 
-    let output_image = shader.global_variables.append(
+    let output_buffer = shader.global_variables.append(
         GlobalVariable {
-            name: Some("output_image".to_owned()),
+            name: Some("output_buffer".to_owned()),
             space: AddressSpace::Storage {
                 access: StorageAccess::LOAD | StorageAccess::STORE,
             },
             binding: Some(ResourceBinding {
-                group: COMPUTE_TEXTURE_INPUT_OUTPUT_GROUP,
-                binding: COMPUTE_TEXTURE_OUTPUT_BINDING,
+                group: PER_SHADER_INPUT_OUTPUT_GROUP,
+                binding: TRIANGLE_INDEX_BUFFER_ARGUMENT_BINDING,
             }),
-            ty: type_indices_array,
+            ty: type_output_buffer,
             init: None,
         },
         empty_span.clone(),
     );
 
-    let global_arg_output_image_ptr = main_function
-        .expressions
-        .append(Expression::GlobalVariable(output_image), empty_span.clone());
-    let loaded_output_image = main_function.expressions.append(
-        Expression::Load {
-            pointer: global_arg_output_image_ptr,
+    let global_arg_output_buffer_ptr = main_function.expressions.append(
+        Expression::GlobalVariable(output_buffer),
+        empty_span.clone(),
+    );
+
+    let output_buffer_length = main_function.expressions.append(
+        Expression::ArrayLength(global_arg_output_buffer_ptr),
+        empty_span.clone(),
+    );
+
+    let output_width = main_function.expressions.append(
+        Expression::Binary {
+            op: BinaryOperator::ShiftRight,
+            left: output_buffer_length,
+            right: constant_one_uint,
         },
         empty_span.clone(),
     );
 
-    let output_image_dimensions = main_function.expressions.append(
-        Expression::ImageQuery {
-            image: loaded_output_image,
-            query: naga::ImageQuery::Size { level: None },
+    let output_dimensions_uint = main_function.expressions.append(
+        Expression::Compose {
+            ty: type_uint32_2,
+            components: vec![output_width, output_width],
         },
         empty_span.clone(),
     );
@@ -543,7 +546,7 @@ pub fn generate_compute_rasterizer(
 
     let dimensions_float = main_function.expressions.append(
         Expression::As {
-            expr: output_image_dimensions,
+            expr: output_dimensions_uint,
             kind: ScalarKind::Float,
             convert: Some(4),
         },
@@ -1106,23 +1109,47 @@ pub fn generate_compute_rasterizer(
     let mut no_write_triangle_block = Block::new();
     no_write_triangle_block.push(Statement::Continue, empty_span.clone());
     let mut write_triangle_block = Block::new();
+    let rows = main_function.expressions.append(
+        Expression::Binary {
+            op: BinaryOperator::Multiply,
+            left: loaded_pixel_y,
+            right: output_width,
+        },
+        empty_span.clone(),
+    );
     let pixel = main_function.expressions.append(
-        Expression::Compose {
-            ty: type_uint32_2,
-            components: vec![loaded_pixel_x, loaded_pixel_y],
+        Expression::Binary {
+            op: BinaryOperator::Add,
+            left: rows,
+            right: loaded_pixel_x,
+        },
+        empty_span.clone(),
+    );
+    let output_buffer_pixel_ptr = main_function.expressions.append(
+        Expression::Access {
+            base: global_arg_output_buffer_ptr,
+            index: pixel,
+        },
+        empty_span.clone(),
+    );
+    let ignored_atomic_result = main_function.expressions.append(
+        Expression::AtomicResult {
+            ty: type_uint32,
+            comparison: true,
         },
         empty_span.clone(),
     );
     write_triangle_block.push(
-        Statement::Emit(Range::new_from_bounds(pixel, pixel)),
+        Statement::Emit(Range::new_from_bounds(rows, ignored_atomic_result)),
         empty_span.clone(),
     );
+
     write_triangle_block.push(
-        Statement::ImageStore {
-            image: loaded_output_image,
-            coordinate: pixel,
-            array_index: None,
-            value: triangle_index,
+        Statement::Atomic {
+            pointer: output_buffer_pixel_ptr,
+            fun: AtomicFunction::Max,
+            value: output_index,
+            result: ignored_atomic_result,
         },
         empty_span.clone(),
     );
@@ -1258,8 +1285,268 @@ pub fn generate_compute_rasterizer(
         function: main_function,
     });
 
+    shader
+}
+
+fn make_buffer_to_image_module() -> Module {
+    let mut shader: Module = Default::default();
+    let empty_span = Span::default();
+
+    let type_uint32 = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Scalar(Scalar {
+                kind: ScalarKind::Uint,
+                width: 4,
+            }),
+        },
+        empty_span.clone(),
+    );
+
+    let type_float32 = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Scalar(Scalar {
+                kind: ScalarKind::Float,
+                width: 4,
+            }),
+        },
+        empty_span.clone(),
+    );
+
+    let type_uint32_3 = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Vector {
+                size: VectorSize::Tri,
+                scalar: Scalar {
+                    kind: ScalarKind::Uint,
+                    width: 4,
+                },
+            },
+        },
+        empty_span.clone(),
+    );
+
+    let type_uint32_2 = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Vector {
+                size: VectorSize::Tri,
+                scalar: Scalar {
+                    kind: ScalarKind::Uint,
+                    width: 4,
+                },
+            },
+        },
+        empty_span.clone(),
+    );
+
+    let global_invocation_id = FunctionArgument {
+        name: Some("invocation_id".to_owned()),
+        ty: type_uint32_3,
+        binding: Some(BuiltIn(BuiltIn::GlobalInvocationId)),
+    };
+
+    let mut main_function = Function {
+        name: Some("computeMain".to_owned()),
+        arguments: vec![global_invocation_id],
+        result: None,
+        local_variables: Arena::new(),
+        expressions: Arena::new(),
+        named_expressions: Default::default(),
+        body: Default::default(),
+    };
+
+    let func_arg_global_invocation_id = main_function
+        .expressions
+        .append(Expression::FunctionArgument(0), empty_span.clone());
+
+    let prelude_start = func_arg_global_invocation_id.clone();
+
+    let loaded_global_invocation_id = main_function.expressions.append(
+        Expression::Load {
+            pointer: func_arg_global_invocation_id,
+        },
+        empty_span.clone(),
+    );
+
+    let type_output_image = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Image {
+                dim: ImageDimension::D2,
+                arrayed: false,
+                class: ImageClass::Storage {
+                    format: naga::StorageFormat::R32Sint,
+                    access: StorageAccess::LOAD | StorageAccess::STORE,
+                },
+            },
+        },
+        empty_span.clone(),
+    );
+
+    let output_image = shader.global_variables.append(
+        GlobalVariable {
+            name: Some("output_image".to_owned()),
+            space: AddressSpace::Storage {
+                access: StorageAccess::LOAD | StorageAccess::STORE,
+            },
+            binding: Some(ResourceBinding {
+                group: PER_SHADER_INPUT_OUTPUT_GROUP,
+                binding: COMPUTE_TEXTURE_OUTPUT_BINDING,
+            }),
+            ty: type_output_image,
+            init: None,
+        },
+        empty_span.clone(),
+    );
+
+    let type_input_buffer = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Array {
+                base: type_uint32,
+                size: Dynamic,
+                stride: 4,
+            },
+        },
+        empty_span.clone(),
+    );
+
+    let input_buffer = shader.global_variables.append(
+        GlobalVariable {
+            name: Some("output_buffer".to_owned()),
+            space: AddressSpace::Storage {
+                access: StorageAccess::LOAD,
+            },
+            binding: Some(ResourceBinding {
+                group: PER_SHADER_INPUT_OUTPUT_GROUP,
+                binding: TRIANGLE_INDEX_BUFFER_ARGUMENT_BINDING,
+            }),
+            ty: type_input_buffer,
+            init: None,
+        },
+        empty_span.clone(),
+    );
+
+    let global_arg_input_buffer_ptr = main_function
+        .expressions
+        .append(Expression::GlobalVariable(input_buffer), empty_span.clone());
+
+    let loaded_input_buffer = main_function.expressions.append(
+        Expression::Load {
+            pointer: global_arg_input_buffer_ptr,
+        },
+        empty_span.clone(),
+    );
+
+    let global_arg_output_image_ptr = main_function
+        .expressions
+        .append(Expression::GlobalVariable(output_image), empty_span.clone());
+
+    let loaded_output_image = main_function.expressions.append(
+        Expression::Load {
+            pointer: global_arg_output_image_ptr,
+        },
+        empty_span.clone(),
+    );
+
+    let output_image_dimensions = main_function.expressions.append(
+        Expression::ImageQuery {
+            image: loaded_output_image,
+            query: naga::ImageQuery::Size { level: None },
+        },
+        empty_span.clone(),
+    );
+
+    let pixel = main_function.expressions.append(
+        Expression::Swizzle {
+            size: VectorSize::Bi,
+            vector: loaded_global_invocation_id,
+            pattern: [
+                SwizzleComponent::X,
+                SwizzleComponent::Y,
+                SwizzleComponent::X,
+                SwizzleComponent::X,
+            ],
+        },
+        empty_span.clone(),
+    );
+
+    let pixel_y = main_function.expressions.append(
+        Expression::AccessIndex {
+            base: pixel,
+            index: 1,
+        },
+        empty_span.clone(),
+    );
+    let pixel_x = main_function.expressions.append(
+        Expression::AccessIndex {
+            base: pixel,
+            index: 0,
+        },
+        empty_span.clone(),
+    );
+
+    let image_width = main_function.expressions.append(
+        Expression::AccessIndex {
+            base: output_image_dimensions,
+            index: 0,
+        },
+        empty_span.clone(),
+    );
+    let row_offset = main_function.expressions.append(
+        Expression::Binary {
+            op: BinaryOperator::Multiply,
+            left: image_width,
+            right: pixel_y,
+        },
+        empty_span.clone(),
+    );
+    let buffer_index = main_function.expressions.append(
+        Expression::Binary {
+            op: BinaryOperator::Add,
+            left: row_offset,
+            right: pixel_x,
+        },
+        empty_span.clone(),
+    );
+
+    let triangle_index = main_function.expressions.append(
+        Expression::Access {
+            base: loaded_input_buffer,
+            index: buffer_index,
+        },
+        empty_span.clone(),
+    );
+
+    let prelude_end = triangle_index;
+
+    main_function.body.push(
+        Statement::Emit(Range::new_from_bounds(prelude_start, prelude_end)),
+        empty_span.clone(),
+    );
+
+    main_function.body.push(
+        Statement::ImageStore {
+            image: loaded_output_image,
+            coordinate: pixel,
+            array_index: None,
+            value: triangle_index,
+        },
+        empty_span.clone(),
+    );
+    shader
+}
+
+pub fn generate_compute_rasterizer(
+    output_size_multiplier: BaseSizeMultiplier,
+    generate_mip_maps: bool,
+) -> ComputeRasterizerShader {
     ComputeRasterizerShader {
-        shader,
+        primary_shader: make_primary_rasterizer_module(),
+        buffer_to_image_shader: make_buffer_to_image_module(),
         output_size_multiplier,
         generate_mip_maps,
     }

@@ -15,7 +15,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = { version = "0.2.91" }
-naga = { version = "0.19.2" }
+naga = { version = "0.19.2", features = ["wgsl-out"] }
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for

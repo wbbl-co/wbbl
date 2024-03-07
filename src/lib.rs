@@ -8,6 +8,7 @@ pub mod graph_functions;
 pub mod graph_types;
 pub mod intermediate_compiler_types;
 pub mod utils;
+pub mod wbbl_physics;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]

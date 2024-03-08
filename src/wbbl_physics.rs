@@ -1,4 +1,5 @@
 use glam::Vec2;
+use wasm_bindgen::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
 const BOX_X_COUNT: usize = 4;
@@ -199,7 +200,8 @@ impl Constraint {
     }
 }
 
-pub struct Box {
+#[wasm_bindgen]
+pub struct WbblBox {
     vertlets: Vec<VelocityVertlet>,
     top: Vec<usize>,
     bottom: Vec<usize>,
@@ -207,11 +209,12 @@ pub struct Box {
     right: Vec<usize>,
 }
 
-impl Box {
-    pub fn new(initial_position_top_left: [f32; 2], box_size: [f32; 2]) -> Box {
-        let initial_position_top_left = Vec2::from_array(initial_position_top_left);
-        let box_size = Vec2::from_array(box_size);
-        let mut result = Box {
+#[wasm_bindgen]
+impl WbblBox {
+    pub fn new(initial_position_top_left: &[f32], box_size: &[f32]) -> WbblBox {
+        let initial_position_top_left = Vec2::from_slice(initial_position_top_left);
+        let box_size = Vec2::from_slice(box_size);
+        let mut result = WbblBox {
             vertlets: Vec::new(),
             top: Vec::new(),
             bottom: Vec::new(),
@@ -276,13 +279,13 @@ impl Box {
 
     pub fn update(
         &mut self,
-        position_top_left: [f32; 2],
-        box_size: [f32; 2],
+        position_top_left: &[f32],
+        box_size: &[f32],
         delta_time: f32,
-        drag_point: Option<[f32; 2]>,
+        drag_point: Option<std::boxed::Box<[f32]>>,
     ) {
-        let position_top_left = Vec2::from_array(position_top_left);
-        let box_size = Vec2::from_array(box_size);
+        let position_top_left = Vec2::from_slice(position_top_left);
+        let box_size = Vec2::from_slice(box_size);
 
         let x_stride = Vec2::new(box_size.x / (BOX_X_COUNT as f32), 0.0);
         let y_stride = Vec2::new(0.0, box_size.x / (BOX_Y_COUNT as f32));
@@ -299,7 +302,7 @@ impl Box {
             forces.push(force_for_verlet);
         }
 
-        let drag_point = drag_point.map(Vec2::from_array);
+        let drag_point = drag_point.map(|b| Vec2::from_slice(&b));
 
         // TOP
         for i in 0..BOX_X_COUNT {
@@ -433,8 +436,8 @@ impl Box {
         self.vertlets[index].position
     }
 
-    pub fn draw(&self, context: &CanvasRenderingContext2d, canvas_position: [f32; 2]) {
-        let canvas_position = Vec2::from_array(canvas_position);
+    pub fn draw(&self, context: &CanvasRenderingContext2d, canvas_position: &[f32]) {
+        let canvas_position = Vec2::from_slice(canvas_position);
         context.begin_path();
 
         let start_point = self.get_pos(self.top[0])
@@ -442,7 +445,7 @@ impl Box {
                 * BOX_CORNER_RADIUS
             - canvas_position;
         context.move_to(start_point.x as f64, start_point.y as f64);
-        Box::draw_corner(
+        WbblBox::draw_corner(
             context,
             self.get_pos(self.top[self.top.len() - 3]),
             self.get_pos(self.top[self.top.len() - 2]),
@@ -451,7 +454,7 @@ impl Box {
             canvas_position,
         );
 
-        Box::draw_corner(
+        WbblBox::draw_corner(
             context,
             self.get_pos(self.right[self.right.len() - 2]),
             self.get_pos(self.right[self.right.len() - 1]),
@@ -460,7 +463,7 @@ impl Box {
             canvas_position,
         );
 
-        Box::draw_corner(
+        WbblBox::draw_corner(
             context,
             self.get_pos(self.bottom[self.bottom.len() - 3]),
             self.get_pos(self.bottom[self.bottom.len() - 2]),
@@ -469,7 +472,7 @@ impl Box {
             canvas_position,
         );
 
-        Box::draw_corner(
+        WbblBox::draw_corner(
             context,
             self.get_pos(self.left[self.left.len() - 2]),
             self.get_pos(self.left[self.left.len() - 1]),
@@ -481,16 +484,18 @@ impl Box {
     }
 }
 
-pub struct Rope {
+#[wasm_bindgen]
+pub struct WbblRope {
     vertlets: Vec<PositionVertlet>,
 }
 
-impl Rope {
-    pub fn new(start: [f32; 2], end: [f32; 2]) -> Rope {
-        let start = Vec2::from_array(start);
-        let end = Vec2::from_array(end);
+#[wasm_bindgen]
+impl WbblRope {
+    pub fn new(start: &[f32], end: &[f32]) -> WbblRope {
+        let start = Vec2::from_slice(start);
+        let end = Vec2::from_slice(end);
 
-        let mut result = Rope {
+        let mut result = WbblRope {
             vertlets: Vec::new(),
         };
 
@@ -507,9 +512,9 @@ impl Rope {
         result
     }
 
-    pub fn update(&mut self, start: [f32; 2], end: [f32; 2], delta_time: f32) {
-        let start = Vec2::from_array(start);
-        let end = Vec2::from_array(end);
+    pub fn update(&mut self, start: &[f32], end: &[f32], delta_time: f32) {
+        let start = Vec2::from_slice(start);
+        let end = Vec2::from_slice(end);
 
         let delta_time = delta_time / (UPDATE_ITERATIONS as f32);
         let delta_time_squared = delta_time * delta_time;
@@ -572,8 +577,8 @@ impl Rope {
         }
     }
 
-    pub fn draw(&self, context: &CanvasRenderingContext2d, canvas_position: [f32; 2]) {
-        let canvas_position = Vec2::from_array(canvas_position);
+    pub fn draw(&self, context: &CanvasRenderingContext2d, canvas_position: &[f32]) {
+        let canvas_position = Vec2::from_slice(canvas_position);
 
         context.begin_path();
         context.move_to(

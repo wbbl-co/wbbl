@@ -2,7 +2,7 @@
 mod rasterizer_tests {
     use std::io::Error;
 
-    use wbbl_rust::compute_rasterizer::generate_compute_rasterizer;
+    use wbbl::compute_rasterizer::generate_compute_rasterizer;
 
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
@@ -10,7 +10,7 @@ mod rasterizer_tests {
     #[test]
     fn test_buffer_to_image_shader_codegen() {
         let result = generate_compute_rasterizer(
-            wbbl_rust::intermediate_compiler_types::BaseSizeMultiplier(1.0),
+            wbbl::intermediate_compiler_types::BaseSizeMultiplier(1.0),
             false,
         );
         let m_valid =
@@ -32,7 +32,7 @@ mod rasterizer_tests {
     #[test]
     fn test_primary_shader_codegen() {
         let result = generate_compute_rasterizer(
-            wbbl_rust::intermediate_compiler_types::BaseSizeMultiplier(1.0),
+            wbbl::intermediate_compiler_types::BaseSizeMultiplier(1.0),
             false,
         );
         let m_valid =

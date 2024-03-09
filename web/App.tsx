@@ -8,6 +8,7 @@ import {
 } from "@xyflow/react";
 import React from "react";
 import "@xyflow/react/dist/style.css";
+import WbbleEdge from "./components/WbbleEdge";
 
 const initNodes = [
   {
@@ -27,8 +28,13 @@ const initEdges = [
     id: "a-b",
     source: "a",
     target: "b",
+    type: "wbbl",
   },
 ];
+
+const edgeTypes = {
+  wbbl: WbbleEdge,
+};
 
 function App() {
   const [nodes, , onNodesChange] = useNodesState(initNodes);
@@ -39,6 +45,7 @@ function App() {
       nodes={nodes}
       onNodesChange={onNodesChange}
       edges={edges}
+      edgeTypes={edgeTypes}
       onEdgesChange={onEdgesChange}
       fitView
     >

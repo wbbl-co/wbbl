@@ -1,3 +1,4 @@
+use crate::log;
 use glam::Vec2;
 use std::fmt::Write;
 use wasm_bindgen::prelude::*;
@@ -9,12 +10,12 @@ const BOX_CORNER_RADIUS: f32 = 20.0;
 const BOX_SPRING_DAMPING_COEFFICIENT: f32 = 6.0;
 const BOX_SPRING_SPRING_COEFFICIENT: f32 = 75.0;
 const BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF: f32 = 200.0;
-const UPDATE_ITERATIONS: u32 = 1;
+const UPDATE_ITERATIONS: u32 = 4;
 const CONSTRAINT_ITERATIONS: u32 = 4;
 const ROPE_GRAVITY: f32 = 200.0;
 const ROPE_VERTLET_COUNT: usize = 15;
 const ROPE_MIN_TARGET_DISTANCE: f32 = 50.0;
-const ROPE_SLACK: f32 = 1.1;
+const ROPE_SLACK: f32 = 1.05;
 
 pub trait GetPosition {
     fn get_position(&self) -> Vec2;
@@ -25,7 +26,7 @@ pub trait SetPosition {
 }
 
 pub trait Vertlet {
-    fn update(&mut self, delta_time: f32, delta_time_squared: f32);
+    fn update(&mut self, delta_time: f64, delta_time_squared: f64);
 }
 
 #[derive(Clone, Default)]
@@ -45,12 +46,18 @@ impl VelocityVertlet {
 }
 
 impl Vertlet for VelocityVertlet {
-    fn update(&mut self, delta_time: f32, delta_time_squared: f32) {
+    fn update(&mut self, delta_time: f64, delta_time_squared: f64) {
         let new_position = self.position
-            + self.velocity * Vec2::splat(delta_time)
-            + self.acceleration * Vec2::splat(delta_time_squared * 0.5);
+            + Vec2::new(
+                ((self.velocity.x as f64) * delta_time) as f32,
+                ((self.velocity.y as f64) * delta_time) as f32,
+            )
+            + Vec2::new(
+                ((self.acceleration.x as f64) * delta_time_squared * 0.5) as f32,
+                ((self.acceleration.y as f64) * delta_time_squared * 0.5) as f32,
+            );
         let new_velocity = self.velocity
-            + (self.acceleration + self.new_acceleration) * Vec2::splat(delta_time * 0.5);
+            + (self.acceleration + self.new_acceleration) * Vec2::splat((delta_time * 0.5) as f32);
         self.position = new_position;
         self.velocity = new_velocity;
         self.acceleration = self.new_acceleration;
@@ -76,10 +83,13 @@ pub struct PositionVertlet {
 }
 
 impl Vertlet for PositionVertlet {
-    fn update(&mut self, _delta_time: f32, delta_time_squared: f32) {
+    fn update(&mut self, _delta_time: f64, delta_time_squared: f64) {
         let position_copy: Vec2 = self.position.clone();
         self.position = (Vec2::splat(2.0) * self.position) - self.previous_position
-            + (delta_time_squared * self.acceleration);
+            + (Vec2::new(
+                (delta_time_squared * (self.acceleration.x as f64)) as f32,
+                (delta_time_squared * (self.acceleration.y as f64)) as f32,
+            ));
         self.previous_position = position_copy;
     }
 }
@@ -158,7 +168,7 @@ impl Constraint {
                 let v_to = &vertlets[*v_to_change];
                 let v_from = &vertlets[*v_to_get_position_from];
                 let delta = v_from.get_position() - v_to.get_position();
-                let direction = delta.try_normalize().unwrap_or(Vec2::new(0.0, 1.0));
+                let direction = delta.try_normalize().unwrap_or(Vec2::new(0.0, -1.0));
                 let delta_d = delta.length() - distance;
                 let v_to = &mut vertlets[*v_to_change];
                 v_to.set_position(v_to.get_position() + (Vec2::splat(delta_d) * direction));
@@ -167,7 +177,7 @@ impl Constraint {
                 let v1_verlet = &vertlets[*v1];
                 let v2_vertlet = &vertlets[*v2];
                 let delta = v2_vertlet.get_position() - v1_verlet.get_position();
-                let direction = delta.try_normalize().unwrap_or(Vec2::new(0.0, 1.0));
+                let direction = delta.try_normalize().unwrap_or(Vec2::new(0.0, -1.0));
                 let delta_d = delta.length() - distance;
                 let offset = Vec2::splat(delta_d * 0.5) * direction;
                 {
@@ -276,7 +286,7 @@ impl WbblBox {
         &mut self,
         position_top_left: &[f32],
         box_size: &[f32],
-        delta_time: f32,
+        delta_time: f64,
         drag_point: Option<std::boxed::Box<[f32]>>,
     ) {
         let position_top_left = Vec2::from_slice(position_top_left);
@@ -377,7 +387,7 @@ impl WbblBox {
             }
         }
 
-        let delta_time = delta_time / (UPDATE_ITERATIONS as f32);
+        let delta_time = delta_time / (UPDATE_ITERATIONS as f64);
         let delta_time_squared = delta_time * delta_time;
 
         for _ in 0..UPDATE_ITERATIONS {
@@ -386,16 +396,18 @@ impl WbblBox {
                 let force_for_verlet = &forces[i];
                 vertlet.new_acceleration = vertlet.gather_forces(force_for_verlet);
             }
-
             for vertlet in self.vertlets.iter_mut() {
                 vertlet.update(delta_time, delta_time_squared);
             }
-        }
 
-        for _ in 0..CONSTRAINT_ITERATIONS {
-            for constraint in constraints.iter() {
-                constraint.relax(&mut self.vertlets);
+            for _ in 0..CONSTRAINT_ITERATIONS {
+                for constraint in constraints.iter() {
+                    constraint.relax(&mut self.vertlets);
+                }
             }
+        }
+        for (i, vertlet) in self.vertlets.iter().enumerate() {
+            log!("Vertlet {} {:?}", i, vertlet.position);
         }
     }
 
@@ -433,7 +445,6 @@ impl WbblBox {
 
     pub fn draw(&self, context: &CanvasRenderingContext2d, canvas_position: &[f32]) {
         let canvas_position = Vec2::from_slice(canvas_position);
-        context.begin_path();
 
         let start_point = self.get_pos(self.top[0])
             + (self.get_pos(self.top[1]) - self.get_pos(self.top[0])).normalize()
@@ -475,7 +486,6 @@ impl WbblBox {
             self.get_pos(self.top[1]),
             canvas_position,
         );
-        context.close_path();
     }
 }
 
@@ -499,25 +509,23 @@ impl WbblRope {
             result.vertlets.push(PositionVertlet {
                 previous_position: position.clone(),
                 position: position.clone(),
-                acceleration: Vec2::new(0.0, ROPE_GRAVITY),
+                acceleration: if i > 0 && i < (ROPE_VERTLET_COUNT - 1) {
+                    Vec2::new(0.0, ROPE_GRAVITY)
+                } else {
+                    Vec2::ZERO
+                },
             });
         }
 
         result
     }
 
-    pub fn update(&mut self, start: &[f32], end: &[f32], delta_time: f32) {
+    pub fn update(&mut self, start: &[f32], end: &[f32], delta_time: f64) {
         let start = Vec2::from_slice(start);
         let end = Vec2::from_slice(end);
 
-        let delta_time = delta_time / (UPDATE_ITERATIONS as f32);
+        let delta_time = delta_time / (UPDATE_ITERATIONS as f64);
         let delta_time_squared = delta_time * delta_time;
-
-        for _ in 0..UPDATE_ITERATIONS {
-            for vertlet in self.vertlets.iter_mut() {
-                vertlet.update(delta_time, delta_time_squared);
-            }
-        }
 
         let mut constraints: Vec<Constraint> = Vec::new();
         let last_index = ROPE_VERTLET_COUNT - 1;
@@ -527,10 +535,14 @@ impl WbblRope {
             * (ROPE_SLACK / (ROPE_VERTLET_COUNT as f32));
 
         for i in 0..ROPE_VERTLET_COUNT {
-            if i == 0 || i == last_index {
-                let target_position = if i == 0 { start } else { end };
+            if i == 0 {
                 constraints.push(Constraint::LockPosition {
-                    position: target_position,
+                    position: start,
+                    v: i,
+                });
+            } else if i == last_index {
+                constraints.push(Constraint::LockPosition {
+                    position: end,
                     v: i,
                 });
             } else if i == 1 {
@@ -559,9 +571,14 @@ impl WbblRope {
             }
         }
 
-        for _ in 0..CONSTRAINT_ITERATIONS {
-            for constraint in constraints.iter() {
-                constraint.relax(&mut self.vertlets);
+        for _ in 0..UPDATE_ITERATIONS {
+            for vertlet in self.vertlets.iter_mut() {
+                vertlet.update(delta_time, delta_time_squared);
+            }
+            for _ in 0..CONSTRAINT_ITERATIONS {
+                for constraint in constraints.iter() {
+                    constraint.relax(&mut self.vertlets);
+                }
             }
         }
     }
@@ -578,9 +595,15 @@ impl WbblRope {
         .unwrap();
 
         for i in 1..ROPE_VERTLET_COUNT {
+            let control_point = self.vertlets[i]
+                .position
+                .lerp(self.vertlets[i - 1].position, 0.5);
+
             write!(
                 &mut result,
-                " L {} {}",
+                " Q {} {} {} {}",
+                (control_point.x - canvas_position.x),
+                (control_point.y - canvas_position.y),
                 (self.vertlets[i].position.x - canvas_position.x),
                 (self.vertlets[i].position.y - canvas_position.y)
             )

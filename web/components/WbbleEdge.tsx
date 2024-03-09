@@ -25,12 +25,12 @@ function WbbleEdge({
     rope.get_path(new Float32Array([0, 0])),
   );
 
-  const lastUpdate: React.MutableRefObject<null | number> = useRef(null);
+  const lastUpdate = useRef<number>(Date.now());
 
   useEffect(() => {
     let animationFrame: number;
     function update(time: DOMHighResTimeStamp) {
-      const delta = (time - (lastUpdate.current ?? time)) / 1000.0;
+      const delta = Math.max(0.0, (time - lastUpdate.current) / 1000.0);
       rope.update(
         new Float32Array([sourceX, sourceY]),
         new Float32Array([targetX, targetY]),
@@ -40,10 +40,9 @@ function WbbleEdge({
       lastUpdate.current = time;
       animationFrame = requestAnimationFrame(update);
     }
-    update(lastUpdate.current ?? 0);
-    animationFrame = requestAnimationFrame(update);
+    update(lastUpdate.current);
     return () => cancelAnimationFrame(animationFrame);
-  }, [sourceX, sourceY, targetX, targetY, lastUpdate]);
+  }, [rope, sourceX, sourceY, targetX, targetY, lastUpdate, setPath]);
 
   return (
     <>

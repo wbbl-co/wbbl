@@ -1,4 +1,10 @@
-import { Handle, Position, Node, NodeProps } from "@xyflow/react";
+import {
+  Handle,
+  Position,
+  Node,
+  NodeProps,
+  useUpdateNodeInternals,
+} from "@xyflow/react";
 import React, { memo, useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../pkg/wbbl";
 
@@ -11,11 +17,9 @@ export default function WbblNode({
   dragHandle,
 }: NodeProps) {
   const [box] = useState(() =>
-    WbblBox.new(
-      new Float32Array([0, 0]),
-      new Float32Array([positionAbsoluteX, positionAbsoluteY]),
-    ),
+    WbblBox.new(new Float32Array([0, 0]), new Float32Array([200, 200])),
   );
+  const [dragPos, setDragPos] = useState<[number, number]>(() => [0, 0]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const lastUpdate = useRef<number>(Date.now());
@@ -26,10 +30,15 @@ export default function WbblNode({
       let position = canvasRef.current!.getBoundingClientRect();
       const delta = Math.max(0.0, (time - lastUpdate.current) / 1000.0);
       box.update(
-        new Float32Array([position.left, position.top]),
+        new Float32Array([position.left + 25, position.top + 25]),
         new Float32Array([200, 200]),
         delta,
-        dragging ? new Float32Array([position.left, position.top]) : undefined,
+        dragging
+          ? new Float32Array([
+              dragPos[0] + position.left,
+              dragPos[1] + position.top,
+            ])
+          : undefined,
       );
 
       let context = canvasRef.current!.getContext("2d")!;
@@ -40,16 +49,17 @@ export default function WbblNode({
         canvasRef.current!.height,
       );
 
+      context.beginPath();
       box.draw(context, new Float32Array([position.left, position.top]));
       context.fillStyle = "red";
-      context.fill("nonzero");
       context.closePath();
+      context.fill("nonzero");
       lastUpdate.current = time;
       animationFrame = requestAnimationFrame(update);
     }
     update(lastUpdate.current);
     return () => cancelAnimationFrame(animationFrame);
-  }, [box, lastUpdate, dragging]);
+  }, [box, lastUpdate, dragging, dragPos]);
 
   return (
     <>
@@ -61,9 +71,14 @@ export default function WbblNode({
         isConnectable={true}
       />
       <div>Custom Color Picker Node</div>
-      <canvas width={250} height={250} ref={canvasRef} />
-
-      <input className="nodrag" type="color" />
+      <canvas
+        onDrag={(evt) => {
+          setDragPos([evt.clientX, evt.clientY]);
+        }}
+        width={250}
+        height={250}
+        ref={canvasRef}
+      />
       <Handle
         type="source"
         position={Position.Right}

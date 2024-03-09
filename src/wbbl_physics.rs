@@ -124,7 +124,7 @@ impl Force {
                 target_position,
             } => {
                 let delta = *target_position - v.position;
-                Vec2::splat(-coefficient * delta.length()) * (delta.normalize_or_zero())
+                Vec2::splat(coefficient * delta.length()) * (delta.normalize_or_zero())
             }
         }
     }
@@ -198,7 +198,7 @@ impl Constraint {
                 let v_verlet = &mut vertlets[*v];
                 let drag_delta = v_verlet.get_position() - *drag_point;
                 let mag_squared = f32::max(drag_delta.length_squared(), 0.001);
-                let weight = f32::max(f32::min(falloff / mag_squared, 2.0), 0.0);
+                let weight = f32::clamp(falloff / mag_squared, 0.0, 1.0);
                 v_verlet.set_position(v_verlet.get_position().lerp(*target_position, weight));
             }
         };
@@ -227,8 +227,8 @@ impl WbblBox {
             right: Vec::new(),
         };
 
-        let x_stride = Vec2::new(box_size.x / (BOX_X_COUNT as f32), 0.0);
-        let y_stride = Vec2::new(0.0, box_size.x / (BOX_Y_COUNT as f32));
+        let x_stride = Vec2::new(box_size.x / ((BOX_X_COUNT - 1) as f32), 0.0);
+        let y_stride = Vec2::new(0.0, box_size.y / (BOX_Y_COUNT as f32));
 
         // TOP
         for i in 0..BOX_X_COUNT {
@@ -292,8 +292,8 @@ impl WbblBox {
         let position_top_left = Vec2::from_slice(position_top_left);
         let box_size = Vec2::from_slice(box_size);
 
-        let x_stride = Vec2::new(box_size.x / (BOX_X_COUNT as f32), 0.0);
-        let y_stride = Vec2::new(0.0, box_size.x / (BOX_Y_COUNT as f32));
+        let x_stride = Vec2::new(box_size.x / ((BOX_X_COUNT - 1) as f32), 0.0);
+        let y_stride = Vec2::new(0.0, box_size.y / (BOX_Y_COUNT as f32));
 
         let mut forces: Vec<Vec<Force>> = Vec::new();
         let mut constraints: Vec<Constraint> = Vec::new();
@@ -302,8 +302,7 @@ impl WbblBox {
 
         // Initilize default forces for each vertlet
         for _ in 0..self.vertlets.len() {
-            let mut force_for_verlet = Vec::new();
-            force_for_verlet.push(damping_force.clone());
+            let force_for_verlet = vec![damping_force.clone()];
             forces.push(force_for_verlet);
         }
 
@@ -330,7 +329,7 @@ impl WbblBox {
 
         // BOTTOM
         for i in 0..BOX_X_COUNT {
-            let offset = (x_stride * Vec2::splat(i as f32)) + box_size * Vec2::new(0.0, 1.0);
+            let offset = (x_stride * (i as f32)) + Vec2::new(0.0, box_size.y);
             let target_position = offset + position_top_left;
             // Bottom's order is reversed for efficient drawing
             let index = self.bottom[self.bottom.len() - 1 - i];
@@ -370,7 +369,7 @@ impl WbblBox {
 
         // RIGHT
         for i in 1..BOX_Y_COUNT {
-            let offset = (y_stride * Vec2::splat(i as f32)) + box_size * Vec2::new(1.0, 0.0);
+            let offset = (y_stride * (i as f32)) + Vec2::new(box_size.x, 0.0);
             let target_position = offset + position_top_left;
             let index = self.right[i - 1];
             forces[index].push(Force::Spring {
@@ -395,8 +394,6 @@ impl WbblBox {
                 let vertlet = &mut self.vertlets[i];
                 let force_for_verlet = &forces[i];
                 vertlet.new_acceleration = vertlet.gather_forces(force_for_verlet);
-            }
-            for vertlet in self.vertlets.iter_mut() {
                 vertlet.update(delta_time, delta_time_squared);
             }
 
@@ -405,9 +402,6 @@ impl WbblBox {
                     constraint.relax(&mut self.vertlets);
                 }
             }
-        }
-        for (i, vertlet) in self.vertlets.iter().enumerate() {
-            log!("Vertlet {} {:?}", i, vertlet.position);
         }
     }
 
@@ -421,12 +415,12 @@ impl WbblBox {
     ) {
         let delta_ab = b - a;
         let delta_cb = c - b;
-
-        let p1 = (b - delta_ab.normalize() * BOX_CORNER_RADIUS) - canvas_position;
-        let p2 = (b + delta_cb.normalize() * BOX_CORNER_RADIUS) - canvas_position;
         let a = a - canvas_position;
         let b = b - canvas_position;
         let z = z - canvas_position;
+        let p1 = b - (delta_ab.normalize() * BOX_CORNER_RADIUS);
+        let p2 = b + (delta_cb.normalize() * BOX_CORNER_RADIUS);
+
         context.bezier_curve_to(
             z.x as f64,
             z.y as f64,
@@ -453,17 +447,17 @@ impl WbblBox {
         context.move_to(start_point.x as f64, start_point.y as f64);
         WbblBox::draw_corner(
             context,
-            self.get_pos(self.top[self.top.len() - 3]),
-            self.get_pos(self.top[self.top.len() - 2]),
-            self.get_pos(self.top[self.top.len() - 1]),
+            self.get_pos(self.top[1]),
+            self.get_pos(self.top[2]),
+            self.get_pos(self.top[3]),
             self.get_pos(self.right[0]),
             canvas_position,
         );
 
         WbblBox::draw_corner(
             context,
-            self.get_pos(self.right[self.right.len() - 2]),
-            self.get_pos(self.right[self.right.len() - 1]),
+            self.get_pos(self.right[1]),
+            self.get_pos(self.right[2]),
             self.get_pos(self.bottom[0]),
             self.get_pos(self.bottom[1]),
             canvas_position,
@@ -471,17 +465,17 @@ impl WbblBox {
 
         WbblBox::draw_corner(
             context,
-            self.get_pos(self.bottom[self.bottom.len() - 3]),
-            self.get_pos(self.bottom[self.bottom.len() - 2]),
-            self.get_pos(self.bottom[self.bottom.len() - 1]),
+            self.get_pos(self.bottom[1]),
+            self.get_pos(self.bottom[2]),
+            self.get_pos(self.bottom[3]),
             self.get_pos(self.left[0]),
             canvas_position,
         );
 
         WbblBox::draw_corner(
             context,
-            self.get_pos(self.left[self.left.len() - 2]),
-            self.get_pos(self.left[self.left.len() - 1]),
+            self.get_pos(self.left[1]),
+            self.get_pos(self.left[2]),
             self.get_pos(self.top[0]),
             self.get_pos(self.top[1]),
             canvas_position,

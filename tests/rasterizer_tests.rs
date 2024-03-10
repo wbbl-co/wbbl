@@ -16,17 +16,13 @@ mod rasterizer_tests {
         let m_valid =
             naga::valid::Validator::new(naga::valid::ValidationFlags::empty(), Default::default())
                 .validate(&result.buffer_to_image_shader);
-        println!("// ModuleInfo:\n{:?}", m_valid);
 
-        println!(
-            "// WGSL:\n{}",
-            naga::back::wgsl::write_string(
-                &result.buffer_to_image_shader,
-                &m_valid.unwrap(),
-                naga::back::wgsl::WriterFlags::empty()
-            )
-            .unwrap()
-        );
+        naga::back::wgsl::write_string(
+            &result.buffer_to_image_shader,
+            &m_valid.unwrap(),
+            naga::back::wgsl::WriterFlags::empty(),
+        )
+        .unwrap();
     }
 
     #[test]
@@ -39,14 +35,11 @@ mod rasterizer_tests {
             naga::valid::Validator::new(naga::valid::ValidationFlags::empty(), Default::default())
                 .validate(&result.primary_shader);
 
-        println!(
-            "// WGSL:\n{}",
-            naga::back::wgsl::write_string(
-                &result.primary_shader,
-                &m_valid.unwrap(),
-                naga::back::wgsl::WriterFlags::empty()
-            )
-            .unwrap()
-        );
+        naga::back::wgsl::write_string(
+            &result.primary_shader,
+            &m_valid.unwrap(),
+            naga::back::wgsl::WriterFlags::empty(),
+        )
+        .unwrap();
     }
 }

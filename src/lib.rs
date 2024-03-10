@@ -1,3 +1,4 @@
+pub mod builtin_geometry;
 pub mod compiler;
 pub mod compiler_constants;
 pub mod compute_rasterizer;

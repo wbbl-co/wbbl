@@ -16,7 +16,7 @@ default = ["console_error_panic_hook", "wee_alloc"]
 [dependencies]
 wasm-bindgen = { version = "0.2.91" }
 naga = { version = "0.19.2", features = ["wgsl-out"] }
-
+gltf = { version = "1", features = ["names"] }
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
@@ -31,7 +31,7 @@ web-sys = { version = "0.3", features = [
     "console",
 ] }
 wee_alloc = { version = "0.4.5", optional = true }
-
+bytemuck = { version = "1.14.3", features = ["wasm_simd"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.41"

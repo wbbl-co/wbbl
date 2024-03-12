@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use naga::Module;
-use naga::StorageFormat;
+use wgpu::naga::Module;
+use wgpu::naga::StorageFormat;
 
 use crate::data_types::ComputationDomain;
 use crate::data_types::ComputeOutputType;

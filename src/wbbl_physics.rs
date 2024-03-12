@@ -1,4 +1,3 @@
-use crate::log;
 use glam::Vec2;
 use std::fmt::Write;
 use wasm_bindgen::prelude::*;

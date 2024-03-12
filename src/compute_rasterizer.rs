@@ -1,11 +1,9 @@
-use naga::{
-    AddressSpace, AtomicFunction, BinaryOperator, Binding::*, Block, GlobalVariable, ImageClass,
-    ImageDimension, Literal, LocalVariable, MathFunction, Range, ResourceBinding, Statement,
-    StorageAccess, SwizzleComponent,
-};
-use naga::{
-    Arena, ArraySize::Dynamic, BuiltIn, EntryPoint, Expression, Function, FunctionArgument, Module,
-    Scalar, ScalarKind, Span, StructMember, Type, TypeInner, VectorSize,
+use wgpu::naga::{
+    AddressSpace, Arena, ArraySize::Dynamic, AtomicFunction, BinaryOperator, Binding::*, Block,
+    BuiltIn, EntryPoint, Expression, Function, FunctionArgument, GlobalVariable, ImageClass,
+    ImageDimension, ImageQuery, Literal, LocalVariable, MathFunction, Module, Range,
+    ResourceBinding, Scalar, ScalarKind, ShaderStage, Statement, StorageAccess, StorageFormat,
+    SwizzleComponent, Type, TypeInner, VectorSize,
 };
 
 use crate::compiler_constants::{
@@ -13,10 +11,8 @@ use crate::compiler_constants::{
     TRIANGLE_INDEX_BUFFER_ARGUMENT_BINDING, VERTICES_BINDING,
 };
 use crate::intermediate_compiler_types::{BaseSizeMultiplier, ComputeRasterizerShader};
-
-fn make_span(line_number: u32) -> Span {
-    Span::new(line_number, line_number)
-}
+use crate::shader_layouts::vertex::{self, TEX_COORD_INDEX, VERTEX_STRIDE};
+use crate::utils::make_span;
 
 fn make_primary_rasterizer_module() -> Module {
     let mut shader: Module = Default::default();
@@ -25,6 +21,17 @@ fn make_primary_rasterizer_module() -> Module {
         Type {
             name: None,
             inner: TypeInner::Scalar(Scalar {
+                kind: ScalarKind::Uint,
+                width: 4,
+            }),
+        },
+        make_span(line!()),
+    );
+
+    let type_atomic_uint32 = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Atomic(Scalar {
                 kind: ScalarKind::Uint,
                 width: 4,
             }),
@@ -61,7 +68,7 @@ fn make_primary_rasterizer_module() -> Module {
         Type {
             name: None,
             inner: TypeInner::Vector {
-                size: VectorSize::Tri,
+                size: VectorSize::Bi,
                 scalar: Scalar {
                     kind: ScalarKind::Uint,
                     width: 4,
@@ -100,44 +107,7 @@ fn make_primary_rasterizer_module() -> Module {
     );
 
     let type_vertex_data = shader.types.insert(
-        Type {
-            name: Some("Vertex".to_owned()),
-            inner: TypeInner::Struct {
-                members: vec![
-                    StructMember {
-                        name: Some("position".to_owned()),
-                        ty: type_float32_3,
-                        binding: None,
-                        offset: 0,
-                    },
-                    StructMember {
-                        name: Some("tex_coord".to_owned()),
-                        ty: type_float32_2,
-                        binding: None,
-                        offset: 16,
-                    },
-                    StructMember {
-                        name: Some("normal".to_owned()),
-                        ty: type_float32_3,
-                        binding: None,
-                        offset: 32,
-                    },
-                    StructMember {
-                        name: Some("tangent".to_owned()),
-                        ty: type_float32_3,
-                        binding: None,
-                        offset: 48,
-                    },
-                    StructMember {
-                        name: Some("bitangent".to_owned()),
-                        ty: type_float32_3,
-                        binding: None,
-                        offset: 64,
-                    },
-                ],
-                span: line!(),
-            },
-        },
+        vertex::make_naga_type(type_float32_3, type_float32_2),
         make_span(line!()),
     );
 
@@ -147,7 +117,7 @@ fn make_primary_rasterizer_module() -> Module {
             inner: TypeInner::Array {
                 base: type_vertex_data,
                 size: Dynamic,
-                stride: 80,
+                stride: VERTEX_STRIDE,
             },
         },
         make_span(line!()),
@@ -217,8 +187,6 @@ fn make_primary_rasterizer_module() -> Module {
         .expressions
         .append(Expression::FunctionArgument(0), make_span(line!()));
 
-    let prelude_start = loaded_global_invocation_id.clone();
-
     let global_arg_vertices_ptr = main_function.expressions.append(
         Expression::GlobalVariable(vertex_data_array),
         make_span(line!()),
@@ -229,17 +197,90 @@ fn make_primary_rasterizer_module() -> Module {
         make_span(line!()),
     );
 
-    let triangle_index = main_function.expressions.append(
-        Expression::AccessIndex {
-            base: loaded_global_invocation_id,
-            index: 0,
+    let type_output_buffer = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Array {
+                base: type_atomic_uint32,
+                size: Dynamic,
+                stride: 4,
+            },
         },
         make_span(line!()),
     );
 
-    main_function
-        .named_expressions
-        .insert(triangle_index, "triangle_index".to_owned());
+    let output_buffer = shader.global_variables.append(
+        GlobalVariable {
+            name: Some("output_buffer".to_owned()),
+            space: AddressSpace::Storage {
+                access: StorageAccess::LOAD | StorageAccess::STORE,
+            },
+            binding: Some(ResourceBinding {
+                group: PER_SHADER_INPUT_OUTPUT_GROUP,
+                binding: TRIANGLE_INDEX_BUFFER_ARGUMENT_BINDING,
+            }),
+            ty: type_output_buffer,
+            init: None,
+        },
+        make_span(line!()),
+    );
+
+    let global_arg_output_buffer_ptr = main_function.expressions.append(
+        Expression::GlobalVariable(output_buffer),
+        make_span(line!()),
+    );
+
+    let pixel_x = main_function.local_variables.append(
+        LocalVariable {
+            name: Some("pixel_x".to_owned()),
+            ty: type_uint32,
+            init: None,
+        },
+        make_span(line!()),
+    );
+
+    let pixel_x_ptr = main_function
+        .expressions
+        .append(Expression::LocalVariable(pixel_x), make_span(line!()));
+
+    let pixel_y = main_function.local_variables.append(
+        LocalVariable {
+            name: Some("pixel_y".to_owned()),
+            ty: type_uint32,
+            init: None,
+        },
+        make_span(line!()),
+    );
+
+    let pixel_y_ptr = main_function
+        .expressions
+        .append(Expression::LocalVariable(pixel_y), make_span(line!()));
+
+    let uv_x = main_function.local_variables.append(
+        LocalVariable {
+            name: Some("uv_x".to_owned()),
+            ty: type_float32,
+            init: None,
+        },
+        make_span(line!()),
+    );
+
+    let uv_x_ptr = main_function
+        .expressions
+        .append(Expression::LocalVariable(uv_x), make_span(line!()));
+
+    let uv_y = main_function.local_variables.append(
+        LocalVariable {
+            name: Some("uv_y".to_owned()),
+            ty: type_float32,
+            init: None,
+        },
+        make_span(line!()),
+    );
+
+    let uv_y_ptr = main_function
+        .expressions
+        .append(Expression::LocalVariable(uv_y), make_span(line!()));
 
     let constant_three_uint = main_function
         .expressions
@@ -252,6 +293,27 @@ fn make_primary_rasterizer_module() -> Module {
     let constant_one_uint = main_function
         .expressions
         .append(Expression::Literal(Literal::U32(1)), make_span(line!()));
+
+    let constant_one_float = main_function
+        .expressions
+        .append(Expression::Literal(Literal::F32(1.0)), make_span(line!()));
+
+    let constant_zero_float = main_function
+        .expressions
+        .append(Expression::Literal(Literal::F32(0.0)), make_span(line!()));
+
+    let triangle_index = main_function.expressions.append(
+        Expression::AccessIndex {
+            base: loaded_global_invocation_id,
+            index: 0,
+        },
+        make_span(line!()),
+    );
+    let prelude_start = triangle_index;
+
+    main_function
+        .named_expressions
+        .insert(triangle_index, "triangle_index".to_owned());
 
     let output_index = main_function.expressions.append(
         Expression::Binary {
@@ -406,39 +468,6 @@ fn make_primary_rasterizer_module() -> Module {
         .named_expressions
         .insert(vertex_3, "vertex_3".to_owned());
 
-    let type_output_buffer = shader.types.insert(
-        Type {
-            name: None,
-            inner: TypeInner::Array {
-                base: type_uint32,
-                size: Dynamic,
-                stride: 4,
-            },
-        },
-        make_span(line!()),
-    );
-
-    let output_buffer = shader.global_variables.append(
-        GlobalVariable {
-            name: Some("output_buffer".to_owned()),
-            space: AddressSpace::Storage {
-                access: StorageAccess::LOAD | StorageAccess::STORE,
-            },
-            binding: Some(ResourceBinding {
-                group: PER_SHADER_INPUT_OUTPUT_GROUP,
-                binding: TRIANGLE_INDEX_BUFFER_ARGUMENT_BINDING,
-            }),
-            ty: type_output_buffer,
-            init: None,
-        },
-        make_span(line!()),
-    );
-
-    let global_arg_output_buffer_ptr = main_function.expressions.append(
-        Expression::GlobalVariable(output_buffer),
-        make_span(line!()),
-    );
-
     let output_buffer_length = main_function.expressions.append(
         Expression::ArrayLength(global_arg_output_buffer_ptr),
         make_span(line!()),
@@ -454,9 +483,9 @@ fn make_primary_rasterizer_module() -> Module {
     );
 
     let output_dimensions_uint = main_function.expressions.append(
-        Expression::Compose {
-            ty: type_uint32_2,
-            components: vec![output_width, output_width],
+        Expression::Splat {
+            size: VectorSize::Bi,
+            value: output_width,
         },
         make_span(line!()),
     );
@@ -464,21 +493,21 @@ fn make_primary_rasterizer_module() -> Module {
     let uv_1 = main_function.expressions.append(
         Expression::AccessIndex {
             base: vertex_1,
-            index: 1,
+            index: TEX_COORD_INDEX,
         },
         make_span(line!()),
     );
     let uv_2 = main_function.expressions.append(
         Expression::AccessIndex {
             base: vertex_2,
-            index: 1,
+            index: TEX_COORD_INDEX,
         },
         make_span(line!()),
     );
     let uv_3 = main_function.expressions.append(
         Expression::AccessIndex {
             base: vertex_3,
-            index: 1,
+            index: TEX_COORD_INDEX,
         },
         make_span(line!()),
     );
@@ -625,10 +654,6 @@ fn make_primary_rasterizer_module() -> Module {
         make_span(line!()),
     );
 
-    let constant_one_float = main_function
-        .expressions
-        .append(Expression::Literal(Literal::F32(1.0)), make_span(line!()));
-
     let constant_one_float_2 = main_function.expressions.append(
         Expression::Compose {
             ty: type_float32_2,
@@ -772,23 +797,19 @@ fn make_primary_rasterizer_module() -> Module {
 
     // END SHARED VALUES FOR CALCULATING BARYCENTRIC COORDS
 
-    let prelude_end = denominator.clone();
-
-    main_function.body.push(
-        Statement::Emit(Range::new_from_bounds(prelude_start, prelude_end)),
-        make_span(line!()),
-    );
-
-    let constant_zero_float = main_function
-        .expressions
-        .append(Expression::Literal(Literal::F32(0.0)), make_span(line!()));
-
     let is_denominator_zero = main_function.expressions.append(
         Expression::Binary {
             op: BinaryOperator::Equal,
             left: denominator,
             right: constant_zero_float,
         },
+        make_span(line!()),
+    );
+
+    let prelude_end = is_denominator_zero;
+
+    main_function.body.push(
+        Statement::Emit(Range::new_from_bounds(prelude_start, prelude_end)),
         make_span(line!()),
     );
 
@@ -807,35 +828,8 @@ fn make_primary_rasterizer_module() -> Module {
     main_function
         .named_expressions
         .insert(one_over_denom, "one_over_denom".to_owned());
-
-    let pixel_x = main_function.local_variables.append(
-        LocalVariable {
-            name: Some("pixel_x".to_owned()),
-            ty: type_uint32,
-            init: None,
-        },
-        make_span(line!()),
-    );
-
-    let pixel_x_ptr = main_function
-        .expressions
-        .append(Expression::LocalVariable(pixel_x), make_span(line!()));
-
-    let uv_x = main_function.local_variables.append(
-        LocalVariable {
-            name: Some("uv_x".to_owned()),
-            ty: type_float32,
-            init: None,
-        },
-        make_span(line!()),
-    );
-
-    let uv_x_ptr = main_function
-        .expressions
-        .append(Expression::LocalVariable(uv_x), make_span(line!()));
-
     denominator_non_zero_block.push(
-        Statement::Emit(Range::new_from_bounds(one_over_denom, uv_x_ptr)),
+        Statement::Emit(Range::new_from_bounds(one_over_denom, one_over_denom)),
         make_span(line!()),
     );
 
@@ -867,34 +861,8 @@ fn make_primary_rasterizer_module() -> Module {
         .expressions
         .append(Expression::Load { pointer: uv_x_ptr }, make_span(line!()));
 
-    let pixel_y = main_function.local_variables.append(
-        LocalVariable {
-            name: Some("pixel_y".to_owned()),
-            ty: type_uint32,
-            init: None,
-        },
-        make_span(line!()),
-    );
-
-    let pixel_y_ptr = main_function
-        .expressions
-        .append(Expression::LocalVariable(pixel_y), make_span(line!()));
-
-    let uv_y = main_function.local_variables.append(
-        LocalVariable {
-            name: Some("uv_y".to_owned()),
-            ty: type_float32,
-            init: None,
-        },
-        make_span(line!()),
-    );
-
-    let uv_y_ptr = main_function
-        .expressions
-        .append(Expression::LocalVariable(uv_y), make_span(line!()));
-
     x_body.push(
-        Statement::Emit(Range::new_from_bounds(loaded_pixel_x, uv_y_ptr)),
+        Statement::Emit(Range::new_from_bounds(loaded_pixel_x, loaded_uv_x)),
         make_span(line!()),
     );
 
@@ -1054,11 +1022,6 @@ fn make_primary_rasterizer_module() -> Module {
         },
         make_span(line!()),
     );
-    y_body.push(
-        Statement::Emit(Range::new_from_bounds(loaded_pixel_y, u)),
-        make_span(line!()),
-    );
-
     let u_is_negative = main_function.expressions.append(
         Expression::Binary {
             op: BinaryOperator::Less,
@@ -1103,6 +1066,15 @@ fn make_primary_rasterizer_module() -> Module {
         },
         make_span(line!()),
     );
+
+    y_body.push(
+        Statement::Emit(Range::new_from_bounds(
+            loaded_pixel_y,
+            u_or_v_or_w_is_negative,
+        )),
+        make_span(line!()),
+    );
+
     let mut no_write_triangle_block = Block::new();
     no_write_triangle_block.push(Statement::Continue, make_span(line!()));
     let mut write_triangle_block = Block::new();
@@ -1132,12 +1104,12 @@ fn make_primary_rasterizer_module() -> Module {
     let ignored_atomic_result = main_function.expressions.append(
         Expression::AtomicResult {
             ty: type_uint32,
-            comparison: true,
+            comparison: false,
         },
         make_span(line!()),
     );
     write_triangle_block.push(
-        Statement::Emit(Range::new_from_bounds(rows, ignored_atomic_result)),
+        Statement::Emit(Range::new_from_bounds(rows, output_buffer_pixel_ptr)),
         make_span(line!()),
     );
 
@@ -1164,7 +1136,7 @@ fn make_primary_rasterizer_module() -> Module {
         Expression::Binary {
             op: BinaryOperator::Add,
             left: loaded_pixel_y,
-            right: constant_one_float,
+            right: constant_one_uint,
         },
         make_span(line!()),
     );
@@ -1207,6 +1179,11 @@ fn make_primary_rasterizer_module() -> Module {
         make_span(line!()),
     );
 
+    y_continuing.push(
+        Statement::Emit(Range::new_from_bounds(y_break_if, y_break_if)),
+        make_span(line!()),
+    );
+
     let y_loop = Statement::Loop {
         body: y_body,
         continuing: y_continuing,
@@ -1219,7 +1196,7 @@ fn make_primary_rasterizer_module() -> Module {
         Expression::Binary {
             op: BinaryOperator::Add,
             left: loaded_pixel_x,
-            right: constant_one_float,
+            right: constant_one_uint,
         },
         make_span(line!()),
     );
@@ -1260,6 +1237,11 @@ fn make_primary_rasterizer_module() -> Module {
         make_span(line!()),
     );
 
+    x_continuing.push(
+        Statement::Emit(Range::new_from_bounds(x_break_if, x_break_if)),
+        make_span(line!()),
+    );
+
     let x_loop = Statement::Loop {
         body: x_body,
         continuing: x_continuing,
@@ -1276,7 +1258,7 @@ fn make_primary_rasterizer_module() -> Module {
 
     shader.entry_points.push(EntryPoint {
         name: "computeRasterizerMain".to_owned(),
-        stage: naga::ShaderStage::Compute,
+        stage: ShaderStage::Compute,
         early_depth_test: None,
         workgroup_size: [128, 1, 1],
         function: main_function,
@@ -1313,6 +1295,20 @@ fn make_buffer_to_image_module() -> Module {
         make_span(line!()),
     );
 
+    let type_uint32_4 = shader.types.insert(
+        Type {
+            name: None,
+            inner: TypeInner::Vector {
+                size: VectorSize::Quad,
+                scalar: Scalar {
+                    kind: ScalarKind::Uint,
+                    width: 4,
+                },
+            },
+        },
+        make_span(line!()),
+    );
+
     let global_invocation_id = FunctionArgument {
         name: Some("invocation_id".to_owned()),
         ty: type_uint32_3,
@@ -1333,8 +1329,6 @@ fn make_buffer_to_image_module() -> Module {
         .expressions
         .append(Expression::FunctionArgument(0), make_span(line!()));
 
-    let prelude_start = loaded_global_invocation_id.clone();
-
     let type_output_image = shader.types.insert(
         Type {
             name: None,
@@ -1342,7 +1336,7 @@ fn make_buffer_to_image_module() -> Module {
                 dim: ImageDimension::D2,
                 arrayed: false,
                 class: ImageClass::Storage {
-                    format: naga::StorageFormat::R32Sint,
+                    format: StorageFormat::R32Uint,
                     access: StorageAccess::LOAD | StorageAccess::STORE,
                 },
             },
@@ -1392,28 +1386,22 @@ fn make_buffer_to_image_module() -> Module {
         make_span(line!()),
     );
 
-    let global_arg_input_buffer_ptr = main_function
+    let global_input_buffer_ptr = main_function
         .expressions
         .append(Expression::GlobalVariable(input_buffer), make_span(line!()));
 
-    let loaded_input_buffer = main_function.expressions.append(
-        Expression::Load {
-            pointer: global_arg_input_buffer_ptr,
-        },
-        make_span(line!()),
-    );
-
-    let loaded_output_image = main_function
+    let global_output_image_ptr = main_function
         .expressions
         .append(Expression::GlobalVariable(output_image), make_span(line!()));
 
     let output_image_dimensions = main_function.expressions.append(
         Expression::ImageQuery {
-            image: loaded_output_image,
-            query: naga::ImageQuery::Size { level: None },
+            image: global_output_image_ptr,
+            query: ImageQuery::Size { level: None },
         },
         make_span(line!()),
     );
+    let prelude_start = output_image_dimensions;
 
     let pixel = main_function.expressions.append(
         Expression::Swizzle {
@@ -1425,6 +1413,15 @@ fn make_buffer_to_image_module() -> Module {
                 SwizzleComponent::X,
                 SwizzleComponent::X,
             ],
+        },
+        make_span(line!()),
+    );
+
+    let pixel = main_function.expressions.append(
+        Expression::As {
+            expr: pixel,
+            kind: ScalarKind::Uint,
+            convert: None,
         },
         make_span(line!()),
     );
@@ -1451,6 +1448,15 @@ fn make_buffer_to_image_module() -> Module {
         },
         make_span(line!()),
     );
+
+    let image_width = main_function.expressions.append(
+        Expression::As {
+            expr: image_width,
+            kind: ScalarKind::Uint,
+            convert: None,
+        },
+        make_span(line!()),
+    );
     let row_offset = main_function.expressions.append(
         Expression::Binary {
             op: BinaryOperator::Multiply,
@@ -1470,13 +1476,33 @@ fn make_buffer_to_image_module() -> Module {
 
     let triangle_index = main_function.expressions.append(
         Expression::Access {
-            base: loaded_input_buffer,
+            base: global_input_buffer_ptr,
             index: buffer_index,
         },
         make_span(line!()),
     );
 
-    let prelude_end = triangle_index;
+    let triangle_index = main_function.expressions.append(
+        Expression::Load {
+            pointer: triangle_index,
+        },
+        make_span(line!()),
+    );
+
+    let triangle_index_float_4 = main_function.expressions.append(
+        Expression::Compose {
+            ty: type_uint32_4,
+            components: vec![
+                triangle_index,
+                triangle_index,
+                triangle_index,
+                triangle_index,
+            ],
+        },
+        make_span(line!()),
+    );
+
+    let prelude_end = triangle_index_float_4;
 
     main_function.body.push(
         Statement::Emit(Range::new_from_bounds(prelude_start, prelude_end)),
@@ -1485,17 +1511,17 @@ fn make_buffer_to_image_module() -> Module {
 
     main_function.body.push(
         Statement::ImageStore {
-            image: loaded_output_image,
+            image: global_output_image_ptr,
             coordinate: pixel,
             array_index: None,
-            value: triangle_index,
+            value: triangle_index_float_4,
         },
         make_span(line!()),
     );
 
     shader.entry_points.push(EntryPoint {
         name: "computeMain".to_owned(),
-        stage: naga::ShaderStage::Compute,
+        stage: wgpu::naga::ShaderStage::Compute,
         early_depth_test: None,
         workgroup_size: [16, 8, 1],
         function: main_function,

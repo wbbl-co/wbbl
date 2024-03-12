@@ -13,14 +13,16 @@ mod rasterizer_tests {
             wbbl::intermediate_compiler_types::BaseSizeMultiplier(1.0),
             false,
         );
-        let m_valid =
-            naga::valid::Validator::new(naga::valid::ValidationFlags::empty(), Default::default())
-                .validate(&result.buffer_to_image_shader);
+        let m_valid = wgpu::naga::valid::Validator::new(
+            wgpu::naga::valid::ValidationFlags::all(),
+            Default::default(),
+        )
+        .validate(&result.buffer_to_image_shader);
 
-        naga::back::wgsl::write_string(
+        wgpu::naga::back::wgsl::write_string(
             &result.buffer_to_image_shader,
             &m_valid.unwrap(),
-            naga::back::wgsl::WriterFlags::empty(),
+            wgpu::naga::back::wgsl::WriterFlags::empty(),
         )
         .unwrap();
     }
@@ -31,14 +33,16 @@ mod rasterizer_tests {
             wbbl::intermediate_compiler_types::BaseSizeMultiplier(1.0),
             false,
         );
-        let m_valid =
-            naga::valid::Validator::new(naga::valid::ValidationFlags::empty(), Default::default())
-                .validate(&result.primary_shader);
+        let m_valid = wgpu::naga::valid::Validator::new(
+            wgpu::naga::valid::ValidationFlags::all(),
+            Default::default(),
+        )
+        .validate(&result.primary_shader);
 
-        naga::back::wgsl::write_string(
+        wgpu::naga::back::wgsl::write_string(
             &result.primary_shader,
             &m_valid.unwrap(),
-            naga::back::wgsl::WriterFlags::empty(),
+            wgpu::naga::back::wgsl::WriterFlags::empty(),
         )
         .unwrap();
     }

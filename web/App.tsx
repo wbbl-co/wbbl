@@ -6,11 +6,10 @@ import {
   useNodesState,
   useEdgesState,
 } from "@xyflow/react";
-import React from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import WbbleEdge from "./components/WbbleEdge";
 import WbblNode from "./components/WbbleNode";
-
 const initNodes = [
   {
     id: "a",

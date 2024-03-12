@@ -9,29 +9,41 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 wee_alloc = ["dep:wee_alloc"]
-default = ["console_error_panic_hook", "wee_alloc"]
+default = ["wee_alloc"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 wasm-bindgen = { version = "0.2.91" }
-naga = { version = "0.19.2", features = ["wgsl-out"] }
+
 gltf = { version = "1", features = ["names"] }
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
-console_error_panic_hook = { version = "0.1.7", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.6.5"
 glam = "0.25.0"
-
 web-sys = { version = "0.3", features = [
     "CanvasRenderingContext2d",
     "console",
+    'Document',
+    'Element',
+    'HtmlElement',
+    'Node',
+    'Window',
+    "HtmlCanvasElement",
 ] }
 wee_alloc = { version = "0.4.5", optional = true }
 bytemuck = { version = "1.14.3", features = ["wasm_simd"] }
+wgpu = { version = "0.19.3", default-features = false, features = [
+    "webgpu",
+    "naga",
+    "naga-ir",
+] }
+wasm-bindgen-futures = "0.4.42"
+winit = "0.29.14"
+console_error_panic_hook = "0.1.7"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.41"

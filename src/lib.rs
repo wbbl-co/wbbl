@@ -8,7 +8,9 @@ pub mod data_types;
 pub mod graph_functions;
 pub mod graph_types;
 pub mod intermediate_compiler_types;
+pub mod shader_layouts;
 pub(crate) mod utils;
+pub mod vertex_shader;
 pub mod wbbl_physics;
 
 #[cfg(feature = "wee_alloc")]

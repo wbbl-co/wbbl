@@ -1,6 +1,3 @@
-use bytemuck::{Pod, Zeroable};
-use glam::Vec3A;
-
 pub mod vertex {
     use bytemuck::{Pod, Zeroable};
     use glam::{Vec2, Vec3A};

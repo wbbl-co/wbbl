@@ -10,11 +10,11 @@ pub mod graph_functions;
 pub mod graph_types;
 pub mod intermediate_compiler_types;
 pub mod preview_renderer;
+pub mod scene_file_abstractions;
 pub mod shader_layouts;
 pub(crate) mod utils;
 pub mod vertex_shader;
 pub mod wbbl_physics;
-
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;

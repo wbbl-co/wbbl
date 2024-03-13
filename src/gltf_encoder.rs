@@ -2,11 +2,11 @@ use bytemuck::{Pod, PodCastError};
 use glam::{Vec2, Vec3A};
 use gltf::{
     accessor::{sparse::Sparse, DataType},
-    Accessor, Gltf, Primitive, Semantic,
+    import_buffers, Accessor, Gltf, Primitive, Semantic,
 };
 
 use crate::{
-    scene_file_abstractions::{
+    model_scene_file_abstractions::{
         EncodedMesh, EncodedPrimative, EncodedSceneFile, UnboundBufferSlice,
     },
     shader_layouts::vertex::Vertex,

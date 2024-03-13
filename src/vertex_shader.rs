@@ -1,13 +1,10 @@
 use crate::{
     compiler_constants::{
-        BITANGENT_VERTEX_SHADER_INDEX, FRAME_BINDING, FRAME_GROUP, GEOMETRY_GROUP,
-        MODEL_TRANSFORM_BINDING, NORMAL_VERTEX_SHADER_INDEX, TANGENT_VERTEX_SHADER_INDEX,
-        TEX_COORDINATE_VERTEX_SHADER_INDEX, VERTICES_BINDING,
+        FRAME_BINDING, FRAME_GROUP, GEOMETRY_GROUP, MODEL_TRANSFORM_BINDING, VERTICES_BINDING,
     },
     shader_layouts::{frame, model_transform, vertex, vertex_out},
     utils::make_span,
 };
-use gltf::mesh::util::tex_coords;
 use wgpu::naga::{
     AddressSpace, Arena, ArraySize, BinaryOperator, Binding, EntryPoint, Expression, Function,
     FunctionArgument, FunctionResult, GlobalVariable, Literal, LocalVariable, MathFunction, Module,
@@ -23,17 +20,6 @@ pub fn make_vertex_shader_module() -> Module {
             name: None,
             inner: TypeInner::Scalar(Scalar {
                 kind: ScalarKind::Uint,
-                width: 4,
-            }),
-        },
-        make_span(line!()),
-    );
-
-    let type_float32 = shader.types.insert(
-        Type {
-            name: None,
-            inner: TypeInner::Scalar(Scalar {
-                kind: ScalarKind::Float,
                 width: 4,
             }),
         },

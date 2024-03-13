@@ -121,8 +121,8 @@ pub fn label_computation_domains(
     for node_id in node_ordering.iter() {
         let mut domain: HashSet<ComputationDomain> = HashSet::new();
         let node = graph.nodes.get(node_id).unwrap();
-        if let Some(node_domain) = node.computation_domain {
-            domain.insert(node_domain);
+        if let Some(node_domain) = node.get_computation_domain() {
+            domain = domain.union(&node_domain).map(|d| *d).collect();
         }
         for input_port_id in node.input_ports.iter() {
             let input_port = graph.input_ports.get(input_port_id).unwrap();

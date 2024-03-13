@@ -64,20 +64,6 @@ fn make_primary_rasterizer_module() -> Module {
         make_span(line!()),
     );
 
-    let type_uint32_2 = shader.types.insert(
-        Type {
-            name: None,
-            inner: TypeInner::Vector {
-                size: VectorSize::Bi,
-                scalar: Scalar {
-                    kind: ScalarKind::Uint,
-                    width: 4,
-                },
-            },
-        },
-        make_span(line!()),
-    );
-
     let type_float32_3 = shader.types.insert(
         Type {
             name: None,

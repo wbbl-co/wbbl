@@ -15,7 +15,14 @@ pub struct Node {
     pub node_type: NodeType,
     pub input_ports: Vec<u128>,
     pub output_ports: Vec<u128>,
-    pub computation_domain: Option<ComputationDomain>,
+}
+
+impl Node {
+    pub fn get_computation_domain(&self) -> Option<HashSet<ComputationDomain>> {
+        match self.node_type {
+            NodeType::Output => None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]

@@ -4,7 +4,7 @@ mod builtin_geometry_tests {
 
     #[test]
     fn test_uv_sphere() -> Result<(), gltf::Error> {
-        let uv_sphere = get_uv_sphere()?;
+        let uv_sphere = get_uv_sphere();
         let mesh = uv_sphere.meshes().next().unwrap();
         let mesh = mesh.primitives().next().unwrap();
         let view = mesh.indices().unwrap().view().unwrap();
@@ -16,7 +16,7 @@ mod builtin_geometry_tests {
 
     #[test]
     fn test_cube() -> Result<(), gltf::Error> {
-        let cube = get_cube()?;
+        let cube = get_cube();
         let mesh = cube.meshes().next().unwrap();
         let mesh = mesh.primitives().next().unwrap();
         let view = mesh.indices().unwrap().view().unwrap();

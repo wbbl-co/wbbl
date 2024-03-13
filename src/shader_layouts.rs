@@ -1,15 +1,22 @@
-pub mod vertex {
-    use glam::{Vec2, Vec3};
-    use wgpu::naga::{Handle, StructMember, Type, TypeInner};
+use bytemuck::{Pod, Zeroable};
+use glam::Vec3A;
 
-    #[repr(align(16))]
+pub mod vertex {
+    use bytemuck::{Pod, Zeroable};
+    use glam::{Vec2, Vec3A};
+    use wgpu::naga::{Handle, StructMember, Type, TypeInner};
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy)]
     pub struct Vertex {
-        pub position: Vec3,
-        pub normal: Vec3,
-        pub tangent: Vec3,
-        pub bitangent: Vec3,
+        pub position: Vec3A,
+        pub normal: Vec3A,
+        pub tangent: Vec3A,
+        pub bitangent: Vec3A,
         pub tex_coord: Vec2,
     }
+
+    unsafe impl Pod for Vertex {}
+    unsafe impl Zeroable for Vertex {}
 
     pub const POSITION_INDEX: u32 = 0;
     pub const NORMAL_INDEX: u32 = 1;
@@ -61,7 +68,7 @@ pub mod vertex {
 }
 
 pub mod frame {
-    use glam::{Mat4, Vec2, Vec3};
+    use glam::{Mat4, Vec2, Vec3A};
     use wgpu::naga::{Handle, StructMember, Type, TypeInner};
 
     pub const PROJECTION_MATRIX_INDEX: u32 = 0;
@@ -72,6 +79,7 @@ pub mod frame {
     pub const SCREEN_TO_VIEW_SPACE_INDEX: u32 = 5;
     pub const FRAME_STRIDE: u32 = 288;
 
+    #[repr(C)]
     #[repr(align(16))]
     pub struct Frame {
         // Per-frame constants.
@@ -80,7 +88,7 @@ pub mod frame {
         pub view_matrix: Mat4,
         pub view_matrix_inv: Mat4,
         pub depth_unproject: Vec2,
-        pub screen_to_view_space: Vec3,
+        pub screen_to_view_space: Vec3A,
     }
 
     pub fn make_naga_type(
@@ -139,6 +147,7 @@ pub mod model_transform {
     use glam::{Mat3, Mat4};
     use wgpu::naga::{Handle, StructMember, Type, TypeInner};
 
+    #[repr(C)]
     #[repr(align(16))]
     pub struct ModelTransform {
         // Per-frame constants.

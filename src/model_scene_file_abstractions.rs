@@ -10,7 +10,7 @@ pub struct UnboundBufferSlice {
 
 pub struct EncodedMesh {
     pub name: Option<String>,
-    pub primatives: Vec<EncodedPrimative>,
+    pub primitives: Vec<EncodedPrimative>,
 }
 
 pub struct EncodedSceneFile {

@@ -2,15 +2,12 @@ use bytemuck::{Pod, PodCastError};
 use glam::{Vec2, Vec3A};
 use gltf::{
     accessor::{sparse::Sparse, DataType},
-    import_buffers, Accessor, Gltf, Primitive, Semantic,
+    Accessor, Gltf, Primitive, Semantic,
 };
 
-use crate::{
-    model_scene_file_abstractions::{
-        EncodedMesh, EncodedPrimative, EncodedSceneFile, UnboundBufferSlice,
-    },
-    shader_layouts::vertex::Vertex,
-};
+use crate::{ model_scene_file_abstractions::{
+    EncodedMesh, EncodedPrimative, EncodedSceneFile, UnboundBufferSlice,
+}, shader_layouts::vertex::Vertex};
 
 #[derive(Debug)]
 pub enum EncodingError {
@@ -302,7 +299,7 @@ pub fn encode(document: &mut Gltf) -> Result<EncodedSceneFile, EncodingError> {
                 return Err(EncodingError::MissingIndices);
             }
         }
-        meshes.push(EncodedMesh { name, primatives });
+        meshes.push(EncodedMesh { name, primitives: primatives });
     }
 
     Ok(EncodedSceneFile { buffer, meshes })

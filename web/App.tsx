@@ -10,6 +10,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import WbbleEdge from "./components/WbbleEdge";
 import WbblNode from "./components/WbbleNode";
+import { render_preview } from "../pkg/wbbl";
 const initNodes = [
   {
     id: "a",
@@ -45,20 +46,36 @@ function App() {
   const [nodes, , onNodesChange] = useNodesState(initNodes);
   const [edges, , onEdgesChange] = useEdgesState(initEdges);
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rendered = useRef<boolean>(false);
+  useEffect(() => {
+    if (!rendered.current && canvasRef.current) {
+      rendered.current = true;
+      render_preview(canvasRef.current!);
+    }
+  }, [rendered, canvasRef.current]);
   return (
-    <ReactFlow
-      nodes={nodes}
-      onNodesChange={onNodesChange}
-      edges={edges}
-      edgeTypes={edgeTypes}
-      nodeTypes={nodeTypes}
-      onEdgesChange={onEdgesChange}
-      fitView
-    >
-      <Background />
-      <Controls />
-      <MiniMap />
-    </ReactFlow>
+    <div>
+      <canvas
+        style={{ backgroundColor: "transparent" }}
+        width={300}
+        height={300}
+        ref={canvasRef}
+      />
+    </div>
+    // <ReactFlow
+    //   nodes={nodes}
+    //   onNodesChange={onNodesChange}
+    //   edges={edges}
+    //   edgeTypes={edgeTypes}
+    //   nodeTypes={nodeTypes}
+    //   onEdgesChange={onEdgesChange}
+    //   fitView
+    // >
+    //   <Background />
+    //   <Controls />
+    //   <MiniMap />
+    // </ReactFlow>
   );
 }
 

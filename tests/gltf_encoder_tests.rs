@@ -14,7 +14,7 @@ mod gltf_encoder_tests {
         let mut uv_sphere = get_uv_sphere();
         let encoded_uv_sphere = gltf_encoder::encode(&mut uv_sphere)?;
         assert_eq!(encoded_uv_sphere.meshes.len(), 1);
-        assert_eq!(encoded_uv_sphere.meshes[0].primatives.len(), 1);
+        assert_eq!(encoded_uv_sphere.meshes[0].primitives.len(), 1);
         Ok(())
     }
 
@@ -23,13 +23,13 @@ mod gltf_encoder_tests {
         let mut cube = get_cube();
         let encoded_cube = gltf_encoder::encode(&mut cube)?;
         assert_eq!(encoded_cube.meshes.len(), 1);
-        assert_eq!(encoded_cube.meshes[0].primatives.len(), 1);
+        assert_eq!(encoded_cube.meshes[0].primitives.len(), 1);
         assert_eq!(
-            encoded_cube.meshes[0].primatives[0].indices.size,
+            encoded_cube.meshes[0].primitives[0].indices.size,
             4 * (12 * 3)
         );
         assert_eq!(
-            encoded_cube.meshes[0].primatives[0].vertices.size,
+            encoded_cube.meshes[0].primitives[0].vertices.size,
             (4 * 6 * size_of::<vertex::Vertex>())
         );
         Ok(())

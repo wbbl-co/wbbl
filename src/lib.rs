@@ -12,6 +12,7 @@ pub mod intermediate_compiler_types;
 pub mod model_scene_file_abstractions;
 pub mod preview_renderer;
 pub mod shader_layouts;
+pub mod test_fragment_shader;
 pub(crate) mod utils;
 pub mod vertex_shader;
 pub mod wbbl_physics;

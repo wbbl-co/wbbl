@@ -363,7 +363,7 @@ pub fn make_vertex_shader_module() -> Module {
     let projection_matrix = main_function.expressions.append(
         Expression::AccessIndex {
             base: loaded_frame_data,
-            index: frame::PROJECTION_MATRIX_INDEX,
+            index: frame::PROJECTION_VIEW_MATRIX_INDEX,
         },
         make_span(line!()),
     );
@@ -379,8 +379,8 @@ pub fn make_vertex_shader_module() -> Module {
     let position_times_model_view_matrix_id = main_function.expressions.append(
         Expression::Binary {
             op: BinaryOperator::Multiply,
-            left: position_in,
-            right: model_view_matrix,
+            left: model_view_matrix,
+            right: position_in,
         },
         make_span(line!()),
     );
@@ -388,8 +388,16 @@ pub fn make_vertex_shader_module() -> Module {
     let clip_space_position_id = main_function.expressions.append(
         Expression::Binary {
             op: BinaryOperator::Multiply,
-            left: position_times_model_view_matrix_id,
-            right: projection_matrix,
+            left: projection_matrix,
+            right: position_times_model_view_matrix_id,
+        },
+        make_span(line!()),
+    );
+
+    let local_variable_vert_out_builtin_position_ptr = main_function.expressions.append(
+        Expression::AccessIndex {
+            base: local_variable_vert_out_ptr,
+            index: vertex_out::BUILT_IN_POSITION_INDEX,
         },
         make_span(line!()),
     );
@@ -413,6 +421,14 @@ pub fn make_vertex_shader_module() -> Module {
     main_function.body.push(
         Statement::Store {
             pointer: local_variable_vert_out_position_ptr,
+            value: clip_space_position_id,
+        },
+        make_span(line!()),
+    );
+
+    main_function.body.push(
+        Statement::Store {
+            pointer: local_variable_vert_out_builtin_position_ptr,
             value: clip_space_position_id,
         },
         make_span(line!()),

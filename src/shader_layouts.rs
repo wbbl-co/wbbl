@@ -65,11 +65,12 @@ pub mod vertex {
 }
 
 pub mod frame {
+    use bytemuck::{Pod, Zeroable};
     use glam::{Mat4, Vec2, Vec3A};
     use wgpu::naga::{Handle, StructMember, Type, TypeInner};
 
-    pub const PROJECTION_MATRIX_INDEX: u32 = 0;
-    pub const PROJECTION_MATRIX_INV_INDEX: u32 = 1;
+    pub const PROJECTION_VIEW_MATRIX_INDEX: u32 = 0;
+    pub const PROJECTION_VIEW_MATRIX_INV_INDEX: u32 = 1;
     pub const VIEW_MATRIX_INDEX: u32 = 2;
     pub const VIEW_MATRIX_INV_INDEX: u32 = 3;
     pub const DEPTH_UNPROJECT_INDEX: u32 = 4;
@@ -78,15 +79,19 @@ pub mod frame {
 
     #[repr(C)]
     #[repr(align(16))]
+    #[derive(Debug, Clone, Copy)]
     pub struct Frame {
         // Per-frame constants.
-        pub projection_matrix: Mat4,
-        pub projection_matrix_inv: Mat4,
+        pub projection_view_matrix: Mat4,
+        pub projection_view_matrix_inv: Mat4,
         pub view_matrix: Mat4,
         pub view_matrix_inv: Mat4,
         pub depth_unproject: Vec2,
         pub screen_to_view_space: Vec3A,
     }
+
+    unsafe impl Pod for Frame {}
+    unsafe impl Zeroable for Frame {}
 
     pub fn make_naga_type(
         type_matrix_4: Handle<Type>,
@@ -98,13 +103,13 @@ pub mod frame {
             inner: TypeInner::Struct {
                 members: vec![
                     StructMember {
-                        name: Some("projection_matrix".to_owned()),
+                        name: Some("projection_view_matrix".to_owned()),
                         ty: type_matrix_4,
                         binding: None,
                         offset: 0,
                     },
                     StructMember {
-                        name: Some("projection_matrix_inv".to_owned()),
+                        name: Some("projection_view_matrix_inv".to_owned()),
                         ty: type_matrix_4,
                         binding: None,
                         offset: 64,
@@ -141,17 +146,22 @@ pub mod frame {
 }
 
 pub mod model_transform {
+    use bytemuck::{Pod, Zeroable};
     use glam::{Mat3, Mat4};
     use wgpu::naga::{Handle, StructMember, Type, TypeInner};
 
     #[repr(C)]
     #[repr(align(16))]
+    #[derive(Debug, Clone, Copy)]
     pub struct ModelTransform {
         // Per-frame constants.
         pub model_view_matrix: Mat4,
         pub normal_matrix: Mat3,
         pub model_matrix: Mat4,
     }
+
+    unsafe impl Pod for ModelTransform {}
+    unsafe impl Zeroable for ModelTransform {}
 
     pub const MODEL_VIEW_MATRIX_INDEX: u32 = 0;
     pub const NORMAL_MATRIX_INDEX: u32 = 1;
@@ -192,6 +202,7 @@ pub mod model_transform {
 pub mod vertex_out {
     use wgpu::naga::{Binding, BuiltIn, Handle, Interpolation, StructMember, Type, TypeInner};
 
+    pub const BUILT_IN_POSITION_INDEX: u32 = 0;
     pub const POSITION_INDEX: u32 = 1;
     pub const WORLD_POSITION_INDEX: u32 = 2;
     pub const NORMAL_INDEX: u32 = 3;

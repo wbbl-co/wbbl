@@ -2,6 +2,7 @@
   "name": "wbbl",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "directories": {
     "test": "tests"
   },
@@ -16,9 +17,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/use-sync-external-store": "^0.0.6",
     "@xyflow/react": "^12.0.0-next.11",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "use-sync-external-store": "^1.2.0"
   },
   "devDependencies": {
     "@types/node": "20.11.25",

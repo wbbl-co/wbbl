@@ -15,7 +15,6 @@ pub mod shader_layouts;
 pub mod test_fragment_shader;
 pub(crate) mod utils;
 pub mod vertex_shader;
+pub mod wbbl_graph_web_worker;
 pub mod wbbl_physics;
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+pub mod wbbl_webapp_graph_store;

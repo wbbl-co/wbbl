@@ -5,9 +5,12 @@ use gltf::{
     Accessor, Gltf, Primitive, Semantic,
 };
 
-use crate::{ model_scene_file_abstractions::{
-    EncodedMesh, EncodedPrimative, EncodedSceneFile, UnboundBufferSlice,
-}, shader_layouts::vertex::Vertex};
+use crate::{
+    model_scene_file_abstractions::{
+        EncodedMesh, EncodedPrimative, EncodedSceneFile, UnboundBufferSlice,
+    },
+    shader_layouts::vertex::Vertex,
+};
 
 #[derive(Debug)]
 pub enum EncodingError {
@@ -299,7 +302,10 @@ pub fn encode(document: &mut Gltf) -> Result<EncodedSceneFile, EncodingError> {
                 return Err(EncodingError::MissingIndices);
             }
         }
-        meshes.push(EncodedMesh { name, primitives: primatives });
+        meshes.push(EncodedMesh {
+            name,
+            primitives: primatives,
+        });
     }
 
     Ok(EncodedSceneFile { buffer, meshes })

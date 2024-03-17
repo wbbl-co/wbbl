@@ -1,16 +1,15 @@
 import {
-  ReactFlow,
-  Controls,
-  Background,
-  MiniMap,
   useNodesState,
   useEdgesState,
+  ReactFlow,
+  Background,
+  Controls,
+  MiniMap,
 } from "@xyflow/react";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React from "react";
 import "@xyflow/react/dist/style.css";
 import WbbleEdge from "./components/WbbleEdge";
 import WbblNode from "./components/WbbleNode";
-import { render_preview } from "../pkg/wbbl";
 const initNodes = [
   {
     id: "a",
@@ -34,6 +33,52 @@ const initEdges = [
   },
 ];
 
+// const canvasRef = useRef<HTMLCanvasElement>(null);
+// const canvasRef2 = useRef<HTMLCanvasElement>(null);
+
+// const initialized = useRef<boolean>(false);
+// const [worker, setWorker] = useState<Worker>();
+// useEffect(() => {
+//   if (!initialized.current && canvasRef.current && canvasRef2.current) {
+//     initialized.current = true;
+//     let worker = new Worker("/web/worker.ts", {
+//       type: "module",
+//     });
+//     setWorker(worker);
+//     let offscreenCanvas = canvasRef.current.transferControlToOffscreen();
+//     setTimeout(() => {
+//       worker.postMessage({ type: "INIT_NODE", offscreenCanvas }, [
+//         offscreenCanvas,
+//       ]);
+//       setTimeout(() => {
+//         console.log(canvasRef2.current);
+//         let offscreenCanvas2 =
+//           canvasRef2.current!.transferControlToOffscreen();
+//         worker.postMessage(
+//           { type: "INIT_NODE", offscreenCanvas: offscreenCanvas2 },
+//           [offscreenCanvas2],
+//         );
+//       }, 500);
+//     }, 40);
+//   }
+// }, [initialized, canvasRef.current, canvasRef2.current, setWorker]);
+// <div>
+//   <canvas
+//     id="canvas-1"
+//     style={{ backgroundColor: "transparent" }}
+//     width={300}
+//     height={300}
+//     ref={canvasRef}
+//   />
+//   <canvas
+//     id="canvas-2"
+//     style={{ backgroundColor: "transparent" }}
+//     width={300}
+//     height={300}
+//     ref={canvasRef2}
+//   />
+// </div>
+
 const nodeTypes = {
   wbbl: WbblNode,
 };
@@ -46,36 +91,20 @@ function App() {
   const [nodes, , onNodesChange] = useNodesState(initNodes);
   const [edges, , onEdgesChange] = useEdgesState(initEdges);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rendered = useRef<boolean>(false);
-  useEffect(() => {
-    if (!rendered.current && canvasRef.current) {
-      rendered.current = true;
-      render_preview(canvasRef.current!);
-    }
-  }, [rendered, canvasRef.current]);
   return (
-    <div>
-      <canvas
-        style={{ backgroundColor: "transparent" }}
-        width={300}
-        height={300}
-        ref={canvasRef}
-      />
-    </div>
-    // <ReactFlow
-    //   nodes={nodes}
-    //   onNodesChange={onNodesChange}
-    //   edges={edges}
-    //   edgeTypes={edgeTypes}
-    //   nodeTypes={nodeTypes}
-    //   onEdgesChange={onEdgesChange}
-    //   fitView
-    // >
-    //   <Background />
-    //   <Controls />
-    //   <MiniMap />
-    // </ReactFlow>
+    <ReactFlow
+      nodes={nodes}
+      onNodesChange={onNodesChange}
+      edges={edges}
+      edgeTypes={edgeTypes}
+      nodeTypes={nodeTypes}
+      onEdgesChange={onEdgesChange}
+      fitView
+    >
+      <Background />
+      <Controls />
+      <MiniMap />
+    </ReactFlow>
   );
 }
 

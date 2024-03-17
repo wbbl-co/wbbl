@@ -1,16 +1,11 @@
 use glam::{Mat3, Mat4, Vec2, Vec3, Vec4};
 use std::{borrow::Cow, f32::consts::PI, mem::size_of, num::NonZeroU64};
-use wasm_bindgen::prelude::*;
-use web_sys::HtmlCanvasElement;
+use web_sys::OffscreenCanvas;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutEntry, BindingResource,
-    BindingType, BufferBinding, BufferBindingType, BufferUsages, CompositeAlphaMode, ShaderStages,
-};
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::EventLoop,
-    window::Window,
+    Adapter, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutEntry, BindingResource,
+    BindingType, BufferBinding, BufferBindingType, BufferUsages, CompositeAlphaMode, Device, Queue,
+    ShaderStages, Surface, SurfaceTarget,
 };
 
 pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4 {
@@ -45,39 +40,13 @@ use crate::{
     compiler_constants::{
         FRAME_BINDING, FRAME_GROUP, GEOMETRY_GROUP, MODEL_TRANSFORM_BINDING, VERTICES_BINDING,
     },
-    gltf_encoder, log, shader_layouts,
+    gltf_encoder, shader_layouts,
     test_fragment_shader::make_fragment_shader_module,
     vertex_shader::make_vertex_shader_module,
 };
 
-async fn run(event_loop: EventLoop<()>, window: Window) {
-    let instance = wgpu::Instance::default();
-
-    let surface = instance.create_surface(&window).unwrap();
-    let adapter = instance
-        .request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::default(),
-            force_fallback_adapter: false,
-            // Request an adapter which can render to our surface
-            compatible_surface: Some(&surface),
-        })
-        .await
-        .expect("Failed to find an appropriate adapter");
-
+fn run(adapter: Adapter, surface: Surface<'static>, device: Device, queue: Queue) {
     // Create the logical device and command queue
-    let (device, queue) = adapter
-        .request_device(
-            &wgpu::DeviceDescriptor {
-                label: None,
-                required_features: wgpu::Features::empty(),
-                // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the swapchain.
-                required_limits: wgpu::Limits::downlevel_webgl2_defaults()
-                    .using_resolution(adapter.limits()),
-            },
-            None,
-        )
-        .await
-        .expect("Failed to create device");
 
     // Load the shaders from disk
     let vertex_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -159,7 +128,9 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     });
 
     let mut cube = get_cube();
+
     let encoded_cube = gltf_encoder::encode(&mut cube).unwrap();
+
     let geometry_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: Some("geometry_buffer"),
         contents: encoded_cube.buffer.as_slice(),
@@ -265,110 +236,87 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     }
 
     let mut config = surface.get_default_config(&adapter, 300, 300).unwrap();
+
     config.alpha_mode = CompositeAlphaMode::PreMultiplied;
     surface.configure(&device, &config);
 
-    event_loop
-        .run(move |event, target| {
-            if let Event::WindowEvent {
-                window_id: _,
-                event,
-            } = event
-            {
-                match event {
-                    // WindowEvent::Resized(new_size) => {
-                    //     // Reconfigure the surface with the new size
-                    //     // config.width = new_size.width.max(1);
-                    //     // config.height = new_size.height.max(1);
-                    //     // surface.configure(&device, &config);
-                    //     // On macos the window needs to be redrawn manually after resizing
-                    //     window.request_redraw();
-                    // }
-                    WindowEvent::CursorMoved {
-                        device_id: _,
-                        position: _,
-                    } => {
-                        log!("cursor moved");
-                    }
-                    WindowEvent::RedrawRequested => {
-                        log!("Redraw Requested");
-                        let frame = surface
-                            .get_current_texture()
-                            .expect("Failed to acquire next swap chain texture");
-                        let view = frame
-                            .texture
-                            .create_view(&wgpu::TextureViewDescriptor::default());
-                        let mut encoder =
-                            device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                                label: None,
-                            });
-                        {
-                            let mut rpass =
-                                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                                    label: None,
-                                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                                        view: &view,
-                                        resolve_target: None,
-                                        ops: wgpu::Operations {
-                                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                                            store: wgpu::StoreOp::Store,
-                                        },
-                                    })],
-                                    depth_stencil_attachment: None,
-                                    timestamp_writes: None,
-                                    occlusion_query_set: None,
-                                });
+    let frame = surface
+        .get_current_texture()
+        .expect("Failed to acquire next swap chain texture");
 
-                            rpass.set_pipeline(&render_pipeline);
-                            for (i, mesh) in encoded_cube.meshes.iter().enumerate() {
-                                rpass.set_bind_group(FRAME_GROUP, &frame_data_bind_groups[i], &[]);
-                                for (j, primitive) in mesh.primitives.iter().enumerate() {
-                                    rpass.set_bind_group(
-                                        GEOMETRY_GROUP,
-                                        &vertices_bind_groups[i][j],
-                                        &[],
-                                    );
-                                    rpass.set_index_buffer(
-                                        geometry_buffer.slice(
-                                            primitive.indices.offset as u64
-                                                ..(primitive.indices.offset
-                                                    + primitive.indices.size)
-                                                    as u64,
-                                        ),
-                                        wgpu::IndexFormat::Uint32,
-                                    );
-                                    rpass.draw_indexed(
-                                        0..(primitive.indices.size / size_of::<u32>()) as u32,
-                                        0,
-                                        0..1,
-                                    );
-                                }
-                            }
-                        }
+    let view = frame
+        .texture
+        .create_view(&wgpu::TextureViewDescriptor::default());
+    let mut encoder =
+        device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+    {
+        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
 
-                        queue.submit(Some(encoder.finish()));
-                        frame.present();
-                    }
-                    WindowEvent::CloseRequested => target.exit(),
-                    _ => {}
-                };
+        rpass.set_pipeline(&render_pipeline);
+        for (i, mesh) in encoded_cube.meshes.iter().enumerate() {
+            rpass.set_bind_group(FRAME_GROUP, &frame_data_bind_groups[i], &[]);
+            for (j, primitive) in mesh.primitives.iter().enumerate() {
+                rpass.set_bind_group(GEOMETRY_GROUP, &vertices_bind_groups[i][j], &[]);
+                rpass.set_index_buffer(
+                    geometry_buffer.slice(
+                        primitive.indices.offset as u64
+                            ..(primitive.indices.offset + primitive.indices.size) as u64,
+                    ),
+                    wgpu::IndexFormat::Uint32,
+                );
+                rpass.draw_indexed(
+                    0..(primitive.indices.size / size_of::<u32>()) as u32,
+                    0,
+                    0..1,
+                );
             }
-        })
-        .unwrap()
+        }
+    }
+
+    queue.submit(Some(encoder.finish()));
+    frame.present();
 }
 
-#[wasm_bindgen]
-pub fn render_preview(#[allow(unused)] canvas: HtmlCanvasElement) {
-    let event_loop = EventLoop::new().unwrap();
-    #[allow(unused_mut)]
-    let mut builder = winit::window::WindowBuilder::new();
-    #[cfg(target_arch = "wasm32")]
-    {
-        use winit::platform::web::WindowBuilderExtWebSys;
-        builder = builder.with_canvas(Some(canvas));
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    }
-    let window = builder.build(&event_loop).unwrap();
+pub async fn render_preview(canvas: OffscreenCanvas, instance: wgpu::Instance) {
+    let surface = instance
+        .create_surface(SurfaceTarget::OffscreenCanvas(canvas))
+        .unwrap();
+    let adapter = instance
+        .request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::default(),
+            force_fallback_adapter: false,
+            // Request an adapter which can render to our surface
+            compatible_surface: Some(&surface),
+        })
+        .await
+        .expect("Failed to find an appropriate adapter");
 
-    wasm_bindgen_futures::spawn_local(run(event_loop, window));
+    let (device, queue) = adapter
+        .request_device(
+            &wgpu::DeviceDescriptor {
+                label: None,
+                required_features: wgpu::Features::empty(),
+                // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the swapchain.
+                required_limits: wgpu::Limits::downlevel_webgl2_defaults()
+                    .using_resolution(adapter.limits()),
+            },
+            None,
+        )
+        .await
+        .expect("Failed to create device");
+
+    run(adapter, surface, device, queue);
 }

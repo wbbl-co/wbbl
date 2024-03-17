@@ -38,7 +38,7 @@ mod gltf_encoder_tests {
     #[test]
     fn test_sparse() -> Result<(), EncodingError> {
         let sparse_file = include_bytes!("SimpleSparseAccessor.gltf").as_slice();
-        let mut sparse_gltf = Gltf::from_slice(sparse_file).unwrap();
+        let mut sparse_gltf = Gltf::from_slice(sparse_file).unwrap_or_else(|err| panic!("Error"));
         let _ = gltf_encoder::encode(&mut sparse_gltf)?;
         Ok(())
     }

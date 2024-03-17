@@ -4,15 +4,10 @@ version = "0.1.0"
 authors = ["ncthbrt"]
 edition = "2021"
 
-[build]
-target = "wasm32-unknown-unknown"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-wee_alloc = ["dep:wee_alloc"]
-default = ["wee_alloc"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -25,7 +20,6 @@ gltf = { version = "1", features = ["names"] }
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
 serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.6.5"
 glam = "0.25.0"
 web-sys = { version = "0.3", features = [
     "CanvasRenderingContext2d",
@@ -36,8 +30,8 @@ web-sys = { version = "0.3", features = [
     'Node',
     'Window',
     "HtmlCanvasElement",
+    "OffscreenCanvas",
 ] }
-wee_alloc = { version = "0.4.5", optional = true }
 bytemuck = { version = "1.14.3", features = ["wasm_simd"] }
 wgpu = { version = "0.19.3", default-features = false, features = [
     "webgpu",
@@ -45,8 +39,8 @@ wgpu = { version = "0.19.3", default-features = false, features = [
     "naga-ir",
 ] }
 wasm-bindgen-futures = "0.4.42"
-winit = "0.29.14"
 console_error_panic_hook = "0.1.7"
+yrs = "0.18.0"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.41"
@@ -54,4 +48,8 @@ wasm-bindgen-test = "0.3.41"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
-opt-level = "s"
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"

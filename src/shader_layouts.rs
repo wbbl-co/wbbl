@@ -3,7 +3,7 @@ pub mod vertex {
     use glam::{Vec2, Vec3A};
     use wgpu::naga::{Handle, StructMember, Type, TypeInner};
     #[repr(C)]
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Clone, Copy)]
     pub struct Vertex {
         pub position: Vec3A,
         pub normal: Vec3A,
@@ -79,7 +79,7 @@ pub mod frame {
 
     #[repr(C)]
     #[repr(align(16))]
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Clone, Copy)]
     pub struct Frame {
         // Per-frame constants.
         pub projection_view_matrix: Mat4,
@@ -152,7 +152,7 @@ pub mod model_transform {
 
     #[repr(C)]
     #[repr(align(16))]
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Clone, Copy)]
     pub struct ModelTransform {
         // Per-frame constants.
         pub model_view_matrix: Mat4,

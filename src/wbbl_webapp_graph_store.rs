@@ -5,8 +5,6 @@ use wasm_bindgen::prelude::*;
 use web_sys::js_sys;
 use yrs::{types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut};
 
-use crate::log;
-
 const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
 const GRAPH_YRS_EDGES_MAP_KEY: &str = "edges";
 
@@ -52,7 +50,6 @@ pub struct WbblWebappGraphStore {
     graph: Arc<yrs::Doc>,
     nodes: yrs::MapRef,
     edges: yrs::MapRef,
-    cached_snapshot: Option<WbblWebappGraphSnapshot>,
     computed_node_sizes: HashMap<String, WbbleComputedNodeSize>,
 }
 
@@ -175,22 +172,17 @@ impl NewWbblWebappNode {
     }
 }
 
-#[wasm_bindgen]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WbblWebappEdge {
-    #[wasm_bindgen(getter_with_clone)]
     pub id: String,
-    #[wasm_bindgen(getter_with_clone)]
     pub source: String,
-    #[wasm_bindgen(getter_with_clone)]
     pub target: String,
-    #[wasm_bindgen(getter_with_clone, js_name=sourceHandle)]
     pub source_handle: String,
-    #[wasm_bindgen(getter_with_clone, js_name=targetHandle)]
     pub target_handle: String,
     pub deletable: bool,
     pub selectable: bool,
     pub selected: bool,
+    pub updatable: bool,
 }
 
 impl WbblWebappEdge {
@@ -209,6 +201,7 @@ impl WbblWebappEdge {
             deletable: true,
             selected: false,
             selectable: true,
+            updatable: true,
         }
     }
 }
@@ -292,17 +285,12 @@ impl WbblWebappEdge {
         txn: &Txn,
         map: &yrs::MapRef,
     ) -> Result<WbblWebappEdge, WbblWebappGraphStoreError> {
-        log!("Edge pre source Decode");
         let source = get_atomic_string("source", txn, map)?;
-        log!("Edge pre target Decode");
         let target = get_atomic_string("target", txn, map)?;
-        log!("Edge pre source handle Decode");
         let source_handle = get_atomic_string("source_handle", txn, map)?;
-        log!("Edge pre selected Decode");
         let selected = get_bool("selected", txn, map)?;
-        log!("Edge pre target handle Decode");
         let target_handle = get_atomic_string("source_handle", txn, map)?;
-        log!("Edge post target handle Decode");
+
         Ok(WbblWebappEdge {
             id: key,
             source,
@@ -311,6 +299,7 @@ impl WbblWebappEdge {
             target_handle,
             deletable: true,
             selectable: true,
+            updatable: true,
             selected,
         })
     }
@@ -376,7 +365,6 @@ impl WbblWebappGraphStore {
             graph: Arc::new(graph),
             nodes,
             edges,
-            cached_snapshot: None,
             computed_node_sizes: HashMap::new(),
         }
     }
@@ -407,7 +395,6 @@ impl WbblWebappGraphStore {
             .undo()
             .map_err(|_| WbblWebappGraphStoreError::FailedToUndo)?;
         if result {
-            self.invalidate_snapshot();
             self.emit()?;
         }
         Ok(result)
@@ -419,7 +406,6 @@ impl WbblWebappGraphStore {
             .redo()
             .map_err(|_| WbblWebappGraphStoreError::FailedToRedo)?;
         if result {
-            self.invalidate_snapshot();
             self.emit()?;
         }
         Ok(result)
@@ -433,39 +419,16 @@ impl WbblWebappGraphStore {
         self.undo_manager.can_redo()
     }
 
-    fn invalidate_snapshot(&mut self) {
-        self.cached_snapshot = None;
-    }
-
     pub fn get_snapshot(&mut self) -> Result<JsValue, WbblWebappGraphStoreError> {
-        match &self.cached_snapshot {
-            Some(result) => serde_wasm_bindgen::to_value(&result)
-                .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure),
-            None => {
-                let snapshot = self.get_snapshot_raw()?;
-                self.cached_snapshot = Some(snapshot.clone());
-                serde_wasm_bindgen::to_value(&snapshot)
-                    .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure)
-            }
-        }
+        let snapshot = self.get_snapshot_raw()?;
+        serde_wasm_bindgen::to_value(&snapshot)
+            .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure)
     }
 
     pub fn remove_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut();
             self.nodes.remove(&mut mut_transaction, node_id);
-        }
-        if let Some(cached_snapshot) = self.cached_snapshot.as_mut() {
-            let maybe_index_to_remove = cached_snapshot
-                .nodes
-                .iter()
-                .enumerate()
-                .find(|node| node.1.id == node_id)
-                .map(|x| x.0);
-            if let Some(index) = maybe_index_to_remove {
-                cached_snapshot.nodes.remove(index);
-            }
-            self.computed_node_sizes.remove(node_id);
         }
 
         // Important that emit is called here. Rather than before the drop
@@ -480,17 +443,6 @@ impl WbblWebappGraphStore {
             let mut mut_transaction = self.graph.transact_mut();
             self.edges.remove(&mut mut_transaction, edge_id);
         }
-        if let Some(cached_snapshot) = self.cached_snapshot.as_mut() {
-            let maybe_index_to_remove = cached_snapshot
-                .edges
-                .iter()
-                .enumerate()
-                .find(|edge| edge.1.id == edge_id)
-                .map(|x| x.0);
-            if let Some(index) = maybe_index_to_remove {
-                cached_snapshot.nodes.remove(index);
-            }
-        }
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
@@ -500,23 +452,15 @@ impl WbblWebappGraphStore {
     }
 
     pub fn add_node(&mut self, node: NewWbblWebappNode) -> Result<(), WbblWebappGraphStoreError> {
-        log!("Add node");
-        let node = {
+        {
             let mut mut_transaction = self.graph.transact_mut();
-            log!("Add node 1");
             node.encode(&mut mut_transaction, &mut self.nodes)
         }?;
-        log!("Add node 2");
-        if let Some(cached_snapshot) = self.cached_snapshot.as_mut() {
-            cached_snapshot.nodes.push(node);
-        }
-        log!("Add node 3");
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
         self.emit()?;
 
-        log!("Add node 4");
         Ok(())
     }
 
@@ -527,12 +471,10 @@ impl WbblWebappGraphStore {
         for node in self.nodes.iter(&read_txn) {
             let key = node.0.to_owned();
             let node_values = node.1;
-            log!("Pre Node Decode");
             let mut node: WbblWebappNode = match node_values {
                 yrs::Value::YMap(map) => WbblWebappNode::decode(&key, &read_txn, &map),
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
-            log!("Post Node Decode");
             node.computed = self.computed_node_sizes.get(&key).map(|s| s.clone());
             nodes.push(node);
         }
@@ -540,12 +482,10 @@ impl WbblWebappGraphStore {
         for edge in self.edges.iter(&read_txn) {
             let key = edge.0.to_owned();
             let edge_values = edge.1;
-            log!("Pre Edge Decode");
             let edge: WbblWebappEdge = match edge_values {
                 yrs::Value::YMap(map) => WbblWebappEdge::decode(key, &read_txn, &map),
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
-            log!("Post Edge Decode");
             edges.push(edge);
         }
 
@@ -588,14 +528,7 @@ impl WbblWebappGraphStore {
                 },
             );
         }
-        if let Some(cached_snapshot) = self.cached_snapshot.as_mut() {
-            if let Some(node) = cached_snapshot.nodes.iter_mut().find(|n| n.id == node_id) {
-                node.computed = self.computed_node_sizes.get(node_id).map(|x| x.clone());
-                node.resizing = resizing.unwrap_or(false);
-            } else {
-                return Err(WbblWebappGraphStoreError::NotFound);
-            }
-        }
+
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
         self.emit()?;
@@ -646,16 +579,6 @@ impl WbblWebappGraphStore {
                     },
                 );
             }
-            if let Some(cached_snapshot) = self.cached_snapshot.as_mut() {
-                if let Some(node) = cached_snapshot.nodes.iter_mut().find(|n| n.id == node_id) {
-                    node.position.x = x;
-                    node.position.y = y;
-                    node.computed = self.computed_node_sizes.get(node_id).map(|x| x.clone());
-                    node.dragging = dragging.unwrap_or(false);
-                } else {
-                    return Err(WbblWebappGraphStoreError::NotFound);
-                }
-            }
         }
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
@@ -679,14 +602,6 @@ impl WbblWebappGraphStore {
                 }
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
-
-            if let Some(cached_snapshot) = self.cached_snapshot.as_mut() {
-                if let Some(node) = cached_snapshot.nodes.iter_mut().find(|n| n.id == node_id) {
-                    node.selected = selected;
-                } else {
-                    return Err(WbblWebappGraphStoreError::NotFound);
-                }
-            }
         }
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
@@ -699,19 +614,10 @@ impl WbblWebappGraphStore {
         &mut self,
         node: &NewWbblWebappNode,
     ) -> Result<(), WbblWebappGraphStoreError> {
-        let node = {
+        {
             let mut mut_transaction = self.graph.transact_mut();
             node.encode(&mut mut_transaction, &mut self.nodes)
         }?;
-        if let Some(cached_snapshot) = self.cached_snapshot.as_mut() {
-            cached_snapshot.nodes = cached_snapshot
-                .nodes
-                .iter()
-                .filter(|other| other.id == node.id)
-                .map(|n| n.clone())
-                .collect();
-            cached_snapshot.nodes.push(node);
-        }
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
@@ -732,10 +638,6 @@ impl WbblWebappGraphStore {
 
             let mut mut_transaction = self.graph.transact_mut();
             edge.encode(&mut mut_transaction, &self.edges)?;
-
-            if let Some(cached_snapshot) = &mut self.cached_snapshot {
-                cached_snapshot.edges.push(edge);
-            }
         }
 
         // Important that emit is called here. Rather than before the drop
@@ -764,19 +666,11 @@ impl WbblWebappGraphStore {
                 target_handle: target_handle.to_owned(),
                 deletable: true,
                 selectable: true,
+                updatable: true,
                 selected,
             };
 
             edge.encode(&mut mut_transaction, &self.edges)?;
-            if let Some(cached_snapshot) = &mut self.cached_snapshot {
-                cached_snapshot.edges = cached_snapshot
-                    .edges
-                    .iter_mut()
-                    .filter(|other| other.id == edge.id)
-                    .map(|e| e.clone())
-                    .collect();
-                cached_snapshot.edges.push(edge.clone());
-            }
         }
 
         // Important that emit is called here. Rather than before the drop
@@ -793,24 +687,13 @@ impl WbblWebappGraphStore {
     ) -> Result<(), WbblWebappGraphStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut();
-            log!("FROG EDGE");
             match self.edges.get(&mut_transaction, edge_id) {
                 Some(yrs::Value::YMap(edge_ref)) => {
-                    log!("GOT EDGE");
                     edge_ref.insert(&mut mut_transaction, "selected", yrs::Any::Bool(selected));
                     Ok(())
                 }
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
-
-            if let Some(cached_snapshot) = self.cached_snapshot.as_mut() {
-                if let Some(edge) = cached_snapshot.edges.iter_mut().find(|e| e.id == edge_id) {
-                    log!("FOUND CACHED EDGE");
-                    edge.selected = selected;
-                } else {
-                    return Err(WbblWebappGraphStoreError::NotFound);
-                }
-            }
         }
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read

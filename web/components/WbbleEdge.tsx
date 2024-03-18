@@ -8,7 +8,7 @@ import {
 } from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
 
-function WbbleEdge({
+export default function WbbleEdge({
   sourceX,
   sourceY,
   targetX,
@@ -50,5 +50,3 @@ function WbbleEdge({
     </>
   );
 }
-
-export default WbbleEdge;

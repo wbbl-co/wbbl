@@ -17,6 +17,8 @@ import React, { useCallback, useContext, useRef } from "react";
 import "@xyflow/react/dist/style.css";
 import WbbleEdge from "./components/WbbleEdge";
 import WbblNode from "./components/WbbleNode";
+import WbblConnectionLine from "./components/WbbleConnectionLine";
+
 import {
   WbblGraphStoreContext,
   useWbblGraphData,
@@ -74,7 +76,7 @@ const nodeTypes = {
 };
 
 const edgeTypes = {
-  wbbl: WbbleEdge,
+  default: WbbleEdge,
 };
 
 type WbblWebappNode = Node;
@@ -83,6 +85,20 @@ type WbblWebappEdge = Edge;
 function Graph() {
   const graphStore = useContext(WbblGraphStoreContext);
   const snapshot = useWbblGraphData(graphStore);
+  const addNode = useCallback(
+    (evt: React.MouseEvent) => {
+      try {
+        let node = NewWbblWebappNode.new(evt.clientX, evt.clientY, "default", {
+          frog: true,
+        });
+        graphStore.add_node(node);
+      } catch (e) {
+        console.error(e);
+      }
+      evt.preventDefault();
+    },
+    [graphStore],
+  );
   const onNodesChange = useCallback(
     (changes: NodeChange<WbblWebappNode>[]) => {
       for (let change of changes) {
@@ -172,6 +188,20 @@ function Graph() {
     },
     [graphStore],
   );
+
+  const onEdgesUpdate = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      graphStore.replace_edge(
+        oldEdge.id,
+        newConnection.source,
+        newConnection.target,
+        newConnection.sourceHandle ?? "default",
+        newConnection.targetHandle ?? "default",
+        false,
+      );
+    },
+    [graphStore],
+  );
   const onConnect = useCallback(
     (connection: Connection) => {
       graphStore.add_edge(
@@ -184,8 +214,6 @@ function Graph() {
     [graphStore],
   );
 
-  console.log("snapshot.edges", snapshot.edges);
-
   return (
     <ReactFlow
       nodes={snapshot.nodes as unknown as WbblWebappNode[]}
@@ -194,8 +222,13 @@ function Graph() {
       edgeTypes={edgeTypes}
       nodeTypes={nodeTypes}
       onConnect={onConnect}
-      on
+      onPaneClick={() => {
+        console.log("pane clicked");
+      }}
       onEdgesChange={onEdgesChange}
+      onEdgeUpdate={onEdgesUpdate}
+      onAuxClick={addNode}
+      connectionLineComponent={WbblConnectionLine}
       fitView
     >
       <Background />
@@ -210,23 +243,9 @@ function App() {
   const graphStore = useRef(WbblWebappGraphStore.empty());
   // const [nodes, , onNodesChange] = useNodesState(initNodes);
   // const [edges, , onEdgesChange] = useEdgesState(initEdges);
-  const addNode = useCallback(
-    (evt: React.MouseEvent) => {
-      try {
-        let node = NewWbblWebappNode.new(200, 200, "default", {
-          frog: true,
-        });
-        graphStore.current.add_node(node);
-      } catch (e) {
-        console.error(e);
-      }
-      evt.preventDefault();
-    },
-    [graphStore],
-  );
+
   return (
     <WbblGraphStoreContext.Provider value={graphStore.current}>
-      <button onClick={addNode}>Add Node</button>
       <ReactFlowProvider>
         <Graph />
       </ReactFlowProvider>

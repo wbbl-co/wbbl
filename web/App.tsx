@@ -5,33 +5,23 @@ import {
   Background,
   Controls,
   MiniMap,
+  NodeChange,
+  EdgeChange,
+  Node,
+  Edge,
+  ReactFlowProvider,
+  Panel,
+  Connection,
 } from "@xyflow/react";
-import React from "react";
+import React, { useCallback, useContext, useRef } from "react";
 import "@xyflow/react/dist/style.css";
 import WbbleEdge from "./components/WbbleEdge";
 import WbblNode from "./components/WbbleNode";
-const initNodes = [
-  {
-    id: "a",
-    type: "wbbl",
-    data: { label: "Node A" },
-    position: { x: 250, y: 0 },
-  },
-  {
-    id: "b",
-    data: { label: "Node B" },
-    position: { x: 100, y: 100 },
-  },
-];
-
-const initEdges = [
-  {
-    id: "a-b",
-    source: "a",
-    target: "b",
-    type: "wbbl",
-  },
-];
+import {
+  WbblGraphStoreContext,
+  useWbblGraphData,
+} from "./use-wbbl-graph-store";
+import { NewWbblWebappNode, WbblWebappGraphStore } from "../pkg/wbbl";
 
 // const canvasRef = useRef<HTMLCanvasElement>(null);
 // const canvasRef2 = useRef<HTMLCanvasElement>(null);
@@ -87,24 +77,160 @@ const edgeTypes = {
   wbbl: WbbleEdge,
 };
 
-function App() {
-  const [nodes, , onNodesChange] = useNodesState(initNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initEdges);
+type WbblWebappNode = Node;
+type WbblWebappEdge = Edge;
+
+function Graph() {
+  const graphStore = useContext(WbblGraphStoreContext);
+  const snapshot = useWbblGraphData(graphStore);
+  const onNodesChange = useCallback(
+    (changes: NodeChange<WbblWebappNode>[]) => {
+      for (let change of changes) {
+        console.log("node change", change);
+        switch (change.type) {
+          case "add":
+            graphStore.add_node(
+              NewWbblWebappNode.new(
+                change.item.position.x,
+                change.item.position.x,
+                change.item.type ?? "default",
+                change.item.data,
+              ),
+            );
+            break;
+          case "remove":
+            graphStore.remove_node(change.id);
+            break;
+          case "replace":
+            graphStore.replace_node(
+              NewWbblWebappNode.new(
+                change.item.position.x,
+                change.item.position.x,
+                change.item.type ?? "default",
+                change.item.data,
+              ),
+            );
+            break;
+          case "dimensions":
+            graphStore.set_computed_node_dimension(
+              change.id,
+              change.dimensions?.width ?? 0,
+              change.dimensions?.height ?? 0,
+              change.resizing ?? false,
+            );
+            break;
+          case "position":
+            graphStore.set_node_position(
+              change.id,
+              change.position?.x ?? 0,
+              change.position?.y ?? 0,
+              change.positionAbsolute?.x,
+              change.positionAbsolute?.y,
+            );
+            break;
+          case "select":
+            graphStore.set_node_selection(change.id, change.selected);
+            break;
+        }
+      }
+    },
+    [graphStore],
+  );
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange<WbblWebappEdge>[]) => {
+      for (let change of changes) {
+        console.log("edge change", change);
+
+        switch (change.type) {
+          case "add":
+            graphStore.add_edge(
+              change.item.source,
+              change.item.target,
+              change.item.sourceHandle!,
+              change.item.targetHandle!,
+            );
+            break;
+          case "remove":
+            graphStore.remove_edge(change.id);
+            break;
+          case "replace":
+            graphStore.replace_edge(
+              change.id,
+              change.item.source,
+              change.item.target,
+              change.item.sourceHandle!,
+              change.item.targetHandle!,
+              change.item.selected ?? false,
+            );
+            break;
+          case "select":
+            graphStore.set_edge_selection(change.id, change.selected);
+            break;
+        }
+      }
+    },
+    [graphStore],
+  );
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      graphStore.add_edge(
+        connection.source,
+        connection.target,
+        connection.sourceHandle ?? "default",
+        connection.targetHandle ?? "default",
+      );
+    },
+    [graphStore],
+  );
+
+  console.log("snapshot.edges", snapshot.edges);
 
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={snapshot.nodes as unknown as WbblWebappNode[]}
       onNodesChange={onNodesChange}
-      edges={edges}
+      edges={snapshot.edges}
       edgeTypes={edgeTypes}
       nodeTypes={nodeTypes}
+      onConnect={onConnect}
+      on
       onEdgesChange={onEdgesChange}
       fitView
     >
       <Background />
       <Controls />
+
       <MiniMap />
     </ReactFlow>
+  );
+}
+
+function App() {
+  const graphStore = useRef(WbblWebappGraphStore.empty());
+  // const [nodes, , onNodesChange] = useNodesState(initNodes);
+  // const [edges, , onEdgesChange] = useEdgesState(initEdges);
+  const addNode = useCallback(
+    (evt: React.MouseEvent) => {
+      try {
+        let node = NewWbblWebappNode.new(200, 200, "default", {
+          frog: true,
+        });
+        graphStore.current.add_node(node);
+      } catch (e) {
+        console.error(e);
+      }
+      evt.preventDefault();
+    },
+    [graphStore],
+  );
+  return (
+    <WbblGraphStoreContext.Provider value={graphStore.current}>
+      <button onClick={addNode}>Add Node</button>
+      <ReactFlowProvider>
+        <Graph />
+      </ReactFlowProvider>
+    </WbblGraphStoreContext.Provider>
   );
 }
 

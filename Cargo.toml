@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen = { version = "0.2.91" }
-
+uuid = { version = "1.7.0", features = ["v4", "js", "fast-rng"] }
 gltf = { version = "1", features = ["names"] }
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -41,6 +41,7 @@ wgpu = { version = "0.19.3", default-features = false, features = [
 wasm-bindgen-futures = "0.4.42"
 console_error_panic_hook = "0.1.7"
 yrs = "0.18.0"
+serde-wasm-bindgen = "0.6.5"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.41"

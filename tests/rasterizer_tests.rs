@@ -1,12 +1,9 @@
 #[cfg(test)]
 mod rasterizer_tests {
-    use std::io::Error;
 
     use wbbl::compute_rasterizer::generate_compute_rasterizer;
 
     // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::*;
-
     #[test]
     fn test_buffer_to_image_shader_codegen() {
         let result = generate_compute_rasterizer(

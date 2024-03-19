@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useRef } from "react";
 import { useSyncExternalStore } from "react";
 import { createContext } from "react";
-import { WbblWebappGraphStore } from "../pkg/wbbl";
+import { WbblWebappGraphStore } from "../../pkg/wbbl";
 import { NodeProps, Node, Edge } from "@xyflow/react";
 
 export const WbblGraphStoreContext = createContext<WbblWebappGraphStore>(

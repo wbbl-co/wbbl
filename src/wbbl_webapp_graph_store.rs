@@ -64,7 +64,7 @@ pub struct WbblePosition {
 pub struct WbbleComputedNodeSize {
     pub width: Option<f64>,
     pub height: Option<f64>,
-    #[serde(alias = "positionAbsolute")]
+    #[serde(rename = "positionAbsolute")]
     pub position_absolute: Option<WbblePosition>,
 }
 
@@ -72,7 +72,7 @@ pub struct WbbleComputedNodeSize {
 pub struct WbblWebappNode {
     pub id: String,
     pub position: WbblePosition,
-    #[serde(alias = "type")]
+    #[serde(rename = "type")]
     pub type_name: String,
     pub data: Any,
     pub computed: Option<WbbleComputedNodeSize>,
@@ -177,7 +177,9 @@ pub struct WbblWebappEdge {
     pub id: String,
     pub source: String,
     pub target: String,
+    #[serde(rename = "sourceHandle")]
     pub source_handle: String,
+    #[serde(rename = "targetHandle")]
     pub target_handle: String,
     pub deletable: bool,
     pub selectable: bool,
@@ -289,7 +291,7 @@ impl WbblWebappEdge {
         let target = get_atomic_string("target", txn, map)?;
         let source_handle = get_atomic_string("source_handle", txn, map)?;
         let selected = get_bool("selected", txn, map)?;
-        let target_handle = get_atomic_string("source_handle", txn, map)?;
+        let target_handle = get_atomic_string("target_handle", txn, map)?;
 
         Ok(WbblWebappEdge {
             id: key,
@@ -367,6 +369,10 @@ impl WbblWebappGraphStore {
             edges,
             computed_node_sizes: HashMap::new(),
         }
+    }
+
+    pub fn new_id() -> String {
+        uuid::Uuid::new_v4().to_string()
     }
 
     pub fn emit(&self) -> Result<(), WbblWebappGraphStoreError> {

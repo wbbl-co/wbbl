@@ -1,11 +1,29 @@
-import React, { useEffect, useRef, useState } from "react";
-import { ConnectionLineComponentProps } from "@xyflow/react";
-import ConnectionLine from "@xyflow/react/dist/umd/components/ConnectionLine";
+import React, { useContext, useEffect, useRef, useState } from "react";
+import {
+  ConnectionLineComponentProps,
+  useReactFlow,
+  useViewport,
+} from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
+import { createPortal } from "react-dom";
+import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 
 export default function WbblConnectionLine(
   props: ConnectionLineComponentProps,
 ) {
+  const flow = useReactFlow();
+  const viewport = useViewport();
+  const edgeEnd = useContext(WbblEdgeEndContext);
+
+  const startMarkerPos = flow.flowToScreenPosition({
+    x: props.fromX,
+    y: props.fromY,
+  });
+  const endMarkerPos = flow.flowToScreenPosition({
+    x: props.toX,
+    y: props.toY,
+  });
+
   const [rope] = useState(() =>
     WbblRope.new(
       new Float32Array([props.fromX, props.fromY]),
@@ -47,11 +65,39 @@ export default function WbblConnectionLine(
   ]);
 
   return (
-    <path
-      d={path}
-      fill="none"
-      className="react-flow__connection-path"
-      style={props.connectionLineStyle}
-    />
+    <>
+      <path
+        d={path}
+        fill="none"
+        className="react-flow__connection-path"
+        style={{ ...props.connectionLineStyle, strokeWidth: 4, stroke: "red" }}
+        stroke="red"
+      />
+      {edgeEnd != null &&
+        createPortal(
+          <>
+            <circle
+              fill="red"
+              style={{
+                transform: `translate(${startMarkerPos.x}px,${startMarkerPos.y}px)`,
+              }}
+              cx="0"
+              cy="0"
+              r={10 * flow.getZoom()}
+            />
+            <circle
+              fill="red"
+              style={{
+                transform: `translate(${endMarkerPos.x}px,${endMarkerPos.y}px)`,
+              }}
+              cx="0"
+              cy="0"
+              r={10 * flow.getZoom()}
+            />
+          </>,
+          edgeEnd,
+          `connection-line`,
+        )}
+    </>
   );
 }

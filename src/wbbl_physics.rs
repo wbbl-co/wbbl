@@ -1,5 +1,5 @@
-use glam::Vec2;
-use std::fmt::Write;
+use glam::{vec2, Vec2};
+use std::{f32::consts::PI, fmt::Write};
 use wasm_bindgen::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
@@ -479,6 +479,25 @@ impl WbblBox {
             self.get_pos(self.top[1]),
             canvas_position,
         );
+    }
+
+    pub fn get_skew(&self, canvas_position: &[f32]) -> String {
+        let top_left = self.get_pos(self.top[0]);
+        let top_right = self.get_pos(self.top[self.top.len() - 1]);
+        let delta_top = top_right - top_left;
+        let bottom_left = self.get_pos(self.bottom[self.bottom.len() - 1]);
+        let delta_left = bottom_left - top_left;
+        let angle_top = (vec2(1.0, 0.0).angle_between(delta_top) / PI) * 180.0;
+        let angle_left = (vec2(0.0, -1.0).angle_between(delta_left) / PI) * 180.0;
+
+        format!(
+            "translate({}px, {}px) skew({}deg,{}deg)",
+            top_left.x - canvas_position[0],
+            top_left.y - canvas_position[1],
+            -angle_left,
+            angle_top
+        )
+        .to_owned()
     }
 }
 

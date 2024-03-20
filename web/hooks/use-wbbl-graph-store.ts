@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useSyncExternalStore } from "react";
 import { createContext } from "react";
 import { WbblWebappGraphStore } from "../../pkg/wbbl";
@@ -41,28 +41,47 @@ export function useWbblGraphData(store: WbblWebappGraphStore): {
 
 type Data = { [key: string]: unknown };
 export type WbblNodeType = Node<Data>;
+
+const shallowProps = [
+  "id",
+  "width",
+  "height",
+  "sourcePosition",
+  "targetPosition",
+  "selected",
+  "dragHandle",
+  "type",
+  "dragging",
+  "zIndex",
+  "data",
+] as const;
+
 export function areNodePropsEqual(
   oldProps: NodeProps<WbblNodeType>,
   newProps: NodeProps<WbblNodeType>,
 ) {
-  let shallowProps = [
-    "id",
-    "width",
-    "height",
-    "sourcePosition",
-    "targetPosition",
-    "selected",
-    "dragHandle",
-    "type",
-    "dragging",
-    "zIndex",
-    "data",
-  ];
-  for (let prop in shallowProps) {
+  for (let prop of shallowProps) {
     if (oldProps[prop] !== newProps[prop]) {
       return false;
     }
   }
-  let oldData = oldProps["data"];
-  let newData = newProps["data"];
+
+  for (let key of Object.keys(oldProps.data)) {
+    let oldValue = oldProps.data[key];
+    let newValue = oldProps.data[key];
+    if (typeof oldValue == "object") {
+      for (let subkey of Object.keys(oldValue as object)) {
+        let oldSubValue = (oldValue as Record<string, unknown>)[subkey];
+        let newSubValue = (newValue as Record<string, unknown>)[subkey];
+        if (oldSubValue !== newSubValue) {
+          return false;
+        }
+      }
+      return false;
+    } else if (oldValue !== newValue) {
+      return false;
+    }
+  }
+
+  return true;
 }

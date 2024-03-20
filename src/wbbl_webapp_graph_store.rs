@@ -21,6 +21,27 @@ pub enum Any {
     Map(Arc<HashMap<String, Any>>),
 }
 
+impl Any {
+    fn to_yrs(&self) -> yrs::Any {
+        match self {
+            Any::Null => yrs::Any::Null,
+            Any::Undefined => yrs::Any::Undefined,
+            Any::Bool(b) => yrs::Any::Bool(*b),
+            Any::Number(n) => yrs::Any::Number(*n),
+            Any::BigInt(b) => yrs::Any::BigInt(*b),
+            Any::String(str) => yrs::Any::String(str.clone()),
+            Any::Buffer(b) => yrs::Any::Buffer(b.clone()),
+            Any::Array(arr) => yrs::Any::Array(arr.iter().map(|a| Self::to_yrs(a)).collect()),
+            Any::Map(map) => yrs::Any::Map(
+                map.iter()
+                    .map(|(k, v)| (k.to_owned(), Self::to_yrs(v)))
+                    .collect::<HashMap<String, yrs::Any>>()
+                    .into(),
+            ),
+        }
+    }
+}
+
 impl From<&yrs::Any> for Any {
     fn from(value: &yrs::Any) -> Self {
         match value {
@@ -39,6 +60,28 @@ impl From<&yrs::Any> for Any {
                     .into(),
             ),
         }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy)]
+pub enum WbblWebappNodeType {
+    Output,
+    Slab,
+}
+
+pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
+    match node_type {
+        WbblWebappNodeType::Output => "output".to_owned(),
+        WbblWebappNodeType::Slab => "slab".to_owned(),
+    }
+}
+#[wasm_bindgen]
+pub fn from_type_name(type_name: &str) -> Option<WbblWebappNodeType> {
+    match type_name {
+        "output" => Some(WbblWebappNodeType::Output),
+        "slab" => Some(WbblWebappNodeType::Slab),
+        _ => None,
     }
 }
 
@@ -74,7 +117,7 @@ pub struct WbblWebappNode {
     pub position: WbblePosition,
     #[serde(rename = "type")]
     pub type_name: String,
-    pub data: Any,
+    pub data: HashMap<String, Any>,
     pub computed: Option<WbbleComputedNodeSize>,
     pub dragging: bool,
     pub resizing: bool,
@@ -85,12 +128,11 @@ pub struct WbblWebappNode {
 }
 
 #[wasm_bindgen]
-
 pub struct NewWbblWebappNode {
     id: String,
     position: WbblePosition,
     type_name: String,
-    data: js_sys::Object,
+    data: HashMap<String, Any>,
 }
 
 impl NewWbblWebappNode {
@@ -98,26 +140,17 @@ impl NewWbblWebappNode {
         &self,
         transaction: &mut TransactionMut,
         node_ref: &mut yrs::MapRef,
-    ) -> Result<Any, WbblWebappGraphStoreError> {
+    ) -> Result<HashMap<String, Any>, WbblWebappGraphStoreError> {
         let mut map: HashMap<String, yrs::Any> = HashMap::new();
-
-        for kv in js_sys::Object::entries(&self.data) {
-            let arr = kv.into();
-            let key = js_sys::Array::get(&arr, 0).as_string();
-            let value = js_sys::Array::get(&arr, 1);
+        for (key, value) in self.data.iter() {
             // Probably not that fast, but whatever
-            if let Some(key) = key {
-                if let Ok(Ok(value)) = js_sys::JSON::stringify(&value)
-                    .map(|json| yrs::Any::from_json(&ToString::to_string(&json)))
-                {
-                    map.insert(key.to_owned(), value);
-                }
-            }
+            let yrs_value = value.to_yrs();
+            map.insert(key.to_owned(), yrs_value);
         }
         let prelim_map = MapPrelim::from(map.clone());
         node_ref.insert(transaction, "data", prelim_map);
 
-        Ok((&yrs::Any::Map(map.into())).into())
+        Ok(map.iter().map(|(k, v)| (k.clone(), v.into())).collect())
     }
 
     pub(crate) fn encode(
@@ -154,11 +187,16 @@ impl NewWbblWebappNode {
 }
 #[wasm_bindgen]
 impl NewWbblWebappNode {
+    fn get_initial_data(node_type: WbblWebappNodeType) -> HashMap<String, Any> {
+        match node_type {
+            WbblWebappNodeType::Output => HashMap::new(),
+            WbblWebappNodeType::Slab => HashMap::new(),
+        }
+    }
     pub fn new(
         position_x: f64,
         position_y: f64,
-        type_name: &str,
-        data: js_sys::Object,
+        node_type: WbblWebappNodeType,
     ) -> NewWbblWebappNode {
         NewWbblWebappNode {
             id: uuid::Uuid::new_v4().to_string(),
@@ -166,7 +204,25 @@ impl NewWbblWebappNode {
                 x: position_x,
                 y: position_y,
             },
-            type_name: type_name.to_owned(),
+            type_name: get_type_name(node_type),
+            data: NewWbblWebappNode::get_initial_data(node_type),
+        }
+    }
+
+    pub fn new_with_data(
+        position_x: f64,
+        position_y: f64,
+        node_type: WbblWebappNodeType,
+        data: JsValue,
+    ) -> NewWbblWebappNode {
+        let data = serde_wasm_bindgen::from_value::<HashMap<String, Any>>(data).unwrap();
+        NewWbblWebappNode {
+            id: uuid::Uuid::new_v4().to_string(),
+            position: WbblePosition {
+                x: position_x,
+                y: position_y,
+            },
+            type_name: get_type_name(node_type),
             data,
         }
     }
@@ -265,6 +321,11 @@ impl WbblWebappNode {
         let dragging = get_bool("dragging", txn, map)?;
         let resizing = get_bool("resizing", txn, map)?;
         let selected = get_bool("selected", txn, map)?;
+        let data = &data.to_json(txn);
+        let data = match data {
+            yrs::Any::Map(hash_map) => Ok(hash_map.clone()),
+            _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+        }?;
         Ok(WbblWebappNode {
             id: key.clone(),
             position: WbblePosition { x, y },
@@ -273,7 +334,10 @@ impl WbblWebappNode {
             dragging,
             resizing,
             selected,
-            data: (&data.to_json(txn)).into(),
+            data: data
+                .iter()
+                .map(|(k, v)| (k.to_owned(), v.into()))
+                .collect::<HashMap<String, Any>>(),
             connectable: true,
             selectable: true,
             deletable: &type_name != "output",

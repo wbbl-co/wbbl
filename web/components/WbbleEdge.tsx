@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { BaseEdge, EdgeProps, useReactFlow, useViewport } from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
 import { createPortal } from "react-dom";

@@ -1,9 +1,5 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
-import {
-  ConnectionLineComponentProps,
-  useReactFlow,
-  useViewport,
-} from "@xyflow/react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { ConnectionLineComponentProps, useReactFlow } from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
 import { createPortal } from "react-dom";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
@@ -12,7 +8,6 @@ export default function WbblConnectionLine(
   props: ConnectionLineComponentProps,
 ) {
   const flow = useReactFlow();
-  const viewport = useViewport();
   const edgeEnd = useContext(WbblEdgeEndContext);
 
   const startMarkerPos = flow.flowToScreenPosition({

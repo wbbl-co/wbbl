@@ -1,5 +1,3 @@
-import React from "react";
-import Sidebar from "./components/Sidebar";
 import Graph from "./components/Graph";
 
 // const canvasRef = useRef<HTMLCanvasElement>(null);

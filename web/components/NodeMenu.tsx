@@ -1,33 +1,11 @@
-/*
-  This example requires some changes to your config:
-
-  ```
-  // tailwind.config.js
-  module.exports = {
-    // ...
-    plugins: [
-      // ...
-      require('@tailwindcss/forms'),
-    ],
-  }
-  ```
-*/
-
-import React, { Fragment, useState } from "react";
+import { Fragment, useState } from "react";
 import { Combobox, Dialog, Transition } from "@headlessui/react";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import {
-  CalendarIcon,
-  CodeBracketIcon,
   DocumentIcon,
   ExclamationCircleIcon,
-  LinkIcon,
   PencilSquareIcon,
   PhotoIcon,
-  TableCellsIcon,
-  VideoCameraIcon,
-  ViewColumnsIcon,
-  Bars4Icon,
 } from "@heroicons/react/24/outline";
 
 const items = [
@@ -58,7 +36,7 @@ const items = [
   // More items...
 ] as const;
 
-function classNames(...classes) {
+function classNames(...classes: (boolean | string)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
@@ -117,9 +95,7 @@ export default function NodeMenu(props: {
               className="absolute transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all"
             >
               <Combobox
-                onChange={(item: (typeof items)[0]) =>
-                  (window.location = item.url as string & Location)
-                }
+                onChange={(item: (typeof items)[0]) => console.log(item)}
               >
                 <div className="relative">
                   <MagnifyingGlassIcon

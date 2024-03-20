@@ -1,5 +1,4 @@
 import {
-  useReactFlow,
   NodeChange,
   Node,
   EdgeChange,
@@ -21,7 +20,11 @@ import React, {
   useState,
   useMemo,
 } from "react";
-import { NewWbblWebappNode, WbblWebappGraphStore } from "../../pkg/wbbl";
+import {
+  NewWbblWebappNode,
+  WbblWebappGraphStore,
+  from_type_name,
+} from "../../pkg/wbbl";
 import {
   WbblGraphStoreContext,
   useWbblGraphData,
@@ -47,7 +50,6 @@ type WbblWebappEdge = Edge;
 function Graph() {
   const graphStore = useContext(WbblGraphStoreContext);
   const snapshot = useWbblGraphData(graphStore);
-  const flow = useReactFlow();
   const [nodeMenuPosition, setNodeMenuPosition] = useState<null | {
     top: number | undefined;
     left: number | undefined;
@@ -94,8 +96,7 @@ function Graph() {
               NewWbblWebappNode.new(
                 change.item.position.x,
                 change.item.position.x,
-                change.item.type ?? "default",
-                change.item.data,
+                from_type_name(change.item.type ?? "slab")!,
               ),
             );
             break;
@@ -104,10 +105,10 @@ function Graph() {
             break;
           case "replace":
             graphStore.replace_node(
-              NewWbblWebappNode.new(
+              NewWbblWebappNode.new_with_data(
                 change.item.position.x,
                 change.item.position.x,
-                change.item.type ?? "default",
+                from_type_name(change.item.type ?? "slab")!,
                 change.item.data,
               ),
             );
@@ -198,6 +199,15 @@ function Graph() {
     },
     [graphStore],
   );
+
+  // const addNode = useCallback(
+  //   (position: { x: number; y: number }, type: string) => {
+  //     graphStore.add_node(
+  //       NewWbblWebappNode.new(position.x, position.y, from_type_name(type)!),
+  //     );
+  //   },
+  //   [graphStore],
+  // );
 
   return (
     <ReactFlow

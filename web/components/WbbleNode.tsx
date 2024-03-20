@@ -1,24 +1,11 @@
-import {
-  Handle,
-  Position,
-  Node,
-  NodeProps,
-  useUpdateNodeInternals,
-} from "@xyflow/react";
-import React, { memo, useContext, useEffect, useRef, useState } from "react";
+import { Handle, Position, NodeProps } from "@xyflow/react";
+import { useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../pkg/wbbl";
-import {
-  WbblGraphStoreContext,
-  useWbblGraphData,
-} from "../hooks/use-wbbl-graph-store";
 
 export default function WbblNode({
-  id,
-  data,
   dragging,
   positionAbsoluteX,
   positionAbsoluteY,
-  dragHandle,
 }: NodeProps) {
   const [box] = useState(() =>
     WbblBox.new(
@@ -26,7 +13,7 @@ export default function WbblNode({
       new Float32Array([200, 200]),
     ),
   );
-  const graphStore = useContext(WbblGraphStoreContext);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contentsRef = useRef<HTMLDivElement>(null);
 

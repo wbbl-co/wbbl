@@ -52,7 +52,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <div className="fixed inset-0 bg-gray-900/80" />
+              <div className="fixed inset-0 bg-black/60" />
             </Transition.Child>
 
             <div className="fixed inset-0 flex">
@@ -90,12 +90,12 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                     </div>
                   </Transition.Child>
                   {/* Sidebar component, swap this element with another sidebar if you like */}
-                  <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 pb-2 ring-1 ring-white/10">
+                  <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-black px-6 pb-2 ring-1 ring-white/10">
                     <div className="flex h-16 shrink-0 items-center">
                       <img
                         className="h-8 w-auto"
-                        src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=500"
-                        alt="Your Company"
+                        src="https://tailwindui.com/img/logos/mark.svg?color=white"
+                        alt="wbbl"
                       />
                     </div>
                     <nav className="flex flex-1 flex-col">
@@ -109,7 +109,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                                   className={classNames(
                                     item.current
                                       ? "bg-gray-800 text-white"
-                                      : "text-gray-400 hover:bg-gray-800 hover:text-white",
+                                      : "text-offWhite hover:text-white",
                                     "group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6",
                                   )}
                                 >
@@ -124,7 +124,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                           </ul>
                         </li>
                         <li>
-                          <div className="text-xs font-semibold leading-6 text-gray-400">
+                          <div className="text-offWhite text-xs font-semibold leading-6">
                             Your teams
                           </div>
                           <ul role="list" className="-mx-2 mt-2 space-y-1">
@@ -134,8 +134,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                                   href={team.href}
                                   className={classNames(
                                     team.current
-                                      ? "bg-gray-800 text-white"
-                                      : "text-gray-400 hover:bg-gray-800 hover:text-white",
+                                      ? "bg-black text-white"
+                                      : "text-offWhite hover:text-white",
                                     "group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6",
                                   )}
                                 >
@@ -160,7 +160,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
         <div className="absolute top-0 z-40 flex items-center gap-x-6 px-4 py-4 shadow-sm sm:px-6 ">
           <button
             type="button"
-            className="-m-2.5 bg-none p-2.5 text-gray-400"
+            className="text-offWhite -m-2.5 bg-none p-2.5"
             onClick={() => setSidebarOpen(true)}
           >
             <span className="sr-only">Open sidebar</span>

@@ -50,11 +50,9 @@ import Graph from "./components/Graph";
 
 function App() {
   return (
-    <Sidebar>
-      <div style={{ height: "100vh" }}>
-        <Graph />
-      </div>
-    </Sidebar>
+    <div style={{ height: "100vh" }}>
+      <Graph />
+    </div>
   );
 }
 

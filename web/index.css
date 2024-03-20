@@ -3,6 +3,16 @@
 @tailwind components;
 @tailwind utilities;
 
+.react-flow {
+    --bg-color: #000;
+    --text-color: #fff;
+    --node-border-radius: 10px;
+    --node-box-shadow: 10px 0 15px rgba(42, 138, 246, 0.3),
+        -10px 0 15px rgba(233, 42, 103, 0.3);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
 html,
 body,
 #root {

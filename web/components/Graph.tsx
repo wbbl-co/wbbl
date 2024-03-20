@@ -12,6 +12,7 @@ import {
   Controls,
   MiniMap,
   ReactFlowProvider,
+  Panel,
 } from "@xyflow/react";
 import React, {
   useContext,
@@ -29,6 +30,8 @@ import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import WbblConnectionLine from "./WbbleConnectionLine";
 import WbblNode from "./WbbleNode";
 import WbbleEdge from "./WbbleEdge";
+import Breadcrumb from "./Breadcrumb";
+import NodeMenu, { NODE_MENU_DIMENSIONS } from "./NodeMenu";
 
 const nodeTypes = {
   default: WbblNode,
@@ -45,24 +48,42 @@ function Graph() {
   const graphStore = useContext(WbblGraphStoreContext);
   const snapshot = useWbblGraphData(graphStore);
   const flow = useReactFlow();
-  const addNode = useCallback(
-    (evt: React.MouseEvent) => {
-      try {
-        let position = flow.screenToFlowPosition({
-          x: evt.clientX,
-          y: evt.clientY,
+  const [nodeMenuPosition, setNodeMenuPosition] = useState<null | {
+    top: number | undefined;
+    left: number | undefined;
+    right: number | undefined;
+    bottom: number | undefined;
+  }>(null);
+  const [nodeMenuOpen, setNodeMenuOpen] = useState<boolean>(false);
+  const onPaneClick = useCallback(
+    (evt: React.MouseEvent<Element, MouseEvent>) => {
+      let target = evt.target as HTMLElement;
+      let rect = target.getBoundingClientRect();
+      if (nodeMenuOpen === false) {
+        setNodeMenuOpen(true);
+        setNodeMenuPosition({
+          top:
+            evt.clientY < rect.height - NODE_MENU_DIMENSIONS.height
+              ? evt.clientY
+              : undefined,
+          left:
+            evt.clientX < rect.width - NODE_MENU_DIMENSIONS.width
+              ? evt.clientX
+              : undefined,
+          right:
+            evt.clientX >= rect.width - NODE_MENU_DIMENSIONS.width
+              ? 10
+              : undefined,
+          bottom:
+            evt.clientY >= rect.height - NODE_MENU_DIMENSIONS.height
+              ? 10
+              : undefined,
         });
-
-        let node = NewWbblWebappNode.new(position.x, position.y, "default", {
-          frog: true,
-        });
-        graphStore.add_node(node);
-      } catch (e) {
-        console.error(e);
+      } else {
+        setNodeMenuOpen(false);
       }
-      evt.preventDefault();
     },
-    [graphStore],
+    [nodeMenuOpen, setNodeMenuPosition, setNodeMenuOpen],
   );
   const onNodesChange = useCallback(
     (changes: NodeChange<WbblWebappNode>[]) => {
@@ -187,7 +208,7 @@ function Graph() {
       colorMode="dark"
       nodeTypes={nodeTypes}
       onConnect={onConnect}
-      onPaneClick={addNode}
+      onPaneClick={onPaneClick}
       onEdgesChange={onEdgesChange}
       onEdgeUpdate={onEdgesUpdate}
       connectionLineComponent={WbblConnectionLine}
@@ -195,8 +216,16 @@ function Graph() {
       proOptions={{ hideAttribution: true }}
     >
       <Background variant={BackgroundVariant.Dots} bgColor="black" />
-      <Controls style={{ background: "black" }} />
-      <MiniMap />
+      <Controls className="rounded ring-2 ring-neutral-400" />
+      <MiniMap className="rounded ring-2 ring-neutral-400" pannable zoomable />
+      <Panel position="top-left">
+        <Breadcrumb />
+      </Panel>
+      <NodeMenu
+        open={nodeMenuOpen}
+        onClose={setNodeMenuOpen}
+        position={nodeMenuPosition}
+      />
     </ReactFlow>
   );
 }

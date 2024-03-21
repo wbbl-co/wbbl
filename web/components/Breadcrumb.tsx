@@ -11,7 +11,7 @@ export default function Breadcrumb() {
     <nav className="flex" aria-label="Breadcrumb">
       <ol
         role="list"
-        className="flex space-x-4 rounded-md bg-black px-6 shadow ring-2 ring-neutral-400"
+        className="flex select-none space-x-4 rounded-md bg-black px-6 shadow ring-2 ring-neutral-400"
       >
         <li className="flex">
           <div className="flex items-center">

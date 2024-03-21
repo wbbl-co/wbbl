@@ -1,8 +1,11 @@
-import { Handle, Position, NodeProps } from "@xyflow/react";
+import { NodeProps } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
-import { WbblBox } from "../../pkg/wbbl";
+import { WbblBox } from "../../../pkg/wbbl";
+import TargetPort from "../TargetPort";
+import SourcePort from "../SourcePort";
 
 export default function WbblNode({
+  type,
   dragging,
   positionAbsoluteX,
   positionAbsoluteY,
@@ -76,10 +79,13 @@ export default function WbblNode({
   ]);
 
   return (
-    <div style={{ width: 200, height: 200, overflow: "visible" }}>
+    <div
+      className="text-sm"
+      style={{ width: 200, height: 200, overflow: "visible" }}
+    >
       <canvas
         style={{ left: -100, top: -100 }}
-        className="nodrag absolute"
+        className="nodrag pointer-events-none absolute"
         width={400}
         height={400}
         ref={canvasRef}
@@ -93,25 +99,17 @@ export default function WbblNode({
         }}
         className="absolute left-0 top-0"
       >
-        <Handle
-          type="target"
-          id={`15272535-e6e7-46c7-8cca-5923e9b179c6`}
-          position={Position.Left}
-          style={{ background: "white", width: 20, height: 20, left: 20 }}
-          isConnectable={true}
-        />
-        <Handle
-          type="source"
-          id={`ad9b72b6-38ea-43a1-ae90-ae0f7ce183e3`}
-          position={Position.Right}
-          style={{
-            background: "white",
-            width: 20,
-            right: 20,
-            height: 20,
-          }}
-          isConnectable={true}
-        />
+        <div className="text-center font-mono text-xl font-bold">{type}</div>
+        <div className="left-0 top-0 mt-2 flex w-full flex-row justify-between">
+          <div className="flex flex-col justify-start gap-2">
+            <TargetPort id={`t-0`} label="x" />
+            <TargetPort id={`t-1`} label="y" />
+          </div>
+          <div className="flex flex-col justify-end gap-2">
+            <SourcePort id={`s-0`} label="output" />
+            <SourcePort id={`s-1`} />
+          </div>
+        </div>
       </div>
     </div>
   );

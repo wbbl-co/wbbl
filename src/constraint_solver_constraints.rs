@@ -5,12 +5,12 @@ use crate::constraint_solver_constraints::ConstraintApplicationResult::{
     Contradiction, Dirty, Unchanged,
 };
 use crate::data_types::{CompositeSize, Dimensionality};
-use serde::{Deserialize, Serialize};
+use crate::graph_types::PortId;
 use std::collections::{HashMap, HashSet, LinkedList};
 use std::hash::Hash;
 
 pub enum ConstraintApplicationResult {
-    Dirty(LinkedList<u128>),
+    Dirty(LinkedList<PortId>),
     Unchanged,
     Contradiction,
 }
@@ -28,15 +28,15 @@ pub trait HasRanking {
 }
 
 pub trait PortConstraint {
-    fn get_affected_ports(&self) -> HashSet<u128>;
+    fn get_affected_ports(&self) -> HashSet<PortId>;
     fn apply<Value: Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking>(
         &self,
-        assignments: &mut HashMap<u128, Value>,
-        domains: &mut HashMap<u128, Vec<Value>>,
+        assignments: &mut HashMap<PortId, Value>,
+        domains: &mut HashMap<PortId, Vec<Value>>,
     ) -> ConstraintApplicationResult;
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone)]
 pub enum Constraint {
     SameTypes(SameTypesConstraint),
     SameDimensionality(SameDimensionalityConstraint),
@@ -46,8 +46,8 @@ pub enum Constraint {
 impl Constraint {
     pub fn apply<Value: Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking>(
         &self,
-        assignments: &mut HashMap<u128, Value>,
-        domains: &mut HashMap<u128, Vec<Value>>,
+        assignments: &mut HashMap<PortId, Value>,
+        domains: &mut HashMap<PortId, Vec<Value>>,
     ) -> ConstraintApplicationResult {
         match self {
             SameDimensionality(sd) => sd.apply(assignments, domains),
@@ -56,7 +56,7 @@ impl Constraint {
         }
     }
 
-    pub fn get_affected_ports(&self) -> HashSet<u128> {
+    pub fn get_affected_ports(&self) -> HashSet<PortId> {
         match self {
             SameDimensionality(sd) => sd.get_affected_ports(),
             SameTypes(st) => st.get_affected_ports(),
@@ -65,20 +65,20 @@ impl Constraint {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone)]
 pub struct SameTypesConstraint {
-    pub ports: HashSet<u128>,
+    pub ports: HashSet<PortId>,
 }
 
 impl PortConstraint for SameTypesConstraint {
-    fn get_affected_ports(&self) -> HashSet<u128> {
+    fn get_affected_ports(&self) -> HashSet<PortId> {
         self.ports.clone()
     }
 
     fn apply<Value: Copy + Hash + Eq + HasRanking>(
         &self,
-        assignments: &mut HashMap<u128, Value>,
-        domains: &mut HashMap<u128, Vec<Value>>,
+        assignments: &mut HashMap<PortId, Value>,
+        domains: &mut HashMap<PortId, Vec<Value>>,
     ) -> ConstraintApplicationResult {
         let this_assignments: Vec<Value> = self
             .get_affected_ports()
@@ -86,7 +86,7 @@ impl PortConstraint for SameTypesConstraint {
             .filter_map(|p| assignments.get(&p))
             .map(|a| *a)
             .collect();
-        let mut changed: LinkedList<u128> = LinkedList::new();
+        let mut changed: LinkedList<PortId> = LinkedList::new();
 
         match this_assignments.iter().next() {
             Some(t) => {
@@ -100,9 +100,9 @@ impl PortConstraint for SameTypesConstraint {
                             return Contradiction;
                         }
                         if assignments.get(&p) != Some(t) {
-                            changed.push_back(p);
-                            assignments.insert(p, *t);
-                            domains.insert(p, vec![*t]);
+                            changed.push_back(p.clone());
+                            assignments.insert(p.clone(), *t);
+                            domains.insert(p.clone(), vec![*t]);
                         }
                     }
                     if !changed.is_empty() {
@@ -133,16 +133,16 @@ impl PortConstraint for SameTypesConstraint {
                 if common_domain_count == 1 {
                     let common_domain = *common_domains.first().unwrap();
                     for p in self.get_affected_ports() {
-                        assignments.insert(p, common_domain);
-                        domains.insert(p, common_domains.clone());
-                        changed.push_back(p);
+                        assignments.insert(p.clone(), common_domain);
+                        domains.insert(p.clone(), common_domains.clone());
+                        changed.push_back(p.clone());
                     }
                 } else {
                     common_domains.sort_by(|a, b| a.get_rank().cmp(&b.get_rank()));
                     for p in self.get_affected_ports() {
                         if common_domain_count != domains.get(&p).unwrap().len() {
-                            domains.insert(p, common_domains.clone());
-                            changed.push_back(p);
+                            domains.insert(p.clone(), common_domains.clone());
+                            changed.push_back(p.clone());
                         }
                     }
                 }
@@ -155,27 +155,27 @@ impl PortConstraint for SameTypesConstraint {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone)]
 pub struct SameDimensionalityConstraint {
-    ports: HashSet<u128>,
+    ports: HashSet<PortId>,
 }
 
 impl PortConstraint for SameDimensionalityConstraint {
-    fn get_affected_ports(&self) -> HashSet<u128> {
+    fn get_affected_ports(&self) -> HashSet<PortId> {
         self.ports.clone()
     }
 
     fn apply<Value: Copy + Hash + Eq + HasDimensionality>(
         &self,
-        assignments: &mut HashMap<u128, Value>,
-        domains: &mut HashMap<u128, Vec<Value>>,
+        assignments: &mut HashMap<PortId, Value>,
+        domains: &mut HashMap<PortId, Vec<Value>>,
     ) -> ConstraintApplicationResult {
         let assigned_dimensionalities: Vec<Dimensionality> = self
             .get_affected_ports()
             .into_iter()
             .filter_map(|p| assignments.get(&p).and_then(|a| a.get_dimensionality()))
             .collect();
-        let mut changed: LinkedList<u128> = LinkedList::new();
+        let mut changed: LinkedList<PortId> = LinkedList::new();
         let empty_vec: Vec<Value> = Vec::new();
 
         match assigned_dimensionalities.iter().next() {
@@ -197,11 +197,11 @@ impl PortConstraint for SameDimensionalityConstraint {
                         }
                         let old_domains_count = old_domains.len();
                         if new_domains_count != old_domains_count {
-                            changed.push_back(p);
+                            changed.push_back(p.clone());
                             if new_domains_count == 1 {
-                                assignments.insert(p, *new_domains.first().unwrap());
+                                assignments.insert(p.clone(), *new_domains.first().unwrap());
                             }
-                            domains.insert(p, new_domains);
+                            domains.insert(p.clone(), new_domains);
                         }
                     }
                     if !changed.is_empty() {
@@ -245,11 +245,11 @@ impl PortConstraint for SameDimensionalityConstraint {
                     }
                     let old_domains_count = old_domains.len();
                     if new_domains_count != old_domains_count {
-                        changed.push_back(p);
+                        changed.push_back(p.clone());
                         if new_domains_count == 1 {
-                            assignments.insert(p, *new_domains.first().unwrap());
+                            assignments.insert(p.clone(), *new_domains.first().unwrap());
                         }
-                        domains.insert(p, new_domains);
+                        domains.insert(p.clone(), new_domains);
                     }
                 }
                 if !changed.is_empty() {
@@ -261,27 +261,27 @@ impl PortConstraint for SameDimensionalityConstraint {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone)]
 pub struct SameCompositeSizeConstraint {
-    ports: HashSet<u128>,
+    ports: HashSet<PortId>,
 }
 
 impl PortConstraint for SameCompositeSizeConstraint {
-    fn get_affected_ports(&self) -> HashSet<u128> {
+    fn get_affected_ports(&self) -> HashSet<PortId> {
         return self.ports.clone();
     }
 
     fn apply<Value: Copy + Hash + Eq + HasCompositeSize>(
         &self,
-        assignments: &mut HashMap<u128, Value>,
-        domains: &mut HashMap<u128, Vec<Value>>,
+        assignments: &mut HashMap<PortId, Value>,
+        domains: &mut HashMap<PortId, Vec<Value>>,
     ) -> ConstraintApplicationResult {
         let assigned_composite_sizes: Vec<CompositeSize> = self
             .get_affected_ports()
             .into_iter()
             .filter_map(|p| assignments.get(&p).and_then(|a| a.get_composite_size()))
             .collect();
-        let mut changed: LinkedList<u128> = LinkedList::new();
+        let mut changed: LinkedList<PortId> = LinkedList::new();
         let empty_vec: Vec<Value> = Vec::new();
 
         match assigned_composite_sizes.iter().next() {
@@ -303,11 +303,11 @@ impl PortConstraint for SameCompositeSizeConstraint {
                         }
                         let old_domains_count = old_domains.len();
                         if new_domains_count != old_domains_count {
-                            changed.push_back(p);
+                            changed.push_back(p.clone());
                             if new_domains_count == 1 {
-                                assignments.insert(p, *new_domains.first().unwrap());
+                                assignments.insert(p.clone(), *new_domains.first().unwrap());
                             }
-                            domains.insert(p, new_domains);
+                            domains.insert(p.clone(), new_domains);
                         }
                     }
                     if !changed.is_empty() {
@@ -351,11 +351,11 @@ impl PortConstraint for SameCompositeSizeConstraint {
                     }
                     let old_domains_count = old_domains.iter().count();
                     if new_domains_count != old_domains_count {
-                        changed.push_back(p);
+                        changed.push_back(p.clone());
                         if new_domains_count == 1 {
-                            assignments.insert(p, *new_domains.first().unwrap());
+                            assignments.insert(p.clone(), *new_domains.first().unwrap());
                         }
-                        domains.insert(p, new_domains);
+                        domains.insert(p.clone(), new_domains);
                     }
                 }
                 if !changed.is_empty() {

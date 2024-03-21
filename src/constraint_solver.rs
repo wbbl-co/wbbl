@@ -3,6 +3,7 @@ use crate::constraint_solver_constraints::{
     Constraint, ConstraintApplicationResult, HasCompositeSize, HasDimensionality, HasRanking,
 };
 use crate::data_types::{AbstractDataType, ConcreteDataType};
+use crate::graph_types::PortId;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
@@ -13,15 +14,15 @@ pub enum ConstraintSolverError {
 }
 
 fn propagate_constraints<Value>(
-    start_port: u128,
-    assignments: &mut HashMap<u128, Value>,
-    domains: &mut HashMap<u128, Vec<Value>>,
-    constraints: &HashMap<u128, Vec<Constraint>>,
+    start_port: PortId,
+    assignments: &mut HashMap<PortId, Value>,
+    domains: &mut HashMap<PortId, Vec<Value>>,
+    constraints: &HashMap<PortId, Vec<Constraint>>,
 ) -> Result<(), ConstraintSolverError>
 where
     Value: Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking,
 {
-    let mut queue: VecDeque<u128> = VecDeque::new();
+    let mut queue: VecDeque<PortId> = VecDeque::new();
     queue.push_front(start_port);
     let empty_constraints: Vec<Constraint> = vec![];
     while !queue.is_empty() {
@@ -45,18 +46,18 @@ where
 
 fn assign_types<Value>(
     i: usize,
-    topologically_ordered_ports: &Vec<u128>,
-    assignments: &mut HashMap<u128, Value>,
-    domains: &mut HashMap<u128, Vec<Value>>,
-    constraints: &HashMap<u128, Vec<Constraint>>,
-) -> Result<HashMap<u128, Value>, ConstraintSolverError>
+    topologically_ordered_ports: &Vec<PortId>,
+    assignments: &mut HashMap<PortId, Value>,
+    domains: &mut HashMap<PortId, Vec<Value>>,
+    constraints: &HashMap<PortId, Vec<Constraint>>,
+) -> Result<HashMap<PortId, Value>, ConstraintSolverError>
 where
     Value: Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking,
 {
     if i >= topologically_ordered_ports.len() {
         return Ok(assignments.clone());
     }
-    let current_port = topologically_ordered_ports[i];
+    let current_port = topologically_ordered_ports[i].clone();
 
     let maybe_assignment = assignments.get(&current_port);
     if maybe_assignment.is_some() {
@@ -77,10 +78,10 @@ where
     for t in domain {
         let mut next_assignments = assignments.clone();
         let mut next_domains = domains.clone();
-        next_assignments.insert(current_port, *t);
-        next_domains.insert(current_port, vec![*t]);
+        next_assignments.insert(current_port.clone(), *t);
+        next_domains.insert(current_port.clone(), vec![*t]);
         let propagation_result = propagate_constraints(
-            current_port,
+            current_port.clone(),
             &mut next_assignments,
             &mut next_domains,
             constraints,
@@ -103,15 +104,15 @@ where
 }
 
 pub fn assign_concrete_types(
-    topologically_ordered_ports: &Vec<u128>,
-    port_types: &HashMap<u128, AbstractDataType>,
-    constraints: &HashMap<u128, Vec<Constraint>>,
-) -> Result<HashMap<u128, ConcreteDataType>, ConstraintSolverError> {
-    let mut domains: HashMap<u128, Vec<ConcreteDataType>> = port_types
+    topologically_ordered_ports: &Vec<PortId>,
+    port_types: &HashMap<PortId, AbstractDataType>,
+    constraints: &HashMap<PortId, Vec<Constraint>>,
+) -> Result<HashMap<PortId, ConcreteDataType>, ConstraintSolverError> {
+    let mut domains: HashMap<PortId, Vec<ConcreteDataType>> = port_types
         .iter()
-        .map(|t| (*t.0, t.1.get_concrete_domain()))
+        .map(|t| (t.0.clone(), t.1.get_concrete_domain()))
         .collect();
-    let mut assignments: HashMap<u128, ConcreteDataType> = HashMap::new();
+    let mut assignments: HashMap<PortId, ConcreteDataType> = HashMap::new();
     assign_types(
         0,
         topologically_ordered_ports,
@@ -122,15 +123,15 @@ pub fn assign_concrete_types(
 }
 
 pub fn narrow_abstract_types(
-    topologically_ordered_ports: &Vec<u128>,
-    port_types: &HashMap<u128, AbstractDataType>,
-    constraints: &HashMap<u128, Vec<Constraint>>,
-) -> Result<HashMap<u128, AbstractDataType>, ConstraintSolverError> {
-    let mut domains: HashMap<u128, Vec<AbstractDataType>> = port_types
+    topologically_ordered_ports: &Vec<PortId>,
+    port_types: &HashMap<PortId, AbstractDataType>,
+    constraints: &HashMap<PortId, Vec<Constraint>>,
+) -> Result<HashMap<PortId, AbstractDataType>, ConstraintSolverError> {
+    let mut domains: HashMap<PortId, Vec<AbstractDataType>> = port_types
         .iter()
-        .map(|t| (*t.0, t.1.get_abstract_domain()))
+        .map(|t| (t.0.clone(), t.1.get_abstract_domain()))
         .collect();
-    let mut assignments: HashMap<u128, AbstractDataType> = HashMap::new();
+    let mut assignments: HashMap<PortId, AbstractDataType> = HashMap::new();
     assign_types(
         0,
         topologically_ordered_ports,

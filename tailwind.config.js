@@ -14,6 +14,10 @@ export default {
         blue: "rgb(87, 84, 246)",
         dustPink: "#AB9BF2",
       },
+      fontFamily: {
+        gasoek: ["GasoekOne", "sans-serif"],
+        mono: ["SpaceMono", "monospace"],
+      },
     },
   },
   plugins: [require("@tailwindcss/forms")],

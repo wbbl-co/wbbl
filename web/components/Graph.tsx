@@ -12,6 +12,7 @@ import {
   MiniMap,
   ReactFlowProvider,
   Panel,
+  useReactFlow,
 } from "@xyflow/react";
 import React, {
   useContext,
@@ -23,6 +24,7 @@ import React, {
 import {
   NewWbblWebappNode,
   WbblWebappGraphStore,
+  WbblWebappNodeType,
   from_type_name,
 } from "../../pkg/wbbl";
 import {
@@ -31,14 +33,10 @@ import {
 } from "../hooks/use-wbbl-graph-store";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import WbblConnectionLine from "./WbbleConnectionLine";
-import WbblNode from "./WbbleNode";
 import WbbleEdge from "./WbbleEdge";
 import Breadcrumb from "./Breadcrumb";
 import NodeMenu, { NODE_MENU_DIMENSIONS } from "./NodeMenu";
-
-const nodeTypes = {
-  default: WbblNode,
-};
+import { nodeTypes } from "./node_types";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -51,19 +49,35 @@ function Graph() {
   const graphStore = useContext(WbblGraphStoreContext);
   const snapshot = useWbblGraphData(graphStore);
   const [nodeMenuPosition, setNodeMenuPosition] = useState<null | {
+    x: number;
+    y: number;
     top: number | undefined;
     left: number | undefined;
     right: number | undefined;
     bottom: number | undefined;
   }>(null);
   const [nodeMenuOpen, setNodeMenuOpen] = useState<boolean>(false);
+  const flow = useReactFlow();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const onConnectStart = useCallback(() => {
+    setIsConnecting(true);
+  }, [setIsConnecting]);
+  const onConnectEnd = useCallback(() => {
+    // Add a delay, so that the node menu isn't immediately opened
+    setTimeout(() => {
+      setIsConnecting(false);
+    }, 4);
+  }, [setIsConnecting]);
   const onPaneClick = useCallback(
     (evt: React.MouseEvent<Element, MouseEvent>) => {
       let target = evt.target as HTMLElement;
       let rect = target.getBoundingClientRect();
-      if (nodeMenuOpen === false) {
+      if (nodeMenuOpen === false && !isConnecting) {
+        let pos = flow.screenToFlowPosition({ x: evt.clientX, y: evt.clientY });
         setNodeMenuOpen(true);
         setNodeMenuPosition({
+          x: pos.x,
+          y: pos.y,
           top:
             evt.clientY < rect.height - NODE_MENU_DIMENSIONS.height
               ? evt.clientY
@@ -85,7 +99,7 @@ function Graph() {
         setNodeMenuOpen(false);
       }
     },
-    [nodeMenuOpen, setNodeMenuPosition, setNodeMenuOpen],
+    [nodeMenuOpen, setNodeMenuPosition, setNodeMenuOpen, flow, isConnecting],
   );
   const onNodesChange = useCallback(
     (changes: NodeChange<WbblWebappNode>[]) => {
@@ -149,8 +163,8 @@ function Graph() {
             graphStore.add_edge(
               change.item.source,
               change.item.target,
-              change.item.sourceHandle!,
-              change.item.targetHandle!,
+              BigInt(change.item.sourceHandle?.replace("s-", "") ?? "0"),
+              BigInt(change.item.targetHandle?.replace("t-", "") ?? "0"),
             );
             break;
           case "remove":
@@ -161,8 +175,8 @@ function Graph() {
               change.id,
               change.item.source,
               change.item.target,
-              change.item.sourceHandle!,
-              change.item.targetHandle!,
+              BigInt(change.item.sourceHandle?.replace("s-", "") ?? "0"),
+              BigInt(change.item.targetHandle?.replace("t-", "") ?? "0"),
               change.item.selected ?? false,
             );
             break;
@@ -181,8 +195,8 @@ function Graph() {
         oldEdge.id,
         newConnection.source,
         newConnection.target,
-        newConnection.sourceHandle ?? "default",
-        newConnection.targetHandle ?? "default",
+        BigInt(newConnection.sourceHandle?.replace("s-", "") ?? "0"),
+        BigInt(newConnection.targetHandle?.replace("t-", "") ?? "0"),
         false,
       );
     },
@@ -193,21 +207,19 @@ function Graph() {
       graphStore.add_edge(
         connection.source,
         connection.target,
-        connection.sourceHandle ?? "default",
-        connection.targetHandle ?? "default",
+        BigInt(connection.sourceHandle?.replace("s-", "") ?? "0"),
+        BigInt(connection.targetHandle?.replace("t-", "") ?? "0"),
       );
     },
     [graphStore],
   );
 
-  // const addNode = useCallback(
-  //   (position: { x: number; y: number }, type: string) => {
-  //     graphStore.add_node(
-  //       NewWbblWebappNode.new(position.x, position.y, from_type_name(type)!),
-  //     );
-  //   },
-  //   [graphStore],
-  // );
+  const addNode = useCallback(
+    (type: WbblWebappNodeType, x: number, y: number) => {
+      graphStore.add_node(NewWbblWebappNode.new(x, y, type));
+    },
+    [graphStore],
+  );
 
   return (
     <ReactFlow
@@ -219,11 +231,14 @@ function Graph() {
       nodeTypes={nodeTypes}
       onConnect={onConnect}
       onPaneClick={onPaneClick}
+      onConnectStart={onConnectStart}
+      onConnectEnd={onConnectEnd}
       onEdgesChange={onEdgesChange}
       onEdgeUpdate={onEdgesUpdate}
       connectionLineComponent={WbblConnectionLine}
       selectionMode={SelectionMode.Partial}
       proOptions={{ hideAttribution: true }}
+      fitView
     >
       <Background variant={BackgroundVariant.Dots} bgColor="black" />
       <Controls className="rounded ring-2 ring-neutral-400" />
@@ -235,6 +250,7 @@ function Graph() {
         open={nodeMenuOpen}
         onClose={setNodeMenuOpen}
         position={nodeMenuPosition}
+        addNode={addNode}
       />
     </ReactFlow>
   );
@@ -259,15 +275,8 @@ export default function GraphRoot() {
         </WbblEdgeEndContext.Provider>
         <svg
           id="edge-end-renderer"
+          className="pointer-events-none absolute left-0 top-0"
           viewBox={`0 0 ${width} ${height}`}
-          style={{
-            width,
-            height,
-            top: 0,
-            left: 0,
-            position: "absolute",
-            pointerEvents: "none",
-          }}
           ref={setEdgeRenderRef}
         ></svg>
       </ReactFlowProvider>

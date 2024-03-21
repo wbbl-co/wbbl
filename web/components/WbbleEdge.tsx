@@ -14,6 +14,7 @@ export default function WbbleEdge({
   sourceY,
   targetX,
   targetY,
+  selected,
 }: EdgeProps) {
   const flow = useReactFlow();
   const viewport = useViewport();
@@ -111,11 +112,11 @@ export default function WbbleEdge({
             />
           </>,
           edgeEnd,
-          `edge-${id}`,
+          `edge-marker-${id}`,
         )}
       <BaseEdge
         path={path}
-        style={{ stroke: "#FFD92D", strokeWidth: 4 }}
+        style={{ stroke: selected ? "#FFD92D" : "blue", strokeWidth: 4 }}
       ></BaseEdge>
     </>
   );

@@ -1,37 +1,29 @@
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 import { Combobox, Dialog, Transition } from "@headlessui/react";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import {
   DocumentIcon,
   ExclamationCircleIcon,
   PencilSquareIcon,
-  PhotoIcon,
 } from "@heroicons/react/24/outline";
+import { WbblWebappNodeType } from "../../pkg/wbbl";
 
 const items = [
   {
-    id: 1,
-    name: "Text",
+    node_type: WbblWebappNodeType.Output,
+    name: "Output",
     description: "Add freeform text with basic formatting options.",
     url: "#",
     color: "bg-indigo-500",
     icon: PencilSquareIcon,
   },
   {
-    id: 2,
-    name: "Frog",
+    node_type: WbblWebappNodeType.Slab,
+    name: "Slab",
     description: "Add freeform text with basic formatting options.",
     url: "#",
     color: "bg-indigo-500",
     icon: DocumentIcon,
-  },
-  {
-    id: 3,
-    name: "Cat",
-    description: "Add freeform text with basic formatting options.",
-    url: "#",
-    color: "bg-indigo-500",
-    icon: PhotoIcon,
   },
   // More items...
 ] as const;
@@ -45,11 +37,14 @@ export default function NodeMenu(props: {
   open: boolean;
   onClose: (open: boolean) => void;
   position: null | {
+    x: number;
+    y: number;
     top?: number;
     left?: number;
     bottom?: number;
     right?: number;
   };
+  addNode: (type: WbblWebappNodeType, x: number, y: number) => void;
 }) {
   const [query, setQuery] = useState("");
 
@@ -60,6 +55,13 @@ export default function NodeMenu(props: {
           return item.name.toLowerCase().includes(query.toLowerCase());
         });
 
+  const onSelect = useCallback(
+    (value: { node_type: WbblWebappNodeType }) => {
+      props.addNode(value.node_type, props.position!.x, props.position!.y);
+      props.onClose(false);
+    },
+    [props.addNode, props.position, props.onClose],
+  );
   return (
     <Transition.Root
       show={props.open}
@@ -94,9 +96,7 @@ export default function NodeMenu(props: {
               id="node-menu"
               className="absolute transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all"
             >
-              <Combobox
-                onChange={(item: (typeof items)[0]) => console.log(item)}
-              >
+              <Combobox<(typeof items)[0]> onChange={onSelect}>
                 <div className="relative">
                   <MagnifyingGlassIcon
                     className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400"
@@ -117,7 +117,7 @@ export default function NodeMenu(props: {
                     {(filteredItems == null ? items : filteredItems).map(
                       (item) => (
                         <Combobox.Option
-                          key={item.id}
+                          key={item.node_type}
                           value={item}
                           className={({ active }) =>
                             classNames(

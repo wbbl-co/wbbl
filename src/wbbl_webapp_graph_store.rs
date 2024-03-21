@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, process::Output, sync::Arc};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys;
 use yrs::{types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut};
@@ -64,7 +64,7 @@ impl From<&yrs::Any> for Any {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum WbblWebappNodeType {
     Output,
     Slab,
@@ -97,13 +97,13 @@ pub struct WbblWebappGraphStore {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone, Deserialize, Serialize)]
+#[derive(Copy, Clone, Serialize)]
 pub struct WbblePosition {
     pub x: f64,
     pub y: f64,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize)]
 pub struct WbbleComputedNodeSize {
     pub width: Option<f64>,
     pub height: Option<f64>,
@@ -111,12 +111,19 @@ pub struct WbbleComputedNodeSize {
     pub position_absolute: Option<WbblePosition>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+fn type_to_string<S>(node_type: &WbblWebappNodeType, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&get_type_name(*node_type))
+}
+
+#[derive(Clone, Serialize)]
 pub struct WbblWebappNode {
     pub id: String,
     pub position: WbblePosition,
-    #[serde(rename = "type")]
-    pub type_name: String,
+    #[serde(rename = "type", serialize_with = "type_to_string")]
+    pub node_type: WbblWebappNodeType,
     pub data: HashMap<String, Any>,
     pub computed: Option<WbbleComputedNodeSize>,
     pub dragging: bool,
@@ -128,10 +135,11 @@ pub struct WbblWebappNode {
 }
 
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct NewWbblWebappNode {
     id: String,
     position: WbblePosition,
-    type_name: String,
+    node_type: WbblWebappNodeType,
     data: HashMap<String, Any>,
 }
 
@@ -161,7 +169,7 @@ impl NewWbblWebappNode {
         let data = {
             let prelim_map: yrs::MapPrelim<yrs::Any> = yrs::MapPrelim::new();
             let mut node_ref = nodes.insert(transaction, self.id.clone(), prelim_map);
-            node_ref.insert(transaction, "type", self.type_name.clone());
+            node_ref.insert(transaction, "type", get_type_name(self.node_type));
             node_ref.insert(transaction, "x", self.position.x);
             node_ref.insert(transaction, "y", self.position.y);
             node_ref.insert(transaction, "dragging", false);
@@ -173,18 +181,19 @@ impl NewWbblWebappNode {
         Ok(WbblWebappNode {
             id: self.id.clone(),
             position: self.position,
-            type_name: self.type_name.clone(),
+            node_type: self.node_type,
             data,
             computed: None,
             dragging: false,
             resizing: false,
             selected: false,
             selectable: true,
-            deletable: true,
+            deletable: self.node_type != WbblWebappNodeType::Output,
             connectable: true,
         })
     }
 }
+
 #[wasm_bindgen]
 impl NewWbblWebappNode {
     fn get_initial_data(node_type: WbblWebappNodeType) -> HashMap<String, Any> {
@@ -204,7 +213,7 @@ impl NewWbblWebappNode {
                 x: position_x,
                 y: position_y,
             },
-            type_name: get_type_name(node_type),
+            node_type,
             data: NewWbblWebappNode::get_initial_data(node_type),
         }
     }
@@ -222,10 +231,24 @@ impl NewWbblWebappNode {
                 x: position_x,
                 y: position_y,
             },
-            type_name: get_type_name(node_type),
+            node_type,
             data,
         }
     }
+}
+
+fn target_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&format!("t-{}", number).to_owned())
+}
+
+fn source_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&format!("s-{}", number).to_owned())
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -233,10 +256,10 @@ pub struct WbblWebappEdge {
     pub id: String,
     pub source: String,
     pub target: String,
-    #[serde(rename = "sourceHandle")]
-    pub source_handle: String,
-    #[serde(rename = "targetHandle")]
-    pub target_handle: String,
+    #[serde(rename = "sourceHandle", serialize_with = "source_handle_to_string")]
+    pub source_handle: i64,
+    #[serde(rename = "targetHandle", serialize_with = "target_handle_to_string")]
+    pub target_handle: i64,
     pub deletable: bool,
     pub selectable: bool,
     pub selected: bool,
@@ -247,15 +270,15 @@ impl WbblWebappEdge {
     pub fn new(
         source: &str,
         target: &str,
-        source_handle: &str,
-        target_handle: &str,
+        source_handle: i64,
+        target_handle: i64,
     ) -> WbblWebappEdge {
         WbblWebappEdge {
             id: uuid::Uuid::new_v4().to_string(),
             source: source.to_owned(),
             target: target.to_owned(),
-            source_handle: source_handle.to_owned(),
-            target_handle: target_handle.to_owned(),
+            source_handle,
+            target_handle,
             deletable: true,
             selected: false,
             selectable: true,
@@ -271,6 +294,17 @@ fn get_atomic_string<Txn: yrs::ReadTxn>(
 ) -> Result<String, WbblWebappGraphStoreError> {
     match map.get(txn, key) {
         Some(yrs::Value::Any(yrs::Any::String(result))) => Ok((*result).to_owned()),
+        _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+    }
+}
+
+fn get_atomic_bigint<Txn: yrs::ReadTxn>(
+    key: &str,
+    txn: &Txn,
+    map: &yrs::MapRef,
+) -> Result<i64, WbblWebappGraphStoreError> {
+    match map.get(txn, key) {
+        Some(yrs::Value::Any(yrs::Any::BigInt(result))) => Ok(result),
         _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
     }
 }
@@ -326,11 +360,15 @@ impl WbblWebappNode {
             yrs::Any::Map(hash_map) => Ok(hash_map.clone()),
             _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
         }?;
+        let node_type = match from_type_name(&type_name) {
+            Some(typ) => Ok(typ),
+            None => Err(WbblWebappGraphStoreError::UnknownNodeType),
+        }?;
         Ok(WbblWebappNode {
             id: key.clone(),
             position: WbblePosition { x, y },
             computed: None,
-            type_name: type_name.to_owned(),
+            node_type,
             dragging,
             resizing,
             selected,
@@ -340,7 +378,7 @@ impl WbblWebappNode {
                 .collect::<HashMap<String, Any>>(),
             connectable: true,
             selectable: true,
-            deletable: &type_name != "output",
+            deletable: node_type != WbblWebappNodeType::Output,
         })
     }
 }
@@ -353,9 +391,9 @@ impl WbblWebappEdge {
     ) -> Result<WbblWebappEdge, WbblWebappGraphStoreError> {
         let source = get_atomic_string("source", txn, map)?;
         let target = get_atomic_string("target", txn, map)?;
-        let source_handle = get_atomic_string("source_handle", txn, map)?;
+        let source_handle = get_atomic_bigint("source_handle", txn, map)?;
         let selected = get_bool("selected", txn, map)?;
-        let target_handle = get_atomic_string("target_handle", txn, map)?;
+        let target_handle = get_atomic_bigint("target_handle", txn, map)?;
 
         Ok(WbblWebappEdge {
             id: key,
@@ -386,11 +424,11 @@ impl WbblWebappEdge {
         );
         prelim_map.insert(
             "source_handle".to_owned(),
-            yrs::Any::String(self.source_handle.clone().into()),
+            yrs::Any::BigInt(self.source_handle),
         );
         prelim_map.insert(
             "target_handle".to_owned(),
-            yrs::Any::String(self.target_handle.clone().into()),
+            yrs::Any::BigInt(self.target_handle),
         );
         prelim_map.insert("selected".to_owned(), yrs::Any::Bool(self.selected));
 
@@ -399,7 +437,7 @@ impl WbblWebappEdge {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize)]
 pub struct WbblWebappGraphSnapshot {
     pub nodes: Vec<WbblWebappNode>,
     pub edges: Vec<WbblWebappEdge>,
@@ -409,6 +447,7 @@ pub struct WbblWebappGraphSnapshot {
 #[derive(Debug)]
 pub enum WbblWebappGraphStoreError {
     UnexpectedStructure,
+    UnknownNodeType,
     FailedToUndo,
     FailedToRedo,
     FailedToEmit,
@@ -424,7 +463,7 @@ impl WbblWebappGraphStore {
         let mut undo_manager = yrs::UndoManager::new(&graph, &nodes);
         undo_manager.include_origin(graph.client_id()); // only track changes originating from local peer
         undo_manager.expand_scope(&edges);
-        WbblWebappGraphStore {
+        let mut store = WbblWebappGraphStore {
             next_listener_handle: 0,
             listeners: HashMap::new(),
             undo_manager,
@@ -432,11 +471,16 @@ impl WbblWebappGraphStore {
             nodes,
             edges,
             computed_node_sizes: HashMap::new(),
-        }
-    }
+        };
+        let output_node = NewWbblWebappNode::new(600.0, 500.0, WbblWebappNodeType::Output);
+        store.add_node(output_node.clone()).unwrap();
+        let slab_node = NewWbblWebappNode::new(200.0, 500.0, WbblWebappNodeType::Slab);
+        store.add_node(slab_node.clone()).unwrap();
+        store
+            .add_edge(&slab_node.id.clone(), &output_node.id.clone(), 1, 1)
+            .unwrap();
 
-    pub fn new_id() -> String {
-        uuid::Uuid::new_v4().to_string()
+        store
     }
 
     pub fn emit(&self) -> Result<(), WbblWebappGraphStoreError> {
@@ -700,8 +744,8 @@ impl WbblWebappGraphStore {
         &mut self,
         source: &str,
         target: &str,
-        source_handle: &str,
-        target_handle: &str,
+        source_handle: i64,
+        target_handle: i64,
     ) -> Result<(), WbblWebappGraphStoreError> {
         {
             let edge = WbblWebappEdge::new(source, target, source_handle, target_handle);
@@ -722,8 +766,8 @@ impl WbblWebappGraphStore {
         edge_id: &str,
         source: &str,
         target: &str,
-        source_handle: &str,
-        target_handle: &str,
+        source_handle: i64,
+        target_handle: i64,
         selected: bool,
     ) -> Result<(), WbblWebappGraphStoreError> {
         {
@@ -732,8 +776,8 @@ impl WbblWebappGraphStore {
                 id: edge_id.to_owned(),
                 source: source.to_owned(),
                 target: target.to_owned(),
-                source_handle: source_handle.to_owned(),
-                target_handle: target_handle.to_owned(),
+                source_handle,
+                target_handle,
                 deletable: true,
                 selectable: true,
                 updatable: true,

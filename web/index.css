@@ -69,3 +69,7 @@ body,
     box-shadow: none !important;
     outline: none;
 }
+
+.selected > path.react-flow__edge-path {
+    stroke: none !important;
+}

@@ -26,7 +26,7 @@ export default function WbblConnectionLine(
     ),
   );
   const [path, setPath] = useState(() =>
-    rope.get_path(new Float32Array([0, 0])),
+    rope.get_path(new Float32Array([0, 0]), 1),
   );
 
   const lastUpdate = useRef<number>(Date.now());
@@ -43,7 +43,7 @@ export default function WbblConnectionLine(
         new Float32Array([props.toX, props.toY]),
         delta,
       );
-      setPath(rope.get_path(new Float32Array([0, 0])));
+      setPath(rope.get_path(new Float32Array([0, 0]), 1));
       lastUpdate.current = time;
       animationFrame = requestAnimationFrame(update);
     }
@@ -76,6 +76,8 @@ export default function WbblConnectionLine(
               style={{
                 transform: `translate(${startMarkerPos.x}px,${startMarkerPos.y}px)`,
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+                width: 15,
+                height: 15,
               }}
               cx="0"
               cy="0"
@@ -86,6 +88,8 @@ export default function WbblConnectionLine(
               style={{
                 transform: `translate(${endMarkerPos.x}px,${endMarkerPos.y}px)`,
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+                width: 15 * flow.getZoom(),
+                height: 15 * flow.getZoom(),
               }}
               cx="0"
               cy="0"

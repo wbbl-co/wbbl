@@ -223,44 +223,6 @@ function Graph() {
     [graphStore],
   );
 
-  return (
-    <ReactFlow
-      nodes={snapshot.nodes}
-      onNodesChange={onNodesChange}
-      edges={snapshot.edges}
-      edgeTypes={edgeTypes}
-      colorMode="dark"
-      nodeTypes={nodeTypes}
-      onConnect={onConnect}
-      onPaneClick={onPaneClick}
-      onEdgeDoubleClick={removeEdge}
-      onConnectStart={onConnectStart}
-      onConnectEnd={onConnectEnd}
-      onEdgesChange={onEdgesChange}
-      onEdgeUpdate={onEdgesUpdate}
-      connectionLineComponent={WbblConnectionLine}
-      selectionMode={SelectionMode.Partial}
-      proOptions={{ hideAttribution: true }}
-      fitView
-    >
-      <Background variant={BackgroundVariant.Dots} bgColor="black" />
-      <Controls className="rounded ring-2 ring-neutral-400" />
-      <MiniMap className="rounded ring-2 ring-neutral-400" pannable zoomable />
-      <Panel position="top-left">
-        <Breadcrumb />
-      </Panel>
-      <NodeMenu
-        open={nodeMenuOpen}
-        onClose={setNodeMenuOpen}
-        position={nodeMenuPosition}
-        addNode={addNode}
-      />
-    </ReactFlow>
-  );
-}
-
-export default function GraphRoot() {
-  const graphStore = useRef(WbblWebappGraphStore.empty());
   const [edgeRendererRef, setEdgeRenderRef] = useState<SVGSVGElement | null>(
     null,
   );
@@ -270,19 +232,62 @@ export default function GraphRoot() {
   );
   let width = boundingRect?.width ?? 1080;
   let height = boundingRect?.height ?? 1920;
+
   return (
-    <WbblGraphStoreContext.Provider value={graphStore.current}>
-      <ReactFlowProvider>
-        <WbblEdgeEndContext.Provider value={edgeRendererRef}>
-          <Graph />
-        </WbblEdgeEndContext.Provider>
+    <WbblEdgeEndContext.Provider value={edgeRendererRef}>
+      <ReactFlow
+        nodes={snapshot.nodes}
+        onNodesChange={onNodesChange}
+        edges={snapshot.edges}
+        edgeTypes={edgeTypes}
+        colorMode="dark"
+        nodeTypes={nodeTypes}
+        onConnect={onConnect}
+        onPaneClick={onPaneClick}
+        onEdgeDoubleClick={removeEdge}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
+        onEdgesChange={onEdgesChange}
+        onEdgeUpdate={onEdgesUpdate}
+        connectionLineComponent={WbblConnectionLine}
+        selectionMode={SelectionMode.Partial}
+        proOptions={{ hideAttribution: true }}
+        fitView
+      >
+        <Background variant={BackgroundVariant.Dots} bgColor="black" />
+        <Controls className="rounded bg-black ring-2 ring-neutral-400" />
         <svg
           id="edge-end-renderer"
           className="pointer-events-none absolute left-0 top-0"
           viewBox={`0 0 ${width} ${height}`}
-          style={{ width: width, height: height }}
+          style={{ width: width, height: height, zIndex: 4 }}
           ref={setEdgeRenderRef}
         ></svg>
+        <MiniMap
+          className="rounded ring-2 ring-neutral-400"
+          pannable
+          zoomable
+        />
+        <Panel position="top-left">
+          <Breadcrumb />
+        </Panel>
+        <NodeMenu
+          open={nodeMenuOpen}
+          onClose={setNodeMenuOpen}
+          position={nodeMenuPosition}
+          addNode={addNode}
+        />
+      </ReactFlow>
+    </WbblEdgeEndContext.Provider>
+  );
+}
+
+export default function GraphRoot() {
+  const graphStore = useRef(WbblWebappGraphStore.empty());
+  return (
+    <WbblGraphStoreContext.Provider value={graphStore.current}>
+      <ReactFlowProvider>
+        <Graph />
       </ReactFlowProvider>
     </WbblGraphStoreContext.Provider>
   );

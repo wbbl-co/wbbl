@@ -41,8 +41,10 @@ export default function WbbleEdge({
       ),
     [],
   );
-  const [path, setPath] = useState(() =>
-    rope.get_path(new Float32Array([0, 0])),
+  const path = useMemo(
+    () =>
+      rope.get_path(new Float32Array([viewport.x, viewport.y]), viewport.zoom),
+    [],
   );
 
   const [edgePath] = getStraightPath({
@@ -54,6 +56,7 @@ export default function WbbleEdge({
 
   const startMarker = useRef<SVGCircleElement>(null);
   const endMarker = useRef<SVGCircleElement>(null);
+  const ropePath = useRef<SVGPathElement>(null);
 
   const edgeEnd = useContext(WbblEdgeEndContext);
 
@@ -82,11 +85,19 @@ export default function WbbleEdge({
           endMarker.current.style.transform = `translate(${rectEnd.x}px,${rectEnd.y + 7.5 * viewport.zoom}px)`;
         }
         rope.update(
-          new Float32Array([startPos.x + 7.5, startPos.y + 7.5]),
-          new Float32Array([endPos.x + 7.5, endPos.y + 7.5]),
+          new Float32Array([startPos.x + 7.5, startPos.y + 15]),
+          new Float32Array([endPos.x + 7.5, endPos.y + 15]),
           delta,
         );
-        setPath(rope.get_path(new Float32Array([0, 0])));
+        if (ropePath.current) {
+          ropePath.current.setAttribute(
+            "d",
+            rope.get_path(
+              new Float32Array([viewport.x, viewport.y]),
+              viewport.zoom,
+            ),
+          );
+        }
       }
       lastUpdate.current = time;
       animationFrame = requestAnimationFrame(update);
@@ -95,8 +106,8 @@ export default function WbbleEdge({
     return () => cancelAnimationFrame(animationFrame);
   }, [
     rope,
+    ropePath,
     lastUpdate,
-    setPath,
     handleStart,
     handleEnd,
     flow,
@@ -119,14 +130,17 @@ export default function WbbleEdge({
               r={7.5 * flow.getZoom()}
               style={{
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+                width: 15,
+                height: 15,
               }}
             />
             <path
+              ref={ropePath}
+              className="fill-none"
               style={{
                 strokeWidth: 4 * viewport.zoom,
                 stroke: "#FFD92D",
               }}
-              d={path}
             />
             <circle
               ref={endMarker}
@@ -137,6 +151,8 @@ export default function WbbleEdge({
               r={7.5 * flow.getZoom()}
               style={{
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+                width: 15,
+                height: 15,
               }}
             />
           </>,
@@ -146,7 +162,7 @@ export default function WbbleEdge({
       <BaseEdge
         path={edgePath}
         className="stroke-transparent shadow-lg shadow-red-50"
-        interactionWidth={40}
+        interactionWidth={50}
       ></BaseEdge>
     </>
   );

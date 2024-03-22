@@ -595,14 +595,14 @@ impl WbblRope {
         }
     }
 
-    pub fn get_path(&self, canvas_position: &[f32]) -> String {
+    pub fn get_path(&self, canvas_position: &[f32], zoom: f32) -> String {
         let canvas_position = Vec2::from_slice(canvas_position);
         let mut result = String::new();
         write!(
             &mut result,
             "M {} {}",
-            (self.vertlets[0].position.x - canvas_position.x),
-            (self.vertlets[0].position.y - canvas_position.y)
+            (self.vertlets[0].position.x * zoom + canvas_position.x),
+            (self.vertlets[0].position.y * zoom + canvas_position.y)
         )
         .unwrap();
 
@@ -614,10 +614,10 @@ impl WbblRope {
             write!(
                 &mut result,
                 " Q {} {} {} {}",
-                (control_point.x - canvas_position.x),
-                (control_point.y - canvas_position.y),
-                (self.vertlets[i].position.x - canvas_position.x),
-                (self.vertlets[i].position.y - canvas_position.y)
+                (control_point.x * zoom + canvas_position.x),
+                (control_point.y * zoom + canvas_position.y),
+                (self.vertlets[i].position.x * zoom + canvas_position.x),
+                (self.vertlets[i].position.y * zoom + canvas_position.y)
             )
             .unwrap();
         }

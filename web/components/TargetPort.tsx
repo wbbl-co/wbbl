@@ -24,7 +24,7 @@ export default function TargetPort(props: {
     const connectedEdges = getConnectedEdges([node!], edges);
     return (
       connectedEdges.filter(
-        (x) => x.targetHandle == nodeId && x.targetHandle == props.id,
+        (x) => x.target == nodeId && x.targetHandle == props.id,
       ).length == 0
     );
   }, [nodeInternals, edges, nodeId, props.id]);
@@ -41,7 +41,6 @@ export default function TargetPort(props: {
           borderWidth: 2,
         }}
         className="border-lime relative bg-transparent"
-        isConnectableStart={false}
         isConnectable={isHandleConnectable}
       />
       {props.label && (

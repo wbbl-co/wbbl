@@ -120,6 +120,7 @@ export default function WbbleEdge({
       <BaseEdge
         path={path}
         className="shadow-lg shadow-red-50"
+        interactionWidth={40}
         style={{
           strokeWidth: 4,
           stroke: "#FFD92D",

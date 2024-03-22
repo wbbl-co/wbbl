@@ -42,9 +42,6 @@ const edgeTypes = {
   default: WbbleEdge,
 };
 
-type WbblWebappNode = Node;
-type WbblWebappEdge = Edge;
-
 function Graph() {
   const graphStore = useContext(WbblGraphStoreContext);
   const snapshot = useWbblGraphData(graphStore);
@@ -102,7 +99,7 @@ function Graph() {
     [nodeMenuOpen, setNodeMenuPosition, setNodeMenuOpen, flow, isConnecting],
   );
   const onNodesChange = useCallback(
-    (changes: NodeChange<WbblWebappNode>[]) => {
+    (changes: NodeChange<Node>[]) => {
       for (let change of changes) {
         switch (change.type) {
           case "add":
@@ -154,10 +151,8 @@ function Graph() {
   );
 
   const onEdgesChange = useCallback(
-    (changes: EdgeChange<WbblWebappEdge>[]) => {
+    (changes: EdgeChange<Edge>[]) => {
       for (let change of changes) {
-        console.log("edge change", change);
-
         switch (change.type) {
           case "add":
             graphStore.add_edge(
@@ -221,9 +216,16 @@ function Graph() {
     [graphStore],
   );
 
+  const removeEdge = useCallback(
+    (_: any, edge: Edge) => {
+      graphStore.remove_edge(edge.id);
+    },
+    [graphStore],
+  );
+
   return (
     <ReactFlow
-      nodes={snapshot.nodes as unknown as WbblWebappNode[]}
+      nodes={snapshot.nodes}
       onNodesChange={onNodesChange}
       edges={snapshot.edges}
       edgeTypes={edgeTypes}
@@ -231,6 +233,7 @@ function Graph() {
       nodeTypes={nodeTypes}
       onConnect={onConnect}
       onPaneClick={onPaneClick}
+      onEdgeDoubleClick={removeEdge}
       onConnectStart={onConnectStart}
       onConnectEnd={onConnectEnd}
       onEdgesChange={onEdgesChange}

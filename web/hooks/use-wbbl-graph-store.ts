@@ -23,7 +23,9 @@ export function useWbblGraphData(store: WbblWebappGraphStore): {
         });
       }
       let handle = store.subscribe(subscriber);
-      return () => store.unsubscribe(handle);
+      return () => {
+        store.unsubscribe(handle);
+      };
     },
     [store],
   );

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, process::Output, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize, Serializer};
 use wasm_bindgen::prelude::*;
@@ -88,7 +88,7 @@ pub fn from_type_name(type_name: &str) -> Option<WbblWebappNodeType> {
 #[wasm_bindgen]
 pub struct WbblWebappGraphStore {
     next_listener_handle: u32,
-    listeners: HashMap<u32, js_sys::Function>,
+    listeners: Vec<(u32, js_sys::Function)>,
     undo_manager: yrs::UndoManager,
     graph: Arc<yrs::Doc>,
     nodes: yrs::MapRef,
@@ -465,7 +465,7 @@ impl WbblWebappGraphStore {
         undo_manager.expand_scope(&edges);
         let mut store = WbblWebappGraphStore {
             next_listener_handle: 0,
-            listeners: HashMap::new(),
+            listeners: Vec::new(),
             undo_manager,
             graph: Arc::new(graph),
             nodes,
@@ -484,7 +484,7 @@ impl WbblWebappGraphStore {
     }
 
     pub fn emit(&self) -> Result<(), WbblWebappGraphStoreError> {
-        for listener in self.listeners.values() {
+        for (_, listener) in self.listeners.iter() {
             listener
                 .call0(&JsValue::UNDEFINED)
                 .map_err(|_| WbblWebappGraphStoreError::FailedToEmit)?;
@@ -494,13 +494,20 @@ impl WbblWebappGraphStore {
 
     pub fn subscribe(&mut self, subscriber: js_sys::Function) -> u32 {
         let handle = self.next_listener_handle;
-        self.listeners.insert(handle, subscriber);
+        self.listeners.push((handle, subscriber));
         self.next_listener_handle = self.next_listener_handle + 1;
         handle
     }
 
     pub fn unsubscribe(&mut self, handle: u32) {
-        self.listeners.remove(&handle);
+        if let Some((idx, _)) = self
+            .listeners
+            .iter()
+            .enumerate()
+            .find(|(_, (k, _))| *k == handle)
+        {
+            let _ = self.listeners.remove(idx);
+        }
     }
 
     pub fn undo(&mut self) -> Result<bool, WbblWebappGraphStoreError> {
@@ -806,6 +813,7 @@ impl WbblWebappGraphStore {
                     edge_ref.insert(&mut mut_transaction, "selected", yrs::Any::Bool(selected));
                     Ok(())
                 }
+                None => Ok(()),
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
         }

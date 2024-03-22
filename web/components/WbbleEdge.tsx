@@ -1,5 +1,11 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BaseEdge, EdgeProps, useReactFlow, useViewport } from "@xyflow/react";
+import {
+  BaseEdge,
+  EdgeProps,
+  getStraightPath,
+  useReactFlow,
+  useViewport,
+} from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
 import { createPortal } from "react-dom";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
@@ -38,6 +44,13 @@ export default function WbbleEdge({
   const [path, setPath] = useState(() =>
     rope.get_path(new Float32Array([0, 0])),
   );
+
+  const [edgePath] = getStraightPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+  });
 
   const startMarker = useRef<SVGCircleElement>(null);
   const endMarker = useRef<SVGCircleElement>(null);
@@ -99,32 +112,41 @@ export default function WbbleEdge({
           <>
             <circle
               ref={startMarker}
+              key="start-marker"
               className={"fill-orange"}
               cx={-7.5 * flow.getZoom()}
               cy="0"
               r={7.5 * flow.getZoom()}
-              style={{ filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))" }}
+              style={{
+                filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+              }}
+            />
+            <path
+              style={{
+                strokeWidth: 4 * viewport.zoom,
+                stroke: "#FFD92D",
+              }}
+              d={path}
             />
             <circle
               ref={endMarker}
+              key="end-marker"
               className={"fill-orange shadow-red-50"}
               cx={7.5 * flow.getZoom()}
               cy="0"
               r={7.5 * flow.getZoom()}
-              style={{ filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))" }}
+              style={{
+                filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+              }}
             />
           </>,
           edgeEnd,
           `edge-marker-${id}`,
         )}
       <BaseEdge
-        path={path}
-        className="shadow-lg shadow-red-50"
+        path={edgePath}
+        className="stroke-transparent shadow-lg shadow-red-50"
         interactionWidth={40}
-        style={{
-          strokeWidth: 4,
-          stroke: "#FFD92D",
-        }}
       ></BaseEdge>
     </>
   );

@@ -21,6 +21,8 @@ export default function SourcePort(props: {
         }}
         className="bg-lime relative"
         isConnectable={true}
+        isConnectableStart={true}
+        isConnectableEnd={false}
       />
     </div>
   );

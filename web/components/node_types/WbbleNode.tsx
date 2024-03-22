@@ -1,5 +1,5 @@
 import { NodeProps } from "@xyflow/react";
-import { ReactElement, ReactNode, useEffect, useRef, useState } from "react";
+import { ReactElement, useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../../pkg/wbbl";
 
 export default function WbblNode({

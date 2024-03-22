@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import {
   BaseEdge,
   EdgeProps,
@@ -39,11 +39,6 @@ export default function WbbleEdge({
         new Float32Array([sourceX, sourceY]),
         new Float32Array([targetX, targetY]),
       ),
-    [],
-  );
-  const path = useMemo(
-    () =>
-      rope.get_path(new Float32Array([viewport.x, viewport.y]), viewport.zoom),
     [],
   );
 

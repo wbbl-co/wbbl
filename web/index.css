@@ -4,35 +4,51 @@
 @tailwind utilities;
 
 @font-face {
-    font-family: "SpaceMono";
+    font-family: "DMMono";
     font-style: normal;
-    font-weight: 400;
+    font-weight: lighter;
     font-display: swap;
-    src: url("./web/fonts/Space_Mono/SpaceMono-Regular.ttf");
+    src: url("./web/fonts/DM_Mono/DMMono-Light.ttf");
 }
 
 @font-face {
-    font-family: "SpaceMono";
+    font-family: "DMMono";
     font-style: italic;
-    font-weight: 400;
+    font-weight: lighter;
     font-display: swap;
-    src: url("./web/fonts/Space_Mono/SpaceMono-Italic.ttf");
+    src: url("./web/fonts/DM_Mono/DMMono-LightItalic.ttf");
 }
 
 @font-face {
-    font-family: "SpaceMono";
+    font-family: "DMMono";
+    font-style: normal;
+    font-weight: normal;
+    font-display: swap;
+    src: url("./web/fonts/DM_Mono/DMMono-Regular.ttf");
+}
+
+@font-face {
+    font-family: "DMMono";
+    font-style: italic;
+    font-weight: normal;
+    font-display: swap;
+    src: url("./web/fonts/DM_Mono/DMMono-Italic.ttf");
+}
+
+@font-face {
+    font-family: "DMMono";
     font-style: italic;
     font-weight: bold;
     font-display: swap;
-    src: url("./web/fonts/Space_Mono/SpaceMono-BoldItalic.ttf");
+    src: url("./web/fonts/DM_Mono/DMMono-MediumItalic.ttf");
 }
 
 @font-face {
-    font-family: "SpaceMono";
+    font-family: "DMMono";
     font-style: normal;
     font-weight: bold;
     font-display: swap;
-    src: url("./web/fonts/Space_Mono/SpaceMono-Bold.ttf");
+    src: url("./web/fonts/DM_Mono/DMMono-Medium.ttf");
 }
 
 @font-face {
@@ -70,6 +86,6 @@ body,
     outline: none;
 }
 
-.selected > path.react-flow__edge-path {
+path.react-flow__edge-path {
     stroke: none !important;
 }

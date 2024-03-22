@@ -16,7 +16,8 @@ export default {
       },
       fontFamily: {
         gasoek: ["GasoekOne", "sans-serif"],
-        mono: ["SpaceMono", "monospace"],
+        mono: ["DMMono", "monospace"],
+        sans: ["DMMono", "monospace"],
       },
     },
   },

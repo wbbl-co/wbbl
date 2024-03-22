@@ -67,6 +67,11 @@ impl Node {
     pub fn get_computation_domain(&self) -> Option<HashSet<ComputationDomain>> {
         match self.node_type {
             NodeType::Output => None,
+            NodeType::Slab => Some(HashSet::from([
+                ComputationDomain::TimeVarying,
+                ComputationDomain::ModelDependant,
+                ComputationDomain::TransformDependant,
+            ])),
         }
     }
 }
@@ -130,6 +135,7 @@ pub struct BranchedMultiGraph {
 #[derive(Clone)]
 pub enum NodeType {
     Output,
+    Slab,
 }
 
 #[derive(Serialize, Deserialize)]

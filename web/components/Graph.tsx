@@ -233,6 +233,7 @@ function Graph() {
   let width = boundingRect?.width ?? 1080;
   let height = boundingRect?.height ?? 1920;
 
+  console.log(snapshot);
   return (
     <WbblEdgeEndContext.Provider value={edgeRendererRef}>
       <ReactFlow

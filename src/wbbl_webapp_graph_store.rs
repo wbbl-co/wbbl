@@ -1,143 +1,33 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
-use serde::{Deserialize, Serialize, Serializer};
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys;
 use yrs::{types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut};
 
+use crate::graph_transfer_types::{
+    from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot, WbblWebappNode,
+    WbblWebappNodeType, WbbleComputedNodeSize, WbblePosition,
+};
+
 const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
 const GRAPH_YRS_EDGES_MAP_KEY: &str = "edges";
 
-#[derive(Clone, Serialize, Deserialize)]
-pub enum Any {
-    Null,
-    Undefined,
-    Bool(bool),
-    Number(f64),
-    BigInt(i64),
-    String(Arc<str>),
-    Buffer(Arc<[u8]>),
-    Array(Arc<[Any]>),
-    Map(Arc<HashMap<String, Any>>),
-}
-
-impl Any {
-    fn to_yrs(&self) -> yrs::Any {
-        match self {
-            Any::Null => yrs::Any::Null,
-            Any::Undefined => yrs::Any::Undefined,
-            Any::Bool(b) => yrs::Any::Bool(*b),
-            Any::Number(n) => yrs::Any::Number(*n),
-            Any::BigInt(b) => yrs::Any::BigInt(*b),
-            Any::String(str) => yrs::Any::String(str.clone()),
-            Any::Buffer(b) => yrs::Any::Buffer(b.clone()),
-            Any::Array(arr) => yrs::Any::Array(arr.iter().map(|a| Self::to_yrs(a)).collect()),
-            Any::Map(map) => yrs::Any::Map(
-                map.iter()
-                    .map(|(k, v)| (k.to_owned(), Self::to_yrs(v)))
-                    .collect::<HashMap<String, yrs::Any>>()
-                    .into(),
-            ),
-        }
-    }
-}
-
-impl From<&yrs::Any> for Any {
-    fn from(value: &yrs::Any) -> Self {
-        match value {
-            yrs::Any::Null => Any::Null,
-            yrs::Any::Undefined => Any::Undefined,
-            yrs::Any::Bool(b) => Any::Bool(*b),
-            yrs::Any::Number(n) => Any::Number(*n),
-            yrs::Any::BigInt(b) => Any::BigInt(*b),
-            yrs::Any::String(str) => Any::String(str.clone()),
-            yrs::Any::Buffer(b) => Any::Buffer(b.clone()),
-            yrs::Any::Array(arr) => Any::Array(arr.iter().map(|a| Self::from(a)).collect()),
-            yrs::Any::Map(map) => Any::Map(
-                map.iter()
-                    .map(|(k, v)| (k.to_owned(), Self::from(v)))
-                    .collect::<HashMap<String, Any>>()
-                    .into(),
-            ),
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum WbblWebappNodeType {
-    Output,
-    Slab,
-}
-
-pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
-    match node_type {
-        WbblWebappNodeType::Output => "output".to_owned(),
-        WbblWebappNodeType::Slab => "slab".to_owned(),
-    }
-}
-#[wasm_bindgen]
-pub fn from_type_name(type_name: &str) -> Option<WbblWebappNodeType> {
-    match type_name {
-        "output" => Some(WbblWebappNodeType::Output),
-        "slab" => Some(WbblWebappNodeType::Slab),
-        _ => None,
-    }
-}
-
 #[wasm_bindgen]
 pub struct WbblWebappGraphStore {
+    id: u128,
     next_listener_handle: u32,
     listeners: Vec<(u32, js_sys::Function)>,
     undo_manager: yrs::UndoManager,
     graph: Arc<yrs::Doc>,
     nodes: yrs::MapRef,
     edges: yrs::MapRef,
-    computed_node_sizes: HashMap<String, WbbleComputedNodeSize>,
-}
-
-#[wasm_bindgen]
-#[derive(Copy, Clone, Serialize)]
-pub struct WbblePosition {
-    pub x: f64,
-    pub y: f64,
-}
-
-#[derive(Copy, Clone, Serialize)]
-pub struct WbbleComputedNodeSize {
-    pub width: Option<f64>,
-    pub height: Option<f64>,
-    #[serde(rename = "positionAbsolute")]
-    pub position_absolute: Option<WbblePosition>,
-}
-
-fn type_to_string<S>(node_type: &WbblWebappNodeType, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&get_type_name(*node_type))
-}
-
-#[derive(Clone, Serialize)]
-pub struct WbblWebappNode {
-    pub id: String,
-    pub position: WbblePosition,
-    #[serde(rename = "type", serialize_with = "type_to_string")]
-    pub node_type: WbblWebappNodeType,
-    pub data: HashMap<String, Any>,
-    pub computed: Option<WbbleComputedNodeSize>,
-    pub dragging: bool,
-    pub resizing: bool,
-    pub selected: bool,
-    pub selectable: bool,
-    pub connectable: bool,
-    pub deletable: bool,
+    computed_node_sizes: HashMap<u128, WbbleComputedNodeSize>,
 }
 
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct NewWbblWebappNode {
-    id: String,
+    id: u128,
     position: WbblePosition,
     node_type: WbblWebappNodeType,
     data: HashMap<String, Any>,
@@ -168,7 +58,11 @@ impl NewWbblWebappNode {
     ) -> Result<WbblWebappNode, WbblWebappGraphStoreError> {
         let data = {
             let prelim_map: yrs::MapPrelim<yrs::Any> = yrs::MapPrelim::new();
-            let mut node_ref = nodes.insert(transaction, self.id.clone(), prelim_map);
+            let mut node_ref = nodes.insert(
+                transaction,
+                uuid::Uuid::from_u128(self.id).to_string(),
+                prelim_map,
+            );
             node_ref.insert(transaction, "type", get_type_name(self.node_type));
             node_ref.insert(transaction, "x", self.position.x);
             node_ref.insert(transaction, "y", self.position.y);
@@ -179,7 +73,7 @@ impl NewWbblWebappNode {
         }?;
 
         Ok(WbblWebappNode {
-            id: self.id.clone(),
+            id: self.id,
             position: self.position,
             node_type: self.node_type,
             data,
@@ -208,7 +102,7 @@ impl NewWbblWebappNode {
         node_type: WbblWebappNodeType,
     ) -> NewWbblWebappNode {
         NewWbblWebappNode {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: uuid::Uuid::new_v4().as_u128(),
             position: WbblePosition {
                 x: position_x,
                 y: position_y,
@@ -226,63 +120,13 @@ impl NewWbblWebappNode {
     ) -> NewWbblWebappNode {
         let data = serde_wasm_bindgen::from_value::<HashMap<String, Any>>(data).unwrap();
         NewWbblWebappNode {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: uuid::Uuid::new_v4().as_u128(),
             position: WbblePosition {
                 x: position_x,
                 y: position_y,
             },
             node_type,
             data,
-        }
-    }
-}
-
-fn target_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&format!("t-{}", number).to_owned())
-}
-
-fn source_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&format!("s-{}", number).to_owned())
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct WbblWebappEdge {
-    pub id: String,
-    pub source: String,
-    pub target: String,
-    #[serde(rename = "sourceHandle", serialize_with = "source_handle_to_string")]
-    pub source_handle: i64,
-    #[serde(rename = "targetHandle", serialize_with = "target_handle_to_string")]
-    pub target_handle: i64,
-    pub deletable: bool,
-    pub selectable: bool,
-    pub selected: bool,
-    pub updatable: bool,
-}
-
-impl WbblWebappEdge {
-    pub fn new(
-        source: &str,
-        target: &str,
-        source_handle: i64,
-        target_handle: i64,
-    ) -> WbblWebappEdge {
-        WbblWebappEdge {
-            id: uuid::Uuid::new_v4().to_string(),
-            source: source.to_owned(),
-            target: target.to_owned(),
-            source_handle,
-            target_handle,
-            deletable: true,
-            selected: false,
-            selectable: true,
-            updatable: true,
         }
     }
 }
@@ -296,6 +140,17 @@ fn get_atomic_string<Txn: yrs::ReadTxn>(
         Some(yrs::Value::Any(yrs::Any::String(result))) => Ok((*result).to_owned()),
         _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
     }
+}
+
+fn get_atomic_u128_from_string<Txn: yrs::ReadTxn>(
+    key: &str,
+    txn: &Txn,
+    map: &yrs::MapRef,
+) -> Result<u128, WbblWebappGraphStoreError> {
+    let str = get_atomic_string(key, txn, map)?;
+    uuid::Uuid::from_str(&str)
+        .map_err(|_| WbblWebappGraphStoreError::MalformedId)
+        .map(|uuid| uuid.as_u128())
 }
 
 fn get_atomic_bigint<Txn: yrs::ReadTxn>(
@@ -344,7 +199,7 @@ fn get_bool<Txn: yrs::ReadTxn>(
 
 impl WbblWebappNode {
     pub(crate) fn decode<Txn: yrs::ReadTxn>(
-        key: &String,
+        key: &u128,
         txn: &Txn,
         map: &yrs::MapRef,
     ) -> Result<WbblWebappNode, WbblWebappGraphStoreError> {
@@ -365,7 +220,7 @@ impl WbblWebappNode {
             None => Err(WbblWebappGraphStoreError::UnknownNodeType),
         }?;
         Ok(WbblWebappNode {
-            id: key.clone(),
+            id: *key,
             position: WbblePosition { x, y },
             computed: None,
             node_type,
@@ -385,12 +240,12 @@ impl WbblWebappNode {
 
 impl WbblWebappEdge {
     pub(crate) fn decode<Txn: yrs::ReadTxn>(
-        key: String,
+        key: u128,
         txn: &Txn,
         map: &yrs::MapRef,
     ) -> Result<WbblWebappEdge, WbblWebappGraphStoreError> {
-        let source = get_atomic_string("source", txn, map)?;
-        let target = get_atomic_string("target", txn, map)?;
+        let source = get_atomic_u128_from_string("source", txn, map)?;
+        let target = get_atomic_u128_from_string("target", txn, map)?;
         let source_handle = get_atomic_bigint("source_handle", txn, map)?;
         let selected = get_bool("selected", txn, map)?;
         let target_handle = get_atomic_bigint("target_handle", txn, map)?;
@@ -416,11 +271,11 @@ impl WbblWebappEdge {
         let mut prelim_map: HashMap<String, yrs::Any> = HashMap::new();
         prelim_map.insert(
             "source".to_owned(),
-            yrs::Any::String(self.source.clone().into()),
+            yrs::Any::String(uuid::Uuid::from_u128(self.source).to_string().into()),
         );
         prelim_map.insert(
             "target".to_owned(),
-            yrs::Any::String(self.target.clone().into()),
+            yrs::Any::String(uuid::Uuid::from_u128(self.target).to_string().into()),
         );
         prelim_map.insert(
             "source_handle".to_owned(),
@@ -432,15 +287,13 @@ impl WbblWebappEdge {
         );
         prelim_map.insert("selected".to_owned(), yrs::Any::Bool(self.selected));
 
-        map.insert(txn, self.id.clone(), yrs::MapPrelim::from(prelim_map));
+        map.insert(
+            txn,
+            uuid::Uuid::from_u128(self.id).to_string(),
+            yrs::MapPrelim::from(prelim_map),
+        );
         Ok(())
     }
-}
-
-#[derive(Clone, Serialize)]
-pub struct WbblWebappGraphSnapshot {
-    pub nodes: Vec<WbblWebappNode>,
-    pub edges: Vec<WbblWebappEdge>,
 }
 
 #[wasm_bindgen]
@@ -452,6 +305,7 @@ pub enum WbblWebappGraphStoreError {
     FailedToRedo,
     FailedToEmit,
     NotFound,
+    MalformedId,
 }
 
 #[wasm_bindgen]
@@ -464,6 +318,7 @@ impl WbblWebappGraphStore {
         undo_manager.include_origin(graph.client_id()); // only track changes originating from local peer
         undo_manager.expand_scope(&edges);
         let mut store = WbblWebappGraphStore {
+            id: uuid::Uuid::new_v4().as_u128(),
             next_listener_handle: 0,
             listeners: Vec::new(),
             undo_manager,
@@ -477,7 +332,12 @@ impl WbblWebappGraphStore {
         let slab_node = NewWbblWebappNode::new(200.0, 500.0, WbblWebappNodeType::Slab);
         store.add_node(slab_node.clone()).unwrap();
         store
-            .add_edge(&slab_node.id.clone(), &output_node.id.clone(), 0, 0)
+            .add_edge(
+                &uuid::Uuid::from_u128(slab_node.id).to_string(),
+                &uuid::Uuid::from_u128(output_node.id).to_string(),
+                0,
+                0,
+            )
             .unwrap();
 
         store
@@ -592,27 +452,39 @@ impl WbblWebappGraphStore {
         for node in self.nodes.iter(&read_txn) {
             let key = node.0.to_owned();
             let node_values = node.1;
+            let key =
+                uuid::Uuid::from_str(&key).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
             let mut node: WbblWebappNode = match node_values {
-                yrs::Value::YMap(map) => WbblWebappNode::decode(&key, &read_txn, &map),
+                yrs::Value::YMap(map) => WbblWebappNode::decode(&key.as_u128(), &read_txn, &map),
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
-            node.computed = self.computed_node_sizes.get(&key).map(|s| s.clone());
+            node.computed = self
+                .computed_node_sizes
+                .get(&key.as_u128())
+                .map(|s| s.clone());
             nodes.push(node);
         }
 
         for edge in self.edges.iter(&read_txn) {
             let key = edge.0.to_owned();
             let edge_values = edge.1;
+            let key =
+                uuid::Uuid::from_str(&key).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+
             let edge: WbblWebappEdge = match edge_values {
-                yrs::Value::YMap(map) => WbblWebappEdge::decode(key, &read_txn, &map),
+                yrs::Value::YMap(map) => WbblWebappEdge::decode(key.as_u128(), &read_txn, &map),
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
             edges.push(edge);
         }
 
         nodes.sort_by_key(|n| n.id.clone());
-        edges.sort_by_key(|n| n.id.clone());
-        Ok(WbblWebappGraphSnapshot { nodes, edges })
+        edges.sort_by_key(|e| e.id.clone());
+        Ok(WbblWebappGraphSnapshot {
+            id: self.id,
+            nodes,
+            edges,
+        })
     }
 
     pub fn set_computed_node_dimension(
@@ -636,7 +508,12 @@ impl WbblWebappGraphStore {
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
         }
-        if let Some(maybe_computed) = self.computed_node_sizes.get_mut(node_id) {
+
+        let node_id = uuid::Uuid::from_str(node_id)
+            .map(|id| id.as_u128())
+            .map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+
+        if let Some(maybe_computed) = self.computed_node_sizes.get_mut(&node_id) {
             maybe_computed.width = width;
             maybe_computed.height = height;
         } else {
@@ -682,14 +559,17 @@ impl WbblWebappGraphStore {
                 }
                 _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
             }?;
-            if let Some(maybe_computed) = self.computed_node_sizes.get_mut(node_id) {
+            let node_id = uuid::Uuid::from_str(node_id)
+                .map(|id| id.as_u128())
+                .map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+            if let Some(maybe_computed) = self.computed_node_sizes.get_mut(&node_id) {
                 maybe_computed.position_absolute = Some(WbblePosition {
                     x: position_absolute_x.unwrap_or(0.0),
                     y: position_absolute_y.unwrap_or(0.0),
                 })
             } else {
                 self.computed_node_sizes.insert(
-                    node_id.to_owned(),
+                    node_id,
                     WbbleComputedNodeSize {
                         width: None,
                         height: None,
@@ -755,7 +635,17 @@ impl WbblWebappGraphStore {
         target_handle: i64,
     ) -> Result<(), WbblWebappGraphStoreError> {
         {
-            let edge = WbblWebappEdge::new(source, target, source_handle, target_handle);
+            let source =
+                uuid::Uuid::from_str(source).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+            let target =
+                uuid::Uuid::from_str(target).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+
+            let edge = WbblWebappEdge::new(
+                &(source.as_u128()),
+                &(target.as_u128()),
+                source_handle,
+                target_handle,
+            );
 
             let mut mut_transaction = self.graph.transact_mut();
             edge.encode(&mut mut_transaction, &self.edges)?;
@@ -779,10 +669,16 @@ impl WbblWebappGraphStore {
     ) -> Result<(), WbblWebappGraphStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut();
+            let edge_id = uuid::Uuid::from_str(edge_id)
+                .map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+            let source =
+                uuid::Uuid::from_str(source).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+            let target =
+                uuid::Uuid::from_str(target).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
             let edge = WbblWebappEdge {
-                id: edge_id.to_owned(),
-                source: source.to_owned(),
-                target: target.to_owned(),
+                id: edge_id.as_u128(),
+                source: source.as_u128(),
+                target: target.as_u128(),
                 source_handle,
                 target_handle,
                 deletable: true,

@@ -7,6 +7,7 @@ pub mod constraint_solver_constraints;
 pub mod data_types;
 pub mod gltf_encoder;
 pub mod graph_functions;
+pub mod graph_transfer_types;
 pub mod graph_types;
 pub mod intermediate_compiler_types;
 pub mod model_scene_file_abstractions;

@@ -1,6 +1,5 @@
 // import { WbblGraphWebWorkerMain } from "../pkg/wbbl";
-// import { WbblGraphWebWorkerMessageType } from "./worker_message_types";
-// console.log("Hello from worker");
+// import type { WbblGraphWebWorkerMessageType } from "./worker_message_types";
 
 // async function run_in_worker() {
 //   // Loading wasm file

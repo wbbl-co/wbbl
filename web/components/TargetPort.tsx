@@ -13,7 +13,10 @@ const selector = (s: ReactFlowState) => ({
   edges: s.edges,
 });
 
-export default function TargetPort(props: { id: string; label?: string }) {
+export default function TargetPort(props: {
+  id: string;
+  label?: `t-${number}`;
+}) {
   const { nodeInternals, edges } = useStore(selector);
   const nodeId = useNodeId();
   const isHandleConnectable = useMemo(() => {
@@ -27,22 +30,22 @@ export default function TargetPort(props: { id: string; label?: string }) {
   }, [nodeInternals, edges, nodeId, props.id]);
 
   return (
-    <div className="inline-flex min-w-12 justify-start gap-0 pl-6">
+    <div className="inline-flex justify-start gap-0 pl-4">
       <Handle
         type="target"
         id={props.id}
         position={Position.Left}
         style={{
-          width: 20,
-          height: 20,
-          borderWidth: 3,
+          width: 15,
+          height: 15,
+          borderWidth: 2,
         }}
         className="border-lime relative bg-transparent"
         isConnectableStart={false}
         isConnectable={isHandleConnectable}
       />
       {props.label && (
-        <div className="text-md font-mono italic">{props.label}</div>
+        <div className="font-mono text-sm italic">{props.label}</div>
       )}
     </div>
   );

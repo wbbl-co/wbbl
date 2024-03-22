@@ -1,18 +1,23 @@
 import { Handle, Position } from "@xyflow/react";
 
-export default function SourcePort(props: { id: string; label?: string }) {
+export default function SourcePort(props: {
+  id: `s-${number}`;
+  label?: string;
+}) {
   return (
-    <div className="inline-flex min-w-12 justify-end gap-0 pr-6">
+    <div className="inline-flex justify-end gap-0 pr-4">
       {props.label && (
-        <div className="text-md font-mono italic">{props.label}</div>
+        <div className="font-mono text-sm italic">{props.label}</div>
       )}
       <Handle
         type="source"
         id={props.id}
         position={Position.Right}
         style={{
-          width: 20,
-          height: 20,
+          width: 15,
+          height: 15,
+          padding: 0,
+          margin: 0,
         }}
         className="bg-lime relative"
         isConnectable={true}

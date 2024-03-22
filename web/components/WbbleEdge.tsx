@@ -14,7 +14,6 @@ export default function WbbleEdge({
   sourceY,
   targetX,
   targetY,
-  selected,
 }: EdgeProps) {
   const flow = useReactFlow();
   const viewport = useViewport();
@@ -28,11 +27,13 @@ export default function WbbleEdge({
       `div[data-handleid="${targetHandleId}"][data-nodeid="${target}"]`,
     );
   }, [targetHandleId, target]);
-  const [rope] = useState(() =>
-    WbblRope.new(
-      new Float32Array([sourceX, sourceY]),
-      new Float32Array([targetX, targetY]),
-    ),
+  const rope = useMemo(
+    () =>
+      WbblRope.new(
+        new Float32Array([sourceX, sourceY]),
+        new Float32Array([targetX, targetY]),
+      ),
+    [],
   );
   const [path, setPath] = useState(() =>
     rope.get_path(new Float32Array([0, 0])),
@@ -56,24 +57,24 @@ export default function WbbleEdge({
         let rectStart = handleStart.getBoundingClientRect();
         let rectEnd = handleEnd.getBoundingClientRect();
         let startPos = flow.screenToFlowPosition({
-          x: rectStart.x,
-          y: rectStart.y,
+          x: rectStart.left,
+          y: rectStart.top,
         });
         let endPos = flow.screenToFlowPosition({
-          x: rectEnd.x,
-          y: rectEnd.y,
+          x: rectEnd.left,
+          y: rectEnd.top,
         });
         if (startMarker.current && endMarker.current) {
-          startMarker.current.style.transform = `translate(${rectStart.x + 20 * viewport.zoom}px,${rectStart.y + 10 * viewport.zoom}px)`;
-          endMarker.current.style.transform = `translate(${rectEnd.x}px,${rectEnd.y + 10 * viewport.zoom}px)`;
+          startMarker.current.style.transform = `translate(${rectStart.x + 15 * viewport.zoom}px,${rectStart.y + 7.5 * viewport.zoom}px)`;
+          endMarker.current.style.transform = `translate(${rectEnd.x}px,${rectEnd.y + 7.5 * viewport.zoom}px)`;
         }
         rope.update(
-          new Float32Array([startPos.x + 10, startPos.y + 10]),
-          new Float32Array([endPos.x + 10, endPos.y + 10]),
+          new Float32Array([startPos.x + 7.5, startPos.y + 7.5]),
+          new Float32Array([endPos.x + 7.5, endPos.y + 7.5]),
           delta,
         );
+        setPath(rope.get_path(new Float32Array([0, 0])));
       }
-      setPath(rope.get_path(new Float32Array([0, 0])));
       lastUpdate.current = time;
       animationFrame = requestAnimationFrame(update);
     }
@@ -98,17 +99,19 @@ export default function WbbleEdge({
           <>
             <circle
               ref={startMarker}
-              fill="#FFD92D"
-              cx={-10 * flow.getZoom()}
+              className={"fill-orange"}
+              cx={-7.5 * flow.getZoom()}
               cy="0"
-              r={10 * flow.getZoom()}
+              r={7.5 * flow.getZoom()}
+              style={{ filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))" }}
             />
             <circle
               ref={endMarker}
-              fill="#FFD92D"
-              cx={10 * flow.getZoom()}
+              className={"fill-orange shadow-red-50"}
+              cx={7.5 * flow.getZoom()}
               cy="0"
-              r={10 * flow.getZoom()}
+              r={7.5 * flow.getZoom()}
+              style={{ filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))" }}
             />
           </>,
           edgeEnd,
@@ -116,7 +119,11 @@ export default function WbbleEdge({
         )}
       <BaseEdge
         path={path}
-        style={{ stroke: selected ? "#FFD92D" : "blue", strokeWidth: 4 }}
+        className="shadow-lg shadow-red-50"
+        style={{
+          strokeWidth: 4,
+          stroke: "#FFD92D",
+        }}
       ></BaseEdge>
     </>
   );

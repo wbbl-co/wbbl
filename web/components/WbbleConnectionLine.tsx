@@ -75,19 +75,21 @@ export default function WbblConnectionLine(
               fill="red"
               style={{
                 transform: `translate(${startMarkerPos.x}px,${startMarkerPos.y}px)`,
+                filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
               }}
               cx="0"
               cy="0"
-              r={10 * flow.getZoom()}
+              r={7.5 * flow.getZoom()}
             />
             <circle
               fill="red"
               style={{
                 transform: `translate(${endMarkerPos.x}px,${endMarkerPos.y}px)`,
+                filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
               }}
               cx="0"
               cy="0"
-              r={10 * flow.getZoom()}
+              r={7.5 * flow.getZoom()}
             />
           </>,
           edgeEnd,

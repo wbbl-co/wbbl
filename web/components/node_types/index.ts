@@ -1,6 +1,7 @@
-import WbblNode from "./WbbleNode";
+import OutputNode from "./OutputNode";
+import SlabNode from "./SlabNode";
 
 export const nodeTypes = {
-  output: WbblNode,
-  slab: WbblNode,
+  output: OutputNode,
+  slab: SlabNode,
 };

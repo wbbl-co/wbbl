@@ -477,7 +477,7 @@ impl WbblWebappGraphStore {
         let slab_node = NewWbblWebappNode::new(200.0, 500.0, WbblWebappNodeType::Slab);
         store.add_node(slab_node.clone()).unwrap();
         store
-            .add_edge(&slab_node.id.clone(), &output_node.id.clone(), 1, 1)
+            .add_edge(&slab_node.id.clone(), &output_node.id.clone(), 0, 0)
             .unwrap();
 
         store

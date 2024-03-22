@@ -277,6 +277,7 @@ export default function GraphRoot() {
           id="edge-end-renderer"
           className="pointer-events-none absolute left-0 top-0"
           viewBox={`0 0 ${width} ${height}`}
+          style={{ width: width, height: height }}
           ref={setEdgeRenderRef}
         ></svg>
       </ReactFlowProvider>

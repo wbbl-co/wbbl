@@ -1,19 +1,28 @@
 import { NodeProps } from "@xyflow/react";
-import { useEffect, useRef, useState } from "react";
+import { ReactElement, ReactNode, useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../../pkg/wbbl";
-import TargetPort from "../TargetPort";
-import SourcePort from "../SourcePort";
 
 export default function WbblNode({
   type,
   dragging,
   positionAbsoluteX,
   positionAbsoluteY,
-}: NodeProps) {
+  w,
+  h,
+  children,
+  inputPorts,
+  outputPorts,
+}: Omit<NodeProps, "width" | "height"> & {
+  inputPorts: ReactElement;
+  outputPorts: ReactElement;
+  w: number;
+  h: number;
+  children: ReactElement;
+}) {
   const [box] = useState(() =>
     WbblBox.new(
-      new Float32Array([positionAbsoluteX + 100, positionAbsoluteY + 100]),
-      new Float32Array([200, 200]),
+      new Float32Array([positionAbsoluteX + h / 2, positionAbsoluteY + h / 2]),
+      new Float32Array([w, h]),
     ),
   );
 
@@ -30,8 +39,11 @@ export default function WbblNode({
         Math.max(0.0, (time - lastUpdate.current) / 1000.0),
       );
       box.update(
-        new Float32Array([positionAbsoluteX + 100, positionAbsoluteY + 100]),
-        new Float32Array([200, 200]),
+        new Float32Array([
+          positionAbsoluteX + w / 2,
+          positionAbsoluteY + h / 2,
+        ]),
+        new Float32Array([w, h]),
         delta,
         dragging
           ? new Float32Array([positionAbsoluteX, positionAbsoluteY])
@@ -58,7 +70,10 @@ export default function WbblNode({
       context.lineWidth = 4;
       context.stroke();
       let skew = box.get_skew(
-        new Float32Array([positionAbsoluteX + 100, positionAbsoluteY + 100]),
+        new Float32Array([
+          positionAbsoluteX + w / 2,
+          positionAbsoluteY + h / 2,
+        ]),
       );
       if (contentsRef.current) {
         contentsRef.current.style.transform = skew;
@@ -76,39 +91,40 @@ export default function WbblNode({
     dragging,
     positionAbsoluteX,
     positionAbsoluteY,
+    w,
+    h,
   ]);
 
   return (
     <div
       className="text-sm"
-      style={{ width: 200, height: 200, overflow: "visible" }}
+      style={{ width: w, height: h, overflow: "visible" }}
     >
       <canvas
-        style={{ left: -100, top: -100 }}
+        style={{ left: -(w / 2), top: -(h / 2) }}
         className="nodrag pointer-events-none absolute"
-        width={400}
-        height={400}
+        width={w * 2}
+        height={h * 2}
         ref={canvasRef}
       />
       <div
         ref={contentsRef}
         style={{
           background: "rgba(0,0,0,0.01)",
-          width: 200,
-          height: 200,
+          width: w,
+          height: h,
         }}
         className="absolute left-0 top-0"
       >
-        <div className="text-center font-mono text-xl font-bold">{type}</div>
-        <div className="left-0 top-0 mt-2 flex w-full flex-row justify-between">
-          <div className="flex flex-col justify-start gap-2">
-            <TargetPort id={`t-0`} label="x" />
-            <TargetPort id={`t-1`} label="y" />
+        <div className="pt-1 text-center font-mono text-xl font-bold">
+          {type}
+        </div>
+        {children}
+        <div className="absolute left-0 top-0 mt-8 flex w-full flex-row justify-between">
+          <div className="top-0 flex flex-col justify-start gap-2">
+            {inputPorts}
           </div>
-          <div className="flex flex-col justify-end gap-2">
-            <SourcePort id={`s-0`} label="output" />
-            <SourcePort id={`s-1`} />
-          </div>
+          <div className="flex flex-col gap-2">{outputPorts}</div>
         </div>
       </div>
     </div>

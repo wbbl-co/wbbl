@@ -9,3 +9,9 @@ pub fn get_cube() -> Gltf {
     let cube = include_bytes!("cube.glb").as_slice();
     Gltf::from_slice(cube).unwrap()
 }
+
+#[derive(Hash, PartialEq, PartialOrd, Eq, Ord)]
+pub enum BuiltInGeometry {
+    Cube,
+    UVSphere,
+}

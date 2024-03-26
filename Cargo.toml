@@ -3,7 +3,9 @@ name = "wbbl"
 version = "0.1.0"
 authors = ["ncthbrt"]
 edition = "2021"
-
+description = "Wbbl is a app to edit 3d materials"
+repository = "https://github.com/ncthbrt/wbbl.git"
+license = "AGPL-3.0-or-later"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -31,6 +33,8 @@ web-sys = { version = "0.3", features = [
     'Window',
     "HtmlCanvasElement",
     "OffscreenCanvas",
+    "Worker",
+    "DedicatedWorkerGlobalScope",
 ] }
 bytemuck = { version = "1.14.3", features = ["wasm_simd"] }
 wgpu = { version = "0.19.3", default-features = false, features = [

@@ -4,28 +4,205 @@ import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import {
   DocumentIcon,
   ExclamationCircleIcon,
-  PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 import { WbblWebappNodeType } from "../../pkg/wbbl";
 
 const items = [
   {
-    node_type: WbblWebappNodeType.Output,
-    name: "Output",
-    description: "Add freeform text with basic formatting options.",
-    url: "#",
-    color: "bg-indigo-500",
-    icon: PencilSquareIcon,
-  },
-  {
     node_type: WbblWebappNodeType.Slab,
     name: "Slab",
-    description: "Add freeform text with basic formatting options.",
+    description: "Primary PBR Shader Node. Can be mixed with other slabs",
     url: "#",
     color: "bg-indigo-500",
     icon: DocumentIcon,
   },
-  // More items...
+  {
+    node_type: WbblWebappNodeType.Preview,
+    name: "Preview",
+    description: "Visualises Input Values",
+    url: "#",
+    color: "bg-red-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Add,
+    name: "Add",
+    description: "Adds Values Together",
+    url: "#",
+    color: "bg-purple-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Subtract,
+    name: "Subtract",
+    description: "Subtracts Values From One Another",
+    url: "#",
+    color: "bg-purple-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Multiply,
+    name: "Multiply",
+    description: "Multiplies Values Together",
+    url: "#",
+    color: "bg-purple-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Divide,
+    name: "Divide",
+    description: "Divides Values By One Another",
+    url: "#",
+    color: "bg-purple-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Modulo,
+    name: "Modulo",
+    description: "Returns the remainder of two values",
+    url: "#",
+    color: "bg-purple-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Greater,
+    name: ">",
+    description: "Returns whether x is greater than y",
+    url: "#",
+    color: "bg-yellow-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.GreaterEqual,
+    name: ">=",
+    description: "Returns whether x is greater or equal to y",
+    url: "#",
+    color: "bg-yellow-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Less,
+    name: "<",
+    description: "Returns whether x is less than y",
+    url: "#",
+    color: "bg-yellow-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.LessEqual,
+    name: "<=",
+    description: "Returns whether x is lesser or equal to y",
+    url: "#",
+    color: "bg-yellow-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Equal,
+    name: "==",
+    description: "Returns whether x is equal to y",
+    url: "#",
+    color: "bg-yellow-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.NotEqual,
+    name: "!=",
+    description: "Returns whether x is not equal to y",
+    url: "#",
+    color: "bg-yellow-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.And,
+    name: "And",
+    description:
+      "If x and y are booleans, returns whether they are both true, else if a number, computes the logical conjunction of their bits",
+    url: "#",
+    color: "bg-pink-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.Or,
+    name: "Or",
+    description:
+      "If x and y are booleans, returns whether either are true, else if a number, computes the logical intersection of their bits",
+    url: "#",
+    color: "bg-pink-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.ShiftLeft,
+    name: "<<",
+    description: "Returns the bits of x bit shifted left y times",
+    url: "#",
+    color: "bg-pink-500",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.ShiftRight,
+    name: ">>",
+    description: "Returns the bits of x bit shifted right y times",
+    url: "#",
+    color: "bg-pink-500",
+    icon: DocumentIcon,
+  },
+
+  {
+    node_type: WbblWebappNodeType.WorldPosition,
+    name: "World Position",
+    description: "Returns the position of the texel in world space",
+    url: "#",
+    color: "bg-green",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.WorldNormal,
+    name: "World Normal",
+    description: "Returns the normal of the texel in world space",
+    url: "#",
+    color: "bg-green",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.WorldTangent,
+    name: "World Tangent",
+    description: "Returns the tangent of the texel in world space",
+    url: "#",
+    color: "bg-green",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.WorldBitangent,
+    name: "World Bitangent",
+    description: "Returns the bitangent of the texel in world space",
+    url: "#",
+    color: "bg-green",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.ClipPosition,
+    name: "Clip Position",
+    description: "Returns the position of the texel in clip space",
+    url: "#",
+    color: "bg-green",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.TexCoord,
+    name: "Tex Coord",
+    description: "Returns the 1st texture coordinate of this model",
+    url: "#",
+    color: "bg-green",
+    icon: DocumentIcon,
+  },
+  {
+    node_type: WbblWebappNodeType.TexCoord2,
+    name: "Tex Coord 2",
+    description: "Returns the 1st texture coordinate of this model, if present",
+    url: "#",
+    color: "bg-green",
+    icon: DocumentIcon,
+  },
 ] as const;
 
 function classNames(...classes: (boolean | string)[]) {
@@ -52,7 +229,10 @@ export default function NodeMenu(props: {
     query === ""
       ? null
       : items.filter((item) => {
-          return item.name.toLowerCase().includes(query.toLowerCase());
+          return (
+            item.name.toLowerCase().includes(query.toLowerCase()) ||
+            item.description.toLowerCase().includes(query.toLowerCase())
+          );
         });
 
   const onSelect = useCallback(
@@ -112,7 +292,7 @@ export default function NodeMenu(props: {
                 {(filteredItems == null || filteredItems.length > 0) && (
                   <Combobox.Options
                     static
-                    className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3"
+                    className="max-h-96 transform-gpu overflow-y-auto p-3 pb-20"
                   >
                     {(filteredItems == null ? items : filteredItems).map(
                       (item) => (

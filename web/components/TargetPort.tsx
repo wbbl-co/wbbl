@@ -14,8 +14,8 @@ const selector = (s: ReactFlowState) => ({
 });
 
 export default function TargetPort(props: {
-  id: string;
-  label?: `t-${number}`;
+  id: `t-${number}`;
+  label?: string;
 }) {
   const { nodeInternals, edges } = useStore(selector);
   const nodeId = useNodeId();

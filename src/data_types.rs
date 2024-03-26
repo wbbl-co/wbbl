@@ -5,16 +5,18 @@ use serde::{Deserialize, Serialize};
 use AbstractDataType::*;
 use ConcreteDataType::*;
 
-#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
 pub enum ComputationDomain {
     TimeVarying,
     ModelDependant,
     TransformDependant,
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
 pub enum AbstractDataType {
     Any,
+    AnyVectorOrScalar,
+    AnyNumber,
     AnyFloat,
     AnyField,
     AnyMaterial,
@@ -35,14 +37,14 @@ pub enum AbstractDataType {
     ConcreteType(ConcreteDataType),
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
 pub enum ComputeOutputType {
     Float(CompositeSize),
     Int,
     Bool,
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
 pub enum ConcreteDataType {
     Float(CompositeSize),
     Int,
@@ -104,6 +106,8 @@ impl HasCompositeSize for AbstractDataType {
             AnyProceduralFieldWithCompositeSize(c) => Some(*c),
             AnyFloat123 => None,
             ConcreteType(t) => t.get_composite_size(),
+            AnyVectorOrScalar => None,
+            AnyNumber => None,
         }
     }
 }
@@ -125,6 +129,8 @@ impl HasDimensionality for AbstractDataType {
             AnyProceduralFieldWithCompositeSize(_) => None,
             AnyFloat123 => None,
             ConcreteType(t) => t.get_dimensionality(),
+            AnyVectorOrScalar => None,
+            AnyNumber => None,
         }
     }
 }
@@ -133,9 +139,11 @@ impl HasRanking for AbstractDataType {
     fn get_rank(&self) -> i32 {
         match self {
             Any => 0,
-            AnyFloat => 1,
+            AnyVectorOrScalar => 1,
             AnyField => 1,
             AnyMaterial => 1,
+            AnyNumber => 2,
+            AnyFloat => 3,
             AnyFieldWithDimensionality(_) => 2,
             AnyFieldWithCompositeSize(_) => 2,
             AnyTexture => 2,
@@ -312,6 +320,8 @@ impl AbstractDataType {
             ],
             AnyFloat123 => vec![Float(S1), Float(S2), Float(S3)],
             ConcreteType(t) => vec![*t],
+            AnyVectorOrScalar => vec![Float(S1), Float(S2), Float(S3), Float(S4), Bool, Int],
+            AnyNumber => vec![Float(S1), Float(S2), Float(S3), Float(S4), Int],
         }
     }
 
@@ -319,6 +329,7 @@ impl AbstractDataType {
         let mut domain = match self {
             Any => vec![
                 Any,
+                AnyVectorOrScalar,
                 AnyFloat,
                 AnyField,
                 AnyMaterial,
@@ -421,6 +432,8 @@ impl AbstractDataType {
             AnyProceduralFieldWithCompositeSize(c) => vec![AnyProceduralFieldWithCompositeSize(*c)],
             AnyFloat123 => vec![AnyFloat123],
             ConcreteType(_) => vec![],
+            AnyVectorOrScalar => vec![AnyVectorOrScalar, AnyFloat, AnyFloat123],
+            AnyNumber => vec![AnyVectorOrScalar, AnyFloat, AnyFloat123],
         };
 
         let mut concrete_domain: Vec<AbstractDataType> = self
@@ -434,7 +447,7 @@ impl AbstractDataType {
     }
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
 pub enum CompositeSize {
     S1 = 0,
     S2 = 1,
@@ -442,7 +455,7 @@ pub enum CompositeSize {
     S4 = 3,
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
 
 pub enum Dimensionality {
     D1 = 0,

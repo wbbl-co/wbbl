@@ -1,4 +1,8 @@
-// export type WbblGraphWebWorkerMessageType = {
-//   type: "INIT_NODE";
-//   offscreenCanvas: OffscreenCanvas;
-// };
+export type RegisterCanvas = {
+  nodeId: string;
+  offscreenCanvas: OffscreenCanvas;
+};
+
+export type DeregisterCanvas = {
+  nodeId: string;
+};

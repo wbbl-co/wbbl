@@ -1,56 +1,35 @@
+import { useEffect, useState } from "react";
 import Graph from "./components/Graph";
-
-// const canvasRef = useRef<HTMLCanvasElement>(null);
-// const canvasRef2 = useRef<HTMLCanvasElement>(null);
-
-// const initialized = useRef<boolean>(false);
-// const [worker, setWorker] = useState<Worker>();
-// useEffect(() => {
-//   if (!initialized.current && canvasRef.current && canvasRef2.current) {
-//     initialized.current = true;
-//     let worker = new Worker("/web/worker.ts", {
-//       type: "module",
-//     });
-//     setWorker(worker);
-//     let offscreenCanvas = canvasRef.current.transferControlToOffscreen();
-//     setTimeout(() => {
-//       worker.postMessage({ type: "INIT_NODE", offscreenCanvas }, [
-//         offscreenCanvas,
-//       ]);
-//       setTimeout(() => {
-//         console.log(canvasRef2.current);
-//         let offscreenCanvas2 =
-//           canvasRef2.current!.transferControlToOffscreen();
-//         worker.postMessage(
-//           { type: "INIT_NODE", offscreenCanvas: offscreenCanvas2 },
-//           [offscreenCanvas2],
-//         );
-//       }, 500);
-//     }, 40);
-//   }
-// }, [initialized, canvasRef.current, canvasRef2.current, setWorker]);
-// <div>
-//   <canvas
-//     id="canvas-1"
-//     style={{ backgroundColor: "transparent" }}
-//     width={300}
-//     height={300}
-//     ref={canvasRef}
-//   />
-//   <canvas
-//     id="canvas-2"
-//     style={{ backgroundColor: "transparent" }}
-//     width={300}
-//     height={300}
-//     ref={canvasRef2}
-//   />
-// </div>
+import { graphWorker } from "./graph-worker-reference";
+import LoadingScreen from "./components/LoadingScreen";
 
 function App() {
-  return (
+  let [ready, setReady] = useState<boolean>(false);
+  useEffect(() => {
+    let timeout_handle: any = 0;
+    const listener = (msg: MessageEvent) => {
+      if (msg.data === "Ready") {
+        clearInterval(timeout_handle);
+        setReady(true);
+      }
+    };
+    graphWorker.addEventListener("message", listener);
+    graphWorker.postMessage("Poll");
+    timeout_handle = setInterval(() => {
+      graphWorker.postMessage("Poll");
+    }, 200);
+    return () => {
+      graphWorker.removeEventListener("message", listener);
+      clearInterval(timeout_handle);
+    };
+  }, [setReady]);
+
+  return ready ? (
     <div style={{ height: "100vh" }}>
       <Graph />
     </div>
+  ) : (
+    <LoadingScreen />
   );
 }
 

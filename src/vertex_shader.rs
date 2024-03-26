@@ -243,6 +243,14 @@ pub fn make_vertex_shader_module() -> Module {
         make_span(line!()),
     );
 
+    let tex_coord_2 = main_function.expressions.append(
+        Expression::AccessIndex {
+            base: vertex_data,
+            index: vertex::TEX_COORD_2_INDEX,
+        },
+        make_span(line!()),
+    );
+
     let local_variable_vert_out_tex_coord_ptr = main_function.expressions.append(
         Expression::AccessIndex {
             base: local_variable_vert_out_ptr,
@@ -251,10 +259,18 @@ pub fn make_vertex_shader_module() -> Module {
         make_span(line!()),
     );
 
+    let local_variable_vert_out_tex_coord_2_ptr = main_function.expressions.append(
+        Expression::AccessIndex {
+            base: local_variable_vert_out_ptr,
+            index: vertex_out::TEX_COORD_2_INDEX,
+        },
+        make_span(line!()),
+    );
+
     main_function.body.push(
         Statement::Emit(Range::new_from_bounds(
             vertex_data_ptr,
-            local_variable_vert_out_tex_coord_ptr,
+            local_variable_vert_out_tex_coord_2_ptr,
         )),
         make_span(line!()),
     );
@@ -263,6 +279,13 @@ pub fn make_vertex_shader_module() -> Module {
         Statement::Store {
             pointer: local_variable_vert_out_tex_coord_ptr,
             value: tex_coord,
+        },
+        make_span(line!()),
+    );
+    main_function.body.push(
+        Statement::Store {
+            pointer: local_variable_vert_out_tex_coord_2_ptr,
+            value: tex_coord_2,
         },
         make_span(line!()),
     );

@@ -80,8 +80,8 @@ export default function WbbleEdge({
           endMarker.current.style.transform = `translate(${rectEnd.x}px,${rectEnd.y + 7.5 * viewport.zoom}px)`;
         }
         rope.update(
-          new Float32Array([startPos.x + 7.5, startPos.y + 15]),
-          new Float32Array([endPos.x + 7.5, endPos.y + 15]),
+          new Float32Array([startPos.x + 7.5, startPos.y + 7.5]),
+          new Float32Array([endPos.x + 7.5, endPos.y + 7.5]),
           delta,
         );
         if (ropePath.current) {

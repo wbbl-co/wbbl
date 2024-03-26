@@ -10,6 +10,7 @@ pub mod vertex {
         pub tangent: Vec3A,
         pub bitangent: Vec3A,
         pub tex_coord: Vec2,
+        pub tex_coord_2: Vec2,
     }
 
     unsafe impl Pod for Vertex {}
@@ -20,6 +21,7 @@ pub mod vertex {
     pub const TANGENT_INDEX: u32 = 2;
     pub const BITANGENT_INDEX: u32 = 3;
     pub const TEX_COORD_INDEX: u32 = 4;
+    pub const TEX_COORD_2_INDEX: u32 = 5;
     pub const VERTEX_STRIDE: u32 = 80;
 
     pub fn make_naga_type(type_float32_3: Handle<Type>, type_float32_2: Handle<Type>) -> Type {
@@ -57,6 +59,12 @@ pub mod vertex {
                         binding: None,
                         offset: 64,
                     },
+                    StructMember {
+                        name: Some("tex_coord_2".to_owned()),
+                        ty: type_float32_2,
+                        binding: None,
+                        offset: 72,
+                    },
                 ],
                 span: VERTEX_STRIDE,
             },
@@ -65,8 +73,10 @@ pub mod vertex {
 }
 
 pub mod frame {
+    use std::f32::consts::PI;
+
     use bytemuck::{Pod, Zeroable};
-    use glam::{Mat4, Vec2, Vec3A};
+    use glam::{Mat4, Vec2, Vec3, Vec3A};
     use wgpu::naga::{Handle, StructMember, Type, TypeInner};
 
     pub const PROJECTION_VIEW_MATRIX_INDEX: u32 = 0;
@@ -88,6 +98,54 @@ pub mod frame {
         pub view_matrix_inv: Mat4,
         pub depth_unproject: Vec2,
         pub screen_to_view_space: Vec3A,
+    }
+
+    impl Frame {
+        pub fn default(width: u32, height: u32) -> Self {
+            let fov = 90.0 * (PI / 180.0);
+
+            let near = 0.01;
+            let far = 20.0;
+            let aspect = (width as f32) / (height as f32);
+
+            let projection_matrix = Mat4::perspective_lh(fov, aspect, near, far);
+
+            let view_matrix = Mat4::look_at_lh(
+                Vec3 {
+                    x: 0.0,
+                    y: -0.5,
+                    z: 1.5,
+                },
+                Vec3::ZERO,
+                Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+            );
+
+            let fov_scale = f32::tan(0.5 * fov) * 2.0;
+
+            let screen_to_view_space = Vec3 {
+                x: fov_scale / (height as f32),
+                y: -1.0 * fov_scale * 0.5 * aspect,
+                z: -fov_scale * 0.5,
+            };
+
+            let projection_view_matrix = projection_matrix * view_matrix;
+
+            Self {
+                projection_view_matrix,
+                projection_view_matrix_inv: projection_view_matrix.inverse(),
+                view_matrix,
+                view_matrix_inv: view_matrix.inverse(),
+                depth_unproject: Vec2 {
+                    x: far / (far - near),
+                    y: (-near * far) / (near - far),
+                },
+                screen_to_view_space: screen_to_view_space.into(),
+            }
+        }
     }
 
     unsafe impl Pod for Frame {}
@@ -209,7 +267,8 @@ pub mod vertex_out {
     pub const TANGENT_INDEX: u32 = 4;
     pub const BITANGENT_INDEX: u32 = 5;
     pub const TEX_COORD_INDEX: u32 = 6;
-    pub const VERTEX_OUT_STRIDE: u32 = 112;
+    pub const TEX_COORD_2_INDEX: u32 = 7;
+    pub const VERTEX_OUT_STRIDE: u32 = 128;
     pub fn make_naga_type(
         type_float32_4: Handle<Type>,
         type_float32_3: Handle<Type>,
@@ -290,6 +349,17 @@ pub mod vertex_out {
                             sampling: None,
                         }),
                         offset: 96,
+                    },
+                    StructMember {
+                        name: Some("tex_coord_2".to_owned()),
+                        ty: type_float32_2,
+                        binding: Some(Binding::Location {
+                            location: TEX_COORD_2_INDEX - 1,
+                            second_blend_source: false,
+                            interpolation: Some(Interpolation::Perspective),
+                            sampling: None,
+                        }),
+                        offset: 104,
                     },
                 ],
                 span: VERTEX_OUT_STRIDE,

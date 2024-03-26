@@ -2,7 +2,10 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 use wasm_bindgen::prelude::*;
 
-use crate::graph_types::{Edge, Graph, InputPortId, OutputPortId};
+use crate::{
+    constraint_solver_constraints::Constraint,
+    graph_types::{Edge, Graph, InputPort, InputPortId, Node, NodeType, OutputPort, OutputPortId},
+};
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct WbbleComputedNodeSize {
@@ -72,19 +75,92 @@ impl From<&yrs::Any> for Any {
 pub enum WbblWebappNodeType {
     Output,
     Slab,
+    Preview,
+
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+
+    Modulo,
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    And,
+    Or,
+    ShiftLeft,
+    ShiftRight,
+
+    WorldPosition,
+    ClipPosition,
+    WorldNormal,
+    WorldBitangent,
+    WorldTangent,
+    TexCoord,
+    TexCoord2,
 }
 
 pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
     match node_type {
         WbblWebappNodeType::Output => "output".to_owned(),
         WbblWebappNodeType::Slab => "slab".to_owned(),
+        WbblWebappNodeType::Preview => "preview".to_owned(),
+        WbblWebappNodeType::Add => "add".to_owned(),
+        WbblWebappNodeType::Subtract => "subtract".to_owned(),
+        WbblWebappNodeType::Multiply => "multiply".to_owned(),
+        WbblWebappNodeType::Divide => "divide".to_owned(),
+        WbblWebappNodeType::Modulo => "modulo".to_owned(),
+        WbblWebappNodeType::Equal => "==".to_owned(),
+        WbblWebappNodeType::NotEqual => "!=".to_owned(),
+        WbblWebappNodeType::Less => "<".to_owned(),
+        WbblWebappNodeType::LessEqual => "<=".to_owned(),
+        WbblWebappNodeType::Greater => ">".to_owned(),
+        WbblWebappNodeType::GreaterEqual => ">=".to_owned(),
+        WbblWebappNodeType::And => "and".to_owned(),
+        WbblWebappNodeType::ShiftLeft => "<<".to_owned(),
+        WbblWebappNodeType::ShiftRight => ">>".to_owned(),
+        WbblWebappNodeType::Or => "or".to_owned(),
+        WbblWebappNodeType::WorldPosition => "position".to_owned(),
+        WbblWebappNodeType::ClipPosition => "clip_pos".to_owned(),
+        WbblWebappNodeType::WorldNormal => "normal".to_owned(),
+        WbblWebappNodeType::WorldBitangent => "bitangent".to_owned(),
+        WbblWebappNodeType::WorldTangent => "tangent".to_owned(),
+        WbblWebappNodeType::TexCoord => "tex_coord".to_owned(),
+        WbblWebappNodeType::TexCoord2 => "tex_coord_2".to_owned(),
     }
 }
+
 #[wasm_bindgen]
 pub fn from_type_name(type_name: &str) -> Option<WbblWebappNodeType> {
     match type_name {
         "output" => Some(WbblWebappNodeType::Output),
         "slab" => Some(WbblWebappNodeType::Slab),
+        "preview" => Some(WbblWebappNodeType::Preview),
+        "add" => Some(WbblWebappNodeType::Add),
+        "subtract" => Some(WbblWebappNodeType::Subtract),
+        "multiply" => Some(WbblWebappNodeType::Multiply),
+        "divide" => Some(WbblWebappNodeType::Divide),
+        "modulo" => Some(WbblWebappNodeType::Modulo),
+        "==" => Some(WbblWebappNodeType::Equal),
+        "!=" => Some(WbblWebappNodeType::NotEqual),
+        "<" => Some(WbblWebappNodeType::Less),
+        "<=" => Some(WbblWebappNodeType::LessEqual),
+        ">" => Some(WbblWebappNodeType::Greater),
+        ">=" => Some(WbblWebappNodeType::GreaterEqual),
+        "and" => Some(WbblWebappNodeType::And),
+        "<<" => Some(WbblWebappNodeType::ShiftLeft),
+        ">>" => Some(WbblWebappNodeType::ShiftRight),
+        "or" => Some(WbblWebappNodeType::Or),
+        "position" => Some(WbblWebappNodeType::WorldPosition),
+        "clip_pos" => Some(WbblWebappNodeType::ClipPosition),
+        "normal" => Some(WbblWebappNodeType::WorldNormal),
+        "bitangent" => Some(WbblWebappNodeType::WorldBitangent),
+        "tangent" => Some(WbblWebappNodeType::WorldTangent),
+        "tex_coord" => Some(WbblWebappNodeType::TexCoord),
+        "tex_coord_2" => Some(WbblWebappNodeType::TexCoord2),
         _ => None,
     }
 }
@@ -259,20 +335,159 @@ impl From<WbblWebappEdge> for Edge {
     }
 }
 
+impl Node {
+    fn node_type_from_webapp_node(
+        node: &WbblWebappNode,
+        _incoming_edges: &Vec<&Edge>,
+        _outgoing_edges: &Vec<&Edge>,
+    ) -> NodeType {
+        match node.node_type {
+            WbblWebappNodeType::Output => NodeType::Output,
+            WbblWebappNodeType::Slab => NodeType::Slab,
+            WbblWebappNodeType::Preview => NodeType::Preview,
+            WbblWebappNodeType::Add => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Add)
+            }
+            WbblWebappNodeType::Subtract => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Subtract)
+            }
+            WbblWebappNodeType::Multiply => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Multiply)
+            }
+            WbblWebappNodeType::Divide => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Divide)
+            }
+            WbblWebappNodeType::Modulo => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Modulo)
+            }
+            WbblWebappNodeType::Equal => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Equal)
+            }
+            WbblWebappNodeType::NotEqual => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::NotEqual)
+            }
+            WbblWebappNodeType::Less => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Less)
+            }
+            WbblWebappNodeType::LessEqual => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::LessEqual)
+            }
+            WbblWebappNodeType::Greater => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Greater)
+            }
+            WbblWebappNodeType::GreaterEqual => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::GreaterEqual)
+            }
+            WbblWebappNodeType::And => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::And)
+            }
+            WbblWebappNodeType::Or => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Or)
+            }
+            WbblWebappNodeType::ShiftLeft => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::ShiftLeft)
+            }
+            WbblWebappNodeType::ShiftRight => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::ShiftRight)
+            }
+            WbblWebappNodeType::WorldPosition => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldPosition)
+            }
+            WbblWebappNodeType::ClipPosition => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::ClipPosition)
+            }
+            WbblWebappNodeType::WorldNormal => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldNormal)
+            }
+            WbblWebappNodeType::WorldBitangent => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldBitangent)
+            }
+            WbblWebappNodeType::WorldTangent => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldTangent)
+            }
+            WbblWebappNodeType::TexCoord => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate)
+            }
+            WbblWebappNodeType::TexCoord2 => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate2)
+            }
+        }
+    }
+
+    pub fn from(
+        webapp_node: &WbblWebappNode,
+        incoming_edges: &Vec<&Edge>,
+        outgoing_edges: &Vec<&Edge>,
+    ) -> Self {
+        let node_type =
+            Self::node_type_from_webapp_node(webapp_node, incoming_edges, outgoing_edges);
+        Node {
+            id: webapp_node.id,
+            input_port_count: node_type.input_port_count(incoming_edges, outgoing_edges),
+            output_port_count: node_type.output_port_count(incoming_edges, outgoing_edges),
+            node_type,
+        }
+    }
+}
+
 impl From<WbblWebappGraphSnapshot> for Graph {
     fn from(value: WbblWebappGraphSnapshot) -> Self {
-        let nodes = value.nodes;
+        let edges: HashMap<u128, Edge> = value
+            .edges
+            .iter()
+            .map(|e| (e.id, Edge::from(e.clone())))
+            .collect();
+
+        let input_edges_by_node: HashMap<u128, Vec<&Edge>> =
+            edges.iter().fold(HashMap::new(), |mut prev, (_, e)| {
+                let entry = prev.entry(e.input_port.node_id).or_insert(vec![]);
+                entry.push(&e);
+                prev
+            });
+
+        let output_edges_by_node: HashMap<u128, Vec<&Edge>> =
+            edges.iter().fold(HashMap::new(), |mut prev, (_, e)| {
+                let entry = prev.entry(e.output_port.node_id).or_insert(vec![]);
+                entry.push(&e);
+                prev
+            });
+
+        let nodes: HashMap<u128, Node> = value
+            .nodes
+            .iter()
+            .map(|n| {
+                (
+                    n.id,
+                    Node::from(
+                        n,
+                        input_edges_by_node.get(&n.id).unwrap_or(&vec![]),
+                        output_edges_by_node.get(&n.id).unwrap_or(&vec![]),
+                    ),
+                )
+            })
+            .collect();
+
+        let input_ports: HashMap<InputPortId, InputPort> = nodes
+            .values()
+            .flat_map(|n| n.input_ports(input_edges_by_node.get(&n.id).unwrap_or(&Vec::new())))
+            .map(|p| (p.id.clone(), p))
+            .collect();
+
+        let output_ports: HashMap<OutputPortId, OutputPort> = nodes
+            .values()
+            .flat_map(|n| n.output_ports(output_edges_by_node.get(&n.id).unwrap_or(&Vec::new())))
+            .map(|p| (p.id.clone(), p))
+            .collect();
+
+        let constraints: Vec<Constraint> = nodes.values().flat_map(|n| n.constraints()).collect();
 
         Self {
             id: value.id,
-            nodes: HashMap::new(),
-            edges: value
-                .edges
-                .iter()
-                .map(|e| (e.id, Edge::from(e.clone())))
-                .collect(),
-            input_ports: HashMap::new(),
-            output_ports: HashMap::new(),
+            nodes,
+            edges,
+            input_ports,
+            output_ports,
+            constraints,
         }
     }
 }

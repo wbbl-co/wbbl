@@ -129,6 +129,7 @@ impl Force {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum Constraint {
     LockPosition {
         position: Vec2,

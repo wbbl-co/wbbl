@@ -1,12 +1,15 @@
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use wasm_bindgen::prelude::*;
-use web_sys::js_sys;
+use web_sys::{js_sys, Worker};
 use yrs::{types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut};
 
-use crate::graph_transfer_types::{
-    from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot, WbblWebappNode,
-    WbblWebappNodeType, WbbleComputedNodeSize, WbblePosition,
+use crate::{
+    graph_transfer_types::{
+        from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
+        WbblWebappNode, WbblWebappNodeType, WbbleComputedNodeSize, WbblePosition,
+    },
+    wbbl_graph_web_worker::WbblGraphWebWorkerRequestMessage,
 };
 
 const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
@@ -22,6 +25,7 @@ pub struct WbblWebappGraphStore {
     nodes: yrs::MapRef,
     edges: yrs::MapRef,
     computed_node_sizes: HashMap<u128, WbbleComputedNodeSize>,
+    graph_worker: Worker,
 }
 
 #[wasm_bindgen]
@@ -94,6 +98,29 @@ impl NewWbblWebappNode {
         match node_type {
             WbblWebappNodeType::Output => HashMap::new(),
             WbblWebappNodeType::Slab => HashMap::new(),
+            WbblWebappNodeType::Preview => HashMap::new(),
+            WbblWebappNodeType::Add => HashMap::new(),
+            WbblWebappNodeType::Subtract => HashMap::new(),
+            WbblWebappNodeType::Multiply => HashMap::new(),
+            WbblWebappNodeType::Divide => HashMap::new(),
+            WbblWebappNodeType::Modulo => HashMap::new(),
+            WbblWebappNodeType::Equal => HashMap::new(),
+            WbblWebappNodeType::NotEqual => HashMap::new(),
+            WbblWebappNodeType::Less => HashMap::new(),
+            WbblWebappNodeType::LessEqual => HashMap::new(),
+            WbblWebappNodeType::Greater => HashMap::new(),
+            WbblWebappNodeType::GreaterEqual => HashMap::new(),
+            WbblWebappNodeType::And => HashMap::new(),
+            WbblWebappNodeType::Or => HashMap::new(),
+            WbblWebappNodeType::ShiftLeft => HashMap::new(),
+            WbblWebappNodeType::ShiftRight => HashMap::new(),
+            WbblWebappNodeType::WorldPosition => HashMap::new(),
+            WbblWebappNodeType::ClipPosition => HashMap::new(),
+            WbblWebappNodeType::WorldNormal => HashMap::new(),
+            WbblWebappNodeType::WorldBitangent => HashMap::new(),
+            WbblWebappNodeType::WorldTangent => HashMap::new(),
+            WbblWebappNodeType::TexCoord => HashMap::new(),
+            WbblWebappNodeType::TexCoord2 => HashMap::new(),
         }
     }
     pub fn new(
@@ -310,7 +337,7 @@ pub enum WbblWebappGraphStoreError {
 
 #[wasm_bindgen]
 impl WbblWebappGraphStore {
-    pub fn empty() -> Self {
+    pub fn empty(graph_worker: Worker) -> Self {
         let graph = yrs::Doc::new();
         let nodes = graph.get_or_insert_map(GRAPH_YRS_NODES_MAP_KEY.to_owned());
         let edges = graph.get_or_insert_map(GRAPH_YRS_EDGES_MAP_KEY.to_owned());
@@ -326,6 +353,7 @@ impl WbblWebappGraphStore {
             nodes,
             edges,
             computed_node_sizes: HashMap::new(),
+            graph_worker,
         };
         let output_node = NewWbblWebappNode::new(600.0, 500.0, WbblWebappNodeType::Output);
         store.add_node(output_node.clone()).unwrap();
@@ -339,7 +367,7 @@ impl WbblWebappGraphStore {
                 0,
             )
             .unwrap();
-
+        store.emit().unwrap();
         store
     }
 
@@ -349,6 +377,12 @@ impl WbblWebappGraphStore {
                 .call0(&JsValue::UNDEFINED)
                 .map_err(|_| WbblWebappGraphStoreError::FailedToEmit)?;
         }
+        let snapshot = self.get_snapshot_raw()?;
+        let snapshot_js_value =
+            serde_wasm_bindgen::to_value(&WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot))
+                .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure)?;
+
+        let _ = self.graph_worker.post_message(&snapshot_js_value);
         Ok(())
     }
 

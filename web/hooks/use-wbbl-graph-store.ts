@@ -3,9 +3,10 @@ import { useSyncExternalStore } from "react";
 import { createContext } from "react";
 import { WbblWebappGraphStore } from "../../pkg/wbbl";
 import { NodeProps, Node, Edge } from "@xyflow/react";
+import { graphWorker } from "../graph-worker-reference";
 
 export const WbblGraphStoreContext = createContext<WbblWebappGraphStore>(
-  WbblWebappGraphStore.empty(),
+  WbblWebappGraphStore.empty(graphWorker),
 );
 
 export function useWbblGraphData(store: WbblWebappGraphStore): {

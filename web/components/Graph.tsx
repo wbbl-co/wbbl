@@ -20,6 +20,7 @@ import React, {
   useRef,
   useState,
   useMemo,
+  useEffect,
 } from "react";
 import {
   NewWbblWebappNode,
@@ -37,6 +38,7 @@ import WbbleEdge from "./WbbleEdge";
 import Breadcrumb from "./Breadcrumb";
 import NodeMenu, { NODE_MENU_DIMENSIONS } from "./NodeMenu";
 import { nodeTypes } from "./node_types";
+import { graphWorker } from "../graph-worker-reference";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -233,7 +235,6 @@ function Graph() {
   let width = boundingRect?.width ?? 1080;
   let height = boundingRect?.height ?? 1920;
 
-  console.log(snapshot);
   return (
     <WbblEdgeEndContext.Provider value={edgeRendererRef}>
       <ReactFlow
@@ -284,7 +285,8 @@ function Graph() {
 }
 
 export default function GraphRoot() {
-  const graphStore = useRef(WbblWebappGraphStore.empty());
+  const graphStore = useRef(WbblWebappGraphStore.empty(graphWorker));
+
   return (
     <WbblGraphStoreContext.Provider value={graphStore.current}>
       <ReactFlowProvider>

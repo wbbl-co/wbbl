@@ -204,6 +204,8 @@ fn get_vertices(
     let mut positions: Vec<Vec3A> = vec![];
     let mut normals: Vec<Vec3A> = vec![];
     let mut tex_coords: Vec<Vec2> = vec![];
+    let mut tex_coords_2: Vec<Vec2> = vec![];
+
     let mut tangents: Vec<Vec3A> = vec![];
 
     let mut result: Vec<Vertex> = vec![];
@@ -220,6 +222,9 @@ fn get_vertices(
             }
             Semantic::TexCoords(0) => {
                 tex_coords = gather_vec2(buffer_blobs, &accessor)?;
+            }
+            Semantic::TexCoords(1) => {
+                tex_coords_2 = gather_vec2(buffer_blobs, &accessor)?;
             }
             _ => {
                 // DO NOTHING (for now)
@@ -243,6 +248,10 @@ fn get_vertices(
                 .normalize_or_zero()
                 .cross(normal.normalize_or_zero()),
             tex_coord: tex_coords
+                .get(i)
+                .map(|p| p.clone())
+                .unwrap_or(Vec2::default()),
+            tex_coord_2: tex_coords_2
                 .get(i)
                 .map(|p| p.clone())
                 .unwrap_or(Vec2::default()),

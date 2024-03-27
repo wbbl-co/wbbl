@@ -349,6 +349,7 @@ impl AbstractDataType {
             Any => vec![
                 Any,
                 AnyVectorOrScalar,
+                AnyNumber,
                 AnyFloat,
                 AnyField,
                 AnyMaterial,

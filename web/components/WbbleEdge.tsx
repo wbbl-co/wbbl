@@ -71,6 +71,7 @@ export default function WbbleEdge({
   const startMarker = useRef<SVGCircleElement>(null);
   const endMarker = useRef<SVGCircleElement>(null);
   const ropePath = useRef<SVGPathElement>(null);
+  const typeLabel = useRef<SVGTextElement>(null);
 
   const edgeEnd = useContext(WbblEdgeEndContext);
 
@@ -94,9 +95,10 @@ export default function WbbleEdge({
           x: rectEnd.left,
           y: rectEnd.top,
         });
-        if (startMarker.current && endMarker.current) {
+        if (startMarker.current && endMarker.current && typeLabel.current) {
           startMarker.current.style.transform = `translate(${rectStart.x + 15 * viewport.zoom}px,${rectStart.y + 7.5 * viewport.zoom}px)`;
           endMarker.current.style.transform = `translate(${rectEnd.x}px,${rectEnd.y + 7.5 * viewport.zoom}px)`;
+          typeLabel.current.style.transform = `translate(${(rectEnd.x + rectStart.x) / 2}px,${(rectEnd.y + rectStart.y) / 2}px)`;
         }
         rope.update(
           new Float32Array([startPos.x + 7.5, startPos.y + 7.5]),
@@ -121,6 +123,7 @@ export default function WbbleEdge({
   }, [
     rope,
     ropePath,
+    typeLabel,
     lastUpdate,
     handleStart,
     handleEnd,
@@ -150,11 +153,14 @@ export default function WbbleEdge({
             />
             <path
               ref={ropePath}
-              className={`rope-path ${edgeClassName}`}
+              className={`rope-path fill-none ${edgeClassName}`}
               style={{
                 strokeWidth: 4 * viewport.zoom,
               }}
             />
+            <text ref={typeLabel} fill="white">
+              {edgeClassName}
+            </text>
             <circle
               ref={endMarker}
               key="end-marker"

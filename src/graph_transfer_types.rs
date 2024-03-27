@@ -1,10 +1,13 @@
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, fmt::Display, str::FromStr, sync::Arc};
 use wasm_bindgen::prelude::*;
 
 use crate::{
     constraint_solver_constraints::Constraint,
-    graph_types::{Edge, Graph, InputPort, InputPortId, Node, NodeType, OutputPort, OutputPortId},
+    data_types::AbstractDataType,
+    graph_types::{
+        Edge, Graph, InputPort, InputPortId, Node, NodeType, OutputPort, OutputPortId, PortId,
+    },
 };
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
@@ -26,6 +29,65 @@ pub enum Any {
     Buffer(Arc<[u8]>),
     Array(Arc<[Any]>),
     Map(Arc<HashMap<String, Any>>),
+}
+
+impl Into<String> for PortId {
+    fn into(self) -> String {
+        match self {
+            PortId::Output(OutputPortId {
+                node_id,
+                port_index,
+            }) => format!(
+                "{}#s#{}",
+                uuid::Uuid::from_u128(node_id).to_string(),
+                port_index
+            ),
+            PortId::Input(InputPortId {
+                node_id,
+                port_index,
+            }) => format!(
+                "{}#t#{}",
+                uuid::Uuid::from_u128(node_id).to_string(),
+                port_index
+            ),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TryFromStringToPortIdError {
+    MalformedId,
+}
+
+impl Display for TryFromStringToPortIdError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Malformed Id")
+    }
+}
+
+impl TryFrom<String> for PortId {
+    type Error = TryFromStringToPortIdError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let res: &Vec<&str> = &value.split("#").collect();
+        if res.len() != 3 {
+            return Err(TryFromStringToPortIdError::MalformedId);
+        }
+        let node_id =
+            uuid::Uuid::from_str(res[0]).map_err(|_| TryFromStringToPortIdError::MalformedId)?;
+        let index: u8 = str::parse(res[2]).map_err(|_| TryFromStringToPortIdError::MalformedId)?;
+        match res[1] {
+            "s" => Ok(PortId::Output(OutputPortId {
+                node_id: node_id.as_u128(),
+                port_index: index,
+            })),
+            "t" => Ok(PortId::Input(InputPortId {
+                node_id: node_id.as_u128(),
+                port_index: index,
+            })),
+            _ => Err(TryFromStringToPortIdError::MalformedId),
+        }
+    }
 }
 
 impl Any {
@@ -232,21 +294,21 @@ fn target_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::E
 where
     S: Serializer,
 {
-    serializer.serialize_str(&format!("t-{}", number).to_owned())
+    serializer.serialize_str(&format!("t#{}", number).to_owned())
 }
 
 fn source_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serializer.serialize_str(&format!("s-{}", number).to_owned())
+    serializer.serialize_str(&format!("s#{}", number).to_owned())
 }
 
 fn string_to_target_handle<'de, D>(deserializer: D) -> Result<i64, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let handle = String::deserialize(deserializer)?.replace("t-", "");
+    let handle = String::deserialize(deserializer)?.replace("t#", "");
 
     handle
         .parse()
@@ -257,7 +319,7 @@ fn string_to_source_handle<'de, D>(deserializer: D) -> Result<i64, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let handle = String::deserialize(deserializer)?.replace("s-", "");
+    let handle = String::deserialize(deserializer)?.replace("s#", "");
 
     handle
         .parse()
@@ -317,6 +379,7 @@ pub struct WbblWebappGraphSnapshot {
     pub id: u128,
     pub nodes: Vec<WbblWebappNode>,
     pub edges: Vec<WbblWebappEdge>,
+    pub computed_types: Option<HashMap<PortId, AbstractDataType>>,
 }
 
 impl From<WbblWebappEdge> for Edge {

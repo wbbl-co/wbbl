@@ -10,6 +10,7 @@ function App() {
     const listener = (msg: MessageEvent) => {
       if (msg.data === "Ready") {
         clearInterval(timeout_handle);
+        graphWorker.removeEventListener("message", listener);
         setReady(true);
       }
     };

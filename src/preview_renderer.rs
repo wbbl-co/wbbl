@@ -7,6 +7,8 @@ use crate::{
     model_scene_file_abstractions::EncodedSceneFile,
     shader_layouts::{self, frame::Frame},
 };
+use std::sync::Arc;
+
 use glam::{Mat3, Mat4, Vec4};
 use std::{
     borrow::Cow, collections::HashMap, error::Error, fmt::Display, mem::size_of, num::NonZeroU64,
@@ -194,7 +196,7 @@ pub struct PreviewRendererResources {
 impl PreviewRendererResources {
     #[cfg(target_arch = "wasm32")]
     pub fn new_from_offscreen_canvas(
-        shared_resources: Rc<SharedPreviewRendererResources>,
+        shared_resources: Arc<SharedPreviewRendererResources>,
         geometry: BuiltInGeometry,
         canvas: OffscreenCanvas,
         vertex_shader: wgpu::naga::Module,
@@ -287,7 +289,7 @@ impl PreviewRendererResources {
         })
     }
 
-    pub fn render(&mut self, shared_resources: Rc<SharedPreviewRendererResources>) {
+    pub fn render(&mut self, shared_resources: Arc<SharedPreviewRendererResources>) {
         // Create the logical device and command queue
 
         let model_matrix = Mat4::default();

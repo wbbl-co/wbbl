@@ -156,6 +156,7 @@ export default function WbbleEdge({
         )}
       <BaseEdge
         path={edgePath}
+        style={{ zIndex: 100 }}
         className="stroke-transparent shadow-lg shadow-red-50"
         interactionWidth={50}
       ></BaseEdge>

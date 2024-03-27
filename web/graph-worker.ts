@@ -4,7 +4,6 @@ import type { DeregisterCanvas, RegisterCanvas } from "./worker_message_types";
 async function run_in_worker() {
   let web_worker_main = await WbblGraphWebWorkerJsWrapper.new(self, self);
   onmessage = (msg: MessageEvent<any>) => {
-    console.log(msg);
     if (!!msg.data.RegisterCanvas) {
       // This message was sent from JS as it cannot be serialized by serde and contains the offscreen
       // canvas handle object.
@@ -22,8 +21,8 @@ async function run_in_worker() {
     } else {
       try {
         web_worker_main.handle_message(msg.data);
-      } catch (e) {
-        console.error("error", e);
+      } catch {
+        console.error("error");
       }
     }
   };

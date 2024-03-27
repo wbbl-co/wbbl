@@ -2,13 +2,12 @@ import { NodeProps } from "@xyflow/react";
 import WbblNode from "./WbbleNode";
 import TargetPort from "../TargetPort";
 import { graphWorker } from "../../graph-worker-reference";
-import { useLayoutEffect, useState } from "react";
+import { memo, useLayoutEffect, useState } from "react";
 import { DeregisterCanvas, RegisterCanvas } from "../../worker_message_types";
-// import { WbblGraphStoreContext } from "../../hooks/use-wbbl-graph-store";
+import { areNodePropsEqual } from "../../hooks/use-wbbl-graph-store";
 
-export default function PreviewNode(props: NodeProps) {
+function PreviewNode(props: NodeProps) {
   const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
-  // const graphStore = useContext(WbblGraphStoreContext);
   useLayoutEffect(() => {
     if (canvasRef) {
       let offscreenCanvas = canvasRef.transferControlToOffscreen();
@@ -27,7 +26,7 @@ export default function PreviewNode(props: NodeProps) {
       outputPorts={<></>}
       inputPorts={
         <>
-          <TargetPort id="t-0" key="t-0" />
+          <TargetPort id="t#0" key="t#0" />
         </>
       }
       w={200}
@@ -43,3 +42,5 @@ export default function PreviewNode(props: NodeProps) {
     </WbblNode>
   );
 }
+
+export default memo(PreviewNode, areNodePropsEqual);

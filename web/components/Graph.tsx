@@ -14,14 +14,7 @@ import {
   Panel,
   useReactFlow,
 } from "@xyflow/react";
-import React, {
-  useContext,
-  useCallback,
-  useRef,
-  useState,
-  useMemo,
-  useEffect,
-} from "react";
+import React, { useContext, useCallback, useState, useMemo } from "react";
 import {
   NewWbblWebappNode,
   WbblWebappGraphStore,
@@ -30,6 +23,7 @@ import {
 } from "../../pkg/wbbl";
 import {
   WbblGraphStoreContext,
+  WbblSnapshotContext,
   useWbblGraphData,
 } from "../hooks/use-wbbl-graph-store";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
@@ -160,8 +154,8 @@ function Graph() {
             graphStore.add_edge(
               change.item.source,
               change.item.target,
-              BigInt(change.item.sourceHandle?.replace("s-", "") ?? "0"),
-              BigInt(change.item.targetHandle?.replace("t-", "") ?? "0"),
+              BigInt(change.item.sourceHandle?.replace("s#", "") ?? "0"),
+              BigInt(change.item.targetHandle?.replace("t#", "") ?? "0"),
             );
             break;
           case "remove":
@@ -172,8 +166,8 @@ function Graph() {
               change.id,
               change.item.source,
               change.item.target,
-              BigInt(change.item.sourceHandle?.replace("s-", "") ?? "0"),
-              BigInt(change.item.targetHandle?.replace("t-", "") ?? "0"),
+              BigInt(change.item.sourceHandle?.replace("s#", "") ?? "0"),
+              BigInt(change.item.targetHandle?.replace("t#", "") ?? "0"),
               change.item.selected ?? false,
             );
             break;
@@ -192,8 +186,8 @@ function Graph() {
         oldEdge.id,
         newConnection.source,
         newConnection.target,
-        BigInt(newConnection.sourceHandle?.replace("s-", "") ?? "0"),
-        BigInt(newConnection.targetHandle?.replace("t-", "") ?? "0"),
+        BigInt(newConnection.sourceHandle?.replace("s#", "") ?? "0"),
+        BigInt(newConnection.targetHandle?.replace("t#", "") ?? "0"),
         false,
       );
     },
@@ -204,8 +198,8 @@ function Graph() {
       graphStore.add_edge(
         connection.source,
         connection.target,
-        BigInt(connection.sourceHandle?.replace("s-", "") ?? "0"),
-        BigInt(connection.targetHandle?.replace("t-", "") ?? "0"),
+        BigInt(connection.sourceHandle?.replace("s#", "") ?? "0"),
+        BigInt(connection.targetHandle?.replace("t#", "") ?? "0"),
       );
     },
     [graphStore],
@@ -236,59 +230,61 @@ function Graph() {
   let height = boundingRect?.height ?? 1920;
 
   return (
-    <WbblEdgeEndContext.Provider value={edgeRendererRef}>
-      <ReactFlow
-        nodes={snapshot.nodes}
-        onNodesChange={onNodesChange}
-        edges={snapshot.edges}
-        edgeTypes={edgeTypes}
-        colorMode="dark"
-        nodeTypes={nodeTypes}
-        onConnect={onConnect}
-        onPaneClick={onPaneClick}
-        onEdgeDoubleClick={removeEdge}
-        onConnectStart={onConnectStart}
-        onConnectEnd={onConnectEnd}
-        onEdgesChange={onEdgesChange}
-        onEdgeUpdate={onEdgesUpdate}
-        connectionLineComponent={WbblConnectionLine}
-        selectionMode={SelectionMode.Partial}
-        proOptions={{ hideAttribution: true }}
-        fitView
-      >
-        <Background variant={BackgroundVariant.Dots} bgColor="black" />
-        <Controls className="rounded bg-black ring-2 ring-neutral-400" />
-        <svg
-          id="edge-end-renderer"
-          className="pointer-events-none absolute left-0 top-0"
-          viewBox={`0 0 ${width} ${height}`}
-          style={{ width: width, height: height, zIndex: 4 }}
-          ref={setEdgeRenderRef}
-        ></svg>
-        <MiniMap
-          className="rounded ring-2 ring-neutral-400"
-          pannable
-          zoomable
-        />
-        <Panel position="top-left">
-          <Breadcrumb />
-        </Panel>
-        <NodeMenu
-          open={nodeMenuOpen}
-          onClose={setNodeMenuOpen}
-          position={nodeMenuPosition}
-          addNode={addNode}
-        />
-      </ReactFlow>
-    </WbblEdgeEndContext.Provider>
+    <WbblSnapshotContext.Provider value={snapshot}>
+      <WbblEdgeEndContext.Provider value={edgeRendererRef}>
+        <ReactFlow
+          nodes={snapshot.nodes}
+          onNodesChange={onNodesChange}
+          edges={snapshot.edges}
+          edgeTypes={edgeTypes}
+          colorMode="dark"
+          nodeTypes={nodeTypes}
+          onConnect={onConnect}
+          onPaneClick={onPaneClick}
+          onEdgeDoubleClick={removeEdge}
+          onConnectStart={onConnectStart}
+          onConnectEnd={onConnectEnd}
+          onEdgesChange={onEdgesChange}
+          onEdgeUpdate={onEdgesUpdate}
+          connectionLineComponent={WbblConnectionLine}
+          selectionMode={SelectionMode.Partial}
+          proOptions={{ hideAttribution: true }}
+          fitView
+        >
+          <Background variant={BackgroundVariant.Dots} bgColor="black" />
+          <Controls className="rounded bg-black ring-2 ring-neutral-400" />
+          <svg
+            id="edge-end-renderer"
+            className="pointer-events-none absolute left-0 top-0"
+            viewBox={`0 0 ${width} ${height}`}
+            style={{ width: width, height: height, zIndex: 4 }}
+            ref={setEdgeRenderRef}
+          ></svg>
+          <MiniMap
+            className="rounded ring-2 ring-neutral-400"
+            pannable
+            zoomable
+          />
+          <Panel position="top-left">
+            <Breadcrumb />
+          </Panel>
+          <NodeMenu
+            open={nodeMenuOpen}
+            onClose={setNodeMenuOpen}
+            position={nodeMenuPosition}
+            addNode={addNode}
+          />
+        </ReactFlow>
+      </WbblEdgeEndContext.Provider>
+    </WbblSnapshotContext.Provider>
   );
 }
 
 export default function GraphRoot() {
-  const graphStore = useRef(WbblWebappGraphStore.empty(graphWorker));
+  const graphStore = useMemo(() => WbblWebappGraphStore.empty(graphWorker), []);
 
   return (
-    <WbblGraphStoreContext.Provider value={graphStore.current}>
+    <WbblGraphStoreContext.Provider value={graphStore}>
       <ReactFlowProvider>
         <Graph />
       </ReactFlowProvider>

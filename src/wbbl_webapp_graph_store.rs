@@ -1,15 +1,18 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, str::FromStr, sync::Arc};
 
 use wasm_bindgen::prelude::*;
-use web_sys::{js_sys, Worker};
+use web_sys::{js_sys, MessageEvent, Worker};
 use yrs::{types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut};
 
 use crate::{
+    data_types::AbstractDataType,
     graph_transfer_types::{
         from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
         WbblWebappNode, WbblWebappNodeType, WbbleComputedNodeSize, WbblePosition,
     },
-    wbbl_graph_web_worker::WbblGraphWebWorkerRequestMessage,
+    graph_types::PortId,
+    log,
+    wbbl_graph_web_worker::{WbblGraphWebWorkerRequestMessage, WbblGraphWebWorkerResponseMessage},
 };
 
 const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
@@ -19,13 +22,15 @@ const GRAPH_YRS_EDGES_MAP_KEY: &str = "edges";
 pub struct WbblWebappGraphStore {
     id: u128,
     next_listener_handle: u32,
-    listeners: Vec<(u32, js_sys::Function)>,
+    listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>>,
     undo_manager: yrs::UndoManager,
     graph: Arc<yrs::Doc>,
     nodes: yrs::MapRef,
     edges: yrs::MapRef,
     computed_node_sizes: HashMap<u128, WbbleComputedNodeSize>,
     graph_worker: Worker,
+    worker_responder: Closure<dyn FnMut(MessageEvent) -> ()>,
+    computed_types: Arc<RefCell<HashMap<PortId, AbstractDataType>>>,
 }
 
 #[wasm_bindgen]
@@ -344,17 +349,54 @@ impl WbblWebappGraphStore {
         let mut undo_manager = yrs::UndoManager::new(&graph, &nodes);
         undo_manager.include_origin(graph.client_id()); // only track changes originating from local peer
         undo_manager.expand_scope(&edges);
+        let computed_types = Arc::new(RefCell::new(HashMap::new()));
+
+        let listeners = Arc::new(RefCell::new(Vec::<(u32, js_sys::Function)>::new()));
+        let worker_responder = Closure::<dyn FnMut(MessageEvent) -> ()>::new({
+            let computed_types = computed_types.clone();
+            let listeners = listeners.clone();
+            move |msg: MessageEvent| {
+                match serde_wasm_bindgen::from_value::<WbblGraphWebWorkerResponseMessage>(
+                    msg.data(),
+                ) {
+                    Ok(WbblGraphWebWorkerResponseMessage::TypesUpdated(types)) => {
+                        computed_types.replace(types);
+                        for (_, listener) in listeners.borrow().iter() {
+                            listener
+                                .call0(&JsValue::UNDEFINED)
+                                .map_err(|_| WbblWebappGraphStoreError::FailedToEmit)
+                                .unwrap();
+                        }
+                    }
+                    Ok(WbblGraphWebWorkerResponseMessage::TypeUnificationFailure) => {
+                        log!("Type unification failed");
+                    }
+                    Ok(WbblGraphWebWorkerResponseMessage::Ready) => {}
+                    Err(_) => {
+                        log!("Malformed message");
+                    }
+                };
+                ()
+            }
+        });
+        graph_worker
+            .add_event_listener_with_callback("message", worker_responder.as_ref().unchecked_ref())
+            .unwrap();
+
         let mut store = WbblWebappGraphStore {
             id: uuid::Uuid::new_v4().as_u128(),
             next_listener_handle: 0,
-            listeners: Vec::new(),
+            listeners: listeners.clone(),
             undo_manager,
             graph: Arc::new(graph),
             nodes,
             edges,
             computed_node_sizes: HashMap::new(),
-            graph_worker,
+            computed_types: computed_types.clone(),
+            graph_worker: graph_worker.clone(),
+            worker_responder,
         };
+
         let output_node = NewWbblWebappNode::new(600.0, 500.0, WbblWebappNodeType::Output);
         store.add_node(output_node.clone()).unwrap();
         let slab_node = NewWbblWebappNode::new(200.0, 500.0, WbblWebappNodeType::Slab);
@@ -367,40 +409,43 @@ impl WbblWebappGraphStore {
                 0,
             )
             .unwrap();
-        store.emit().unwrap();
+        store.emit(true).unwrap();
         store
     }
 
-    pub fn emit(&self) -> Result<(), WbblWebappGraphStoreError> {
-        for (_, listener) in self.listeners.iter() {
+    pub fn emit(&self, should_publish_to_worker: bool) -> Result<(), WbblWebappGraphStoreError> {
+        for (_, listener) in self.listeners.borrow().iter() {
             listener
                 .call0(&JsValue::UNDEFINED)
                 .map_err(|_| WbblWebappGraphStoreError::FailedToEmit)?;
         }
-        let snapshot = self.get_snapshot_raw()?;
-        let snapshot_js_value =
-            serde_wasm_bindgen::to_value(&WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot))
-                .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure)?;
+        if should_publish_to_worker {
+            let snapshot = self.get_snapshot_raw()?;
+            let snapshot_js_value = serde_wasm_bindgen::to_value(
+                &WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot),
+            )
+            .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure)?;
 
-        let _ = self.graph_worker.post_message(&snapshot_js_value);
+            self.graph_worker.post_message(&snapshot_js_value).unwrap();
+        }
         Ok(())
     }
 
     pub fn subscribe(&mut self, subscriber: js_sys::Function) -> u32 {
         let handle = self.next_listener_handle;
-        self.listeners.push((handle, subscriber));
+        self.listeners.borrow_mut().push((handle, subscriber));
         self.next_listener_handle = self.next_listener_handle + 1;
         handle
     }
 
     pub fn unsubscribe(&mut self, handle: u32) {
-        if let Some((idx, _)) = self
-            .listeners
+        let mut listeners = self.listeners.borrow_mut();
+        if let Some((idx, _)) = listeners
             .iter()
             .enumerate()
             .find(|(_, (k, _))| *k == handle)
         {
-            let _ = self.listeners.remove(idx);
+            let _ = listeners.remove(idx);
         }
     }
 
@@ -410,7 +455,7 @@ impl WbblWebappGraphStore {
             .undo()
             .map_err(|_| WbblWebappGraphStoreError::FailedToUndo)?;
         if result {
-            self.emit()?;
+            self.emit(true)?;
         }
         Ok(result)
     }
@@ -421,7 +466,7 @@ impl WbblWebappGraphStore {
             .redo()
             .map_err(|_| WbblWebappGraphStoreError::FailedToRedo)?;
         if result {
-            self.emit()?;
+            self.emit(true)?;
         }
         Ok(result)
     }
@@ -435,7 +480,8 @@ impl WbblWebappGraphStore {
     }
 
     pub fn get_snapshot(&mut self) -> Result<JsValue, WbblWebappGraphStoreError> {
-        let snapshot = self.get_snapshot_raw()?;
+        let mut snapshot = self.get_snapshot_raw()?;
+        snapshot.computed_types = Some(self.computed_types.borrow().clone());
         serde_wasm_bindgen::to_value(&snapshot)
             .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure)
     }
@@ -448,7 +494,7 @@ impl WbblWebappGraphStore {
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(true)?;
 
         Ok(())
     }
@@ -461,7 +507,7 @@ impl WbblWebappGraphStore {
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(true)?;
 
         Ok(())
     }
@@ -474,7 +520,7 @@ impl WbblWebappGraphStore {
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(true)?;
 
         Ok(())
     }
@@ -518,6 +564,7 @@ impl WbblWebappGraphStore {
             id: self.id,
             nodes,
             edges,
+            computed_types: None,
         })
     }
 
@@ -563,7 +610,7 @@ impl WbblWebappGraphStore {
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(false)?;
 
         Ok(())
     }
@@ -617,7 +664,7 @@ impl WbblWebappGraphStore {
         }
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(false)?;
 
         Ok(())
     }
@@ -640,7 +687,7 @@ impl WbblWebappGraphStore {
         }
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(false)?;
 
         Ok(())
     }
@@ -656,7 +703,7 @@ impl WbblWebappGraphStore {
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(true)?;
 
         Ok(())
     }
@@ -687,7 +734,7 @@ impl WbblWebappGraphStore {
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(true)?;
 
         Ok(())
     }
@@ -726,7 +773,7 @@ impl WbblWebappGraphStore {
 
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(true)?;
 
         Ok(())
     }
@@ -749,8 +796,31 @@ impl WbblWebappGraphStore {
         }
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read
-        self.emit()?;
+        self.emit(false)?;
 
         Ok(())
+    }
+
+    pub fn are_port_types_compatible(type_a: JsValue, type_b: JsValue) -> bool {
+        match (
+            serde_wasm_bindgen::from_value::<AbstractDataType>(type_a),
+            serde_wasm_bindgen::from_value::<AbstractDataType>(type_b),
+        ) {
+            (Ok(a), Ok(b)) => AbstractDataType::are_types_compatible(a, b),
+            (Ok(_), Err(_)) => false,
+            (Err(_), Ok(_)) => false,
+            (Err(_), Err(_)) => false,
+        }
+    }
+}
+
+impl Drop for WbblWebappGraphStore {
+    fn drop(&mut self) {
+        self.graph_worker
+            .remove_event_listener_with_callback(
+                "message",
+                self.worker_responder.as_ref().unchecked_ref(),
+            )
+            .unwrap();
     }
 }

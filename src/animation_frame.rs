@@ -39,6 +39,7 @@ impl AnimationFrameHandler {
             let handle = self.handle.clone();
             let window = self.window.clone();
             let closure = self.closure.clone();
+            let processor = processor.clone();
             move || {
                 handle.set(None);
                 if processor.clone().as_ref().borrow_mut().process_frame() {

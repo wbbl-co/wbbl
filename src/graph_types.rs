@@ -2,18 +2,17 @@ use crate::{
     constraint_solver_constraints::{Constraint, SameTypesConstraint},
     data_types::{AbstractDataType, CompositeSize, ComputationDomain, ConcreteDataType},
 };
-
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Edge {
     pub id: u128,
     pub input_port: InputPortId,
     pub output_port: OutputPortId,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Node {
     pub id: u128,
     pub node_type: NodeType,
@@ -133,7 +132,12 @@ impl Node {
     pub fn output_ports(&self, outgoing_edges: &Vec<&Edge>) -> Vec<OutputPort> {
         match &self.node_type {
             NodeType::Output => vec![],
-            NodeType::Slab => vec![],
+            NodeType::Slab => self.make_output_ports(
+                outgoing_edges,
+                &[AbstractDataType::ConcreteType(
+                    ConcreteDataType::SlabMaterial,
+                )],
+            ),
             NodeType::Preview => vec![],
             NodeType::BinaryOperation(op) => {
                 self.make_output_ports(outgoing_edges, &[op.output_port_type()])
@@ -143,19 +147,20 @@ impl Node {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InputPortId {
     pub node_id: u128,
     pub port_index: u8,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutputPortId {
     pub node_id: u128,
     pub port_index: u8,
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(into = "String", try_from = "String")]
 pub enum PortId {
     Output(OutputPortId),
     Input(InputPortId),
@@ -188,7 +193,7 @@ impl Node {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct InputPort {
     pub id: InputPortId,
     pub incoming_edge: Option<u128>,
@@ -197,14 +202,14 @@ pub struct InputPort {
     pub new_subgraph_id: Option<u128>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct OutputPort {
     pub id: OutputPortId,
     pub outgoing_edges: Vec<u128>,
     pub abstract_data_type: AbstractDataType,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Graph {
     pub id: u128,
     pub nodes: HashMap<u128, Node>,
@@ -243,7 +248,7 @@ pub struct BranchedMultiGraph {
     pub dependencies: HashMap<u128, HashSet<u128>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum BinaryOperation {
     Add,
     Subtract,
@@ -347,7 +352,7 @@ impl BinaryOperation {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum BuiltIn {
     WorldPosition,
     ClipPosition,
@@ -386,7 +391,7 @@ impl BuiltIn {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum NodeType {
     Output,
     Slab,
@@ -403,7 +408,7 @@ impl NodeType {
     ) -> u8 {
         match self {
             NodeType::Output => 1,
-            NodeType::Slab => 1,
+            NodeType::Slab => 0,
             NodeType::Preview => 1,
             NodeType::BinaryOperation(_) => 2,
             NodeType::BuiltIn(_) => 0,

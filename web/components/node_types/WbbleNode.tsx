@@ -2,7 +2,7 @@ import { NodeProps } from "@xyflow/react";
 import { ReactElement, useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../../pkg/wbbl";
 
-export default function WbblNode({
+function WbblNode({
   type,
   dragging,
   positionAbsoluteX,
@@ -66,7 +66,7 @@ export default function WbblNode({
 
       context.globalCompositeOperation = "difference";
       context.closePath();
-      context.strokeStyle = "#AB9BF2";
+      context.strokeStyle = "rgb(172, 155, 245)";
       context.lineWidth = 4;
       context.stroke();
       let skew = box.get_skew(
@@ -130,3 +130,5 @@ export default function WbblNode({
     </div>
   );
 }
+
+export default WbblNode;

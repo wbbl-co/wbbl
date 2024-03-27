@@ -4,7 +4,9 @@ use wgpu::naga::Span;
 #[macro_export]
 macro_rules! log {
     ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
+        if cfg!(debug_assertions) {
+                web_sys::console::log_1(&format!( $( $t )* ).into());
+        }
     }
 }
 

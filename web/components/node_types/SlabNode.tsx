@@ -1,21 +1,14 @@
 import { NodeProps } from "@xyflow/react";
 import WbblNode from "./WbbleNode";
-import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
+import { memo } from "react";
+import { areNodePropsEqual } from "../../hooks/use-wbbl-graph-store";
 
-export default function SlabNode(props: NodeProps) {
+function SlabNode(props: NodeProps) {
   return (
     <WbblNode
-      outputPorts={
-        <>
-          <SourcePort id="s-0" key="s-0" />
-        </>
-      }
-      inputPorts={
-        <>
-          <TargetPort id="t-0" key="t-0" />
-        </>
-      }
+      outputPorts={<SourcePort id="s#0" key="s#0" />}
+      inputPorts={<></>}
       w={200}
       h={200}
       {...props}
@@ -24,3 +17,5 @@ export default function SlabNode(props: NodeProps) {
     </WbblNode>
   );
 }
+
+export default memo(SlabNode, areNodePropsEqual);

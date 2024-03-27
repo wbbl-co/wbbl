@@ -1,19 +1,28 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useContext, useMemo, useRef } from "react";
 import { useSyncExternalStore } from "react";
 import { createContext } from "react";
 import { WbblWebappGraphStore } from "../../pkg/wbbl";
-import { NodeProps, Node, Edge } from "@xyflow/react";
+import { Node, Edge } from "@xyflow/react";
 import { graphWorker } from "../graph-worker-reference";
 
 export const WbblGraphStoreContext = createContext<WbblWebappGraphStore>(
   WbblWebappGraphStore.empty(graphWorker),
 );
 
-export function useWbblGraphData(store: WbblWebappGraphStore): {
+export const WbblSnapshotContext = createContext<
+  WbblWebappGraphSnapshot | undefined
+>(undefined);
+
+export type WbblWebappGraphSnapshot = {
   edges: Edge[];
   nodes: Node[];
-} {
-  let data = useRef<{ edges: Edge[]; nodes: Node[] }>();
+  computed_types: Map<string, unknown>;
+};
+
+export function useWbblGraphData(
+  store: WbblWebappGraphStore,
+): WbblWebappGraphSnapshot {
+  let data = useRef<WbblWebappGraphSnapshot>();
   let setup = useRef<boolean>(false);
   let subscribe = useCallback(
     (subscriber: () => void) => {
@@ -42,26 +51,37 @@ export function useWbblGraphData(store: WbblWebappGraphStore): {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+export function useWbblGraphDataWithSelector<T>(
+  selector: (snapshot: WbblWebappGraphSnapshot) => T,
+): T | undefined {
+  let snapshot = useContext(WbblSnapshotContext);
+  return useMemo(() => {
+    if (snapshot) {
+      return selector(snapshot);
+    }
+    return undefined;
+  }, [snapshot, selector]);
+}
+
 type Data = { [key: string]: unknown };
 export type WbblNodeType = Node<Data>;
 
 const shallowProps = [
   "id",
-  "width",
-  "height",
   "sourcePosition",
   "targetPosition",
+  "positionAbsoluteX",
+  "positionAbsoluteY",
   "selected",
   "dragHandle",
   "type",
   "dragging",
   "zIndex",
-  "data",
 ] as const;
 
 export function areNodePropsEqual(
-  oldProps: NodeProps<WbblNodeType>,
-  newProps: NodeProps<WbblNodeType>,
+  oldProps: { [K in (typeof shallowProps)[any]]?: any } & { data: any },
+  newProps: { [K in (typeof shallowProps)[any]]?: any } & { data: any },
 ) {
   for (let prop of shallowProps) {
     if (oldProps[prop] !== newProps[prop]) {

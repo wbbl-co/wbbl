@@ -61,10 +61,9 @@
 
 .react-flow {
     --bg-color: #000;
-    --text-color: #fff;
+    --text-color: #efeeeb;
     --node-border-radius: 10px;
-    --node-box-shadow: 10px 0 15px rgba(42, 138, 246, 0.3),
-        -10px 0 15px rgba(233, 42, 103, 0.3);
+    --node-box-shadow: none;
     background-color: var(--bg-color);
     color: var(--text-color);
 }
@@ -76,6 +75,13 @@ body,
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    --field-color: rgb(231, 178, 178);
+    --material-color: rgb(87, 84, 246);
+    --number-color: rgb(170, 240, 95);
+    --float-color: rgb(172, 155, 245);
+    --bool-color: rgb(245, 114, 49);
+    --int-color: rgb(6, 176, 113);
 }
 
 .react-flow__node,
@@ -88,4 +94,53 @@ body,
 
 path.react-flow__edge-path {
     stroke: none !important;
+}
+
+.source.Any {
+    background: yellow;
+}
+
+.target.Any {
+    border-color: white;
+}
+
+.source.Material {
+    background: var(--material-color);
+}
+
+.target.Material {
+    border-color: blue;
+    background: var(--material-color);
+}
+
+.source.Float {
+    background: var(--float-color);
+}
+
+.target.Float {
+    border-color: var(--float-color);
+}
+
+.source.AnyNumber {
+    background: var(--number-color);
+}
+
+.target.AnyNumber {
+    border-color: var(--number-color);
+}
+
+.source.Int {
+    background: var(--int-color);
+}
+
+.target.Int {
+    border-color: var(--int-color);
+}
+
+.source.Bool {
+    background: var(--bool-color);
+}
+
+.target.Bool {
+    border-color: var(--bool-color);
 }

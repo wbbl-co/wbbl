@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::constraint_solver_constraints::*;
 use crate::data_types::CompositeSize::*;
 use crate::data_types::Dimensionality::*;
@@ -35,6 +37,23 @@ pub enum AbstractDataType {
     AnyFloat123,
 
     ConcreteType(ConcreteDataType),
+}
+
+impl AbstractDataType {
+    pub fn are_types_compatible(a: AbstractDataType, b: AbstractDataType) -> bool {
+        let domain_a: HashSet<AbstractDataType> = a.get_abstract_domain().into_iter().collect();
+        let domain_b: HashSet<AbstractDataType> = b.get_abstract_domain().into_iter().collect();
+        domain_a.intersection(&domain_b).next().is_some()
+    }
+
+    pub fn get_most_specific_type(a: AbstractDataType, b: AbstractDataType) -> AbstractDataType {
+        let domain_a: HashSet<AbstractDataType> = a.get_abstract_domain().into_iter().collect();
+        if domain_a.contains(&b) {
+            b
+        } else {
+            a
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialOrd, PartialEq, Hash, Ord, Eq)]
@@ -433,7 +452,7 @@ impl AbstractDataType {
             AnyFloat123 => vec![AnyFloat123],
             ConcreteType(_) => vec![],
             AnyVectorOrScalar => vec![AnyVectorOrScalar, AnyFloat, AnyFloat123],
-            AnyNumber => vec![AnyVectorOrScalar, AnyFloat, AnyFloat123],
+            AnyNumber => vec![AnyNumber, AnyFloat, AnyFloat123],
         };
 
         let mut concrete_domain: Vec<AbstractDataType> = self

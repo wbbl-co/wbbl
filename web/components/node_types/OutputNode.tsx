@@ -2,11 +2,12 @@ import { NodeProps } from "@xyflow/react";
 import WbblNode from "./WbbleNode";
 import TargetPort from "../TargetPort";
 import { graphWorker } from "../../graph-worker-reference";
-import { useLayoutEffect, useState } from "react";
+import { memo, useLayoutEffect, useState } from "react";
 import { DeregisterCanvas, RegisterCanvas } from "../../worker_message_types";
+import { areNodePropsEqual } from "../../hooks/use-wbbl-graph-store";
 // import { WbblGraphStoreContext } from "../../hooks/use-wbbl-graph-store";
 
-export default function OutputNode(props: NodeProps) {
+function OutputNode(props: NodeProps) {
   const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
   // const graphStore = useContext(WbblGraphStoreContext);
   useLayoutEffect(() => {
@@ -27,7 +28,7 @@ export default function OutputNode(props: NodeProps) {
       outputPorts={<></>}
       inputPorts={
         <>
-          <TargetPort id="t-0" key="t-0" />
+          <TargetPort id="t#0" key="t#0" />
         </>
       }
       w={300}
@@ -43,3 +44,5 @@ export default function OutputNode(props: NodeProps) {
     </WbblNode>
   );
 }
+
+export default memo(OutputNode, areNodePropsEqual);

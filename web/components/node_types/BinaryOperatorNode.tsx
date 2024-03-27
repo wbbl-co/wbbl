@@ -2,19 +2,21 @@ import { NodeProps } from "@xyflow/react";
 import WbblNode from "./WbbleNode";
 import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
+import { memo } from "react";
+import { areNodePropsEqual } from "../../hooks/use-wbbl-graph-store";
 
-export default function BinaryOperatorNode(props: NodeProps) {
+function BinaryOperatorNode(props: NodeProps) {
   return (
     <WbblNode
       outputPorts={
         <>
-          <SourcePort id="s-0" key="s-0" />
+          <SourcePort id="s#0" key="s#0" />
         </>
       }
       inputPorts={
         <>
-          <TargetPort id="t-0" key="t-0" label="x" />
-          <TargetPort id="t-1" key="t-1" label="y" />
+          <TargetPort id="t#0" key="t#0" label="x" />
+          <TargetPort id="t#1" key="t#1" label="y" />
         </>
       }
       w={150}
@@ -25,3 +27,5 @@ export default function BinaryOperatorNode(props: NodeProps) {
     </WbblNode>
   );
 }
+
+export default memo(BinaryOperatorNode, areNodePropsEqual);

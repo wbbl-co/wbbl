@@ -2,32 +2,43 @@ import {
   Handle,
   Position,
   ReactFlowState,
-  getConnectedEdges,
-  useNodeId,
+  useHandleConnections,
   useStore,
 } from "@xyflow/react";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
+import usePortType, { usePortTypeWithNodeId } from "../hooks/use-port-type";
+import { WbblWebappGraphStore } from "../../pkg/wbbl";
+import { getStyleForPortType } from "../port-type-styling";
 
 const selector = (s: ReactFlowState) => ({
   nodeInternals: s.nodes,
   edges: s.edges,
+  handle: s.connectionStartHandle,
 });
 
-export default function TargetPort(props: {
-  id: `t-${number}`;
-  label?: string;
-}) {
-  const { nodeInternals, edges } = useStore(selector);
-  const nodeId = useNodeId();
+type TargetPortProps = { id: `t#${number}`; label?: string };
+function TargetPort(props: TargetPortProps) {
+  const { handle } = useStore(selector);
+  const portType = usePortType(props.id);
+
+  const handlePortType = usePortTypeWithNodeId(
+    handle?.nodeId,
+    handle?.handleId as undefined | `s#${number}`,
+  );
+
+  const connections = useHandleConnections({
+    type: "target",
+    id: props.id,
+  });
+
   const isHandleConnectable = useMemo(() => {
-    const node = nodeInternals.find((x) => x.id == nodeId);
-    const connectedEdges = getConnectedEdges([node!], edges);
-    return (
-      connectedEdges.filter(
-        (x) => x.target == nodeId && x.targetHandle == props.id,
-      ).length == 0
-    );
-  }, [nodeInternals, edges, nodeId, props.id]);
+    let result =
+      connections.length == 0 &&
+      !!handlePortType &&
+      !!portType &&
+      WbblWebappGraphStore.are_port_types_compatible(portType, handlePortType);
+    return result;
+  }, [connections, portType, handlePortType]);
 
   return (
     <div className="inline-flex justify-start gap-0 pl-4">
@@ -40,7 +51,8 @@ export default function TargetPort(props: {
           height: 15,
           borderWidth: 2,
         }}
-        className="border-lime relative bg-transparent"
+        isConnectableStart={false}
+        className={`relative ${getStyleForPortType(portType)} bg-transparent ${isHandleConnectable ? "outline outline-green" : " "}`}
         isConnectable={isHandleConnectable}
       />
       {props.label && (
@@ -49,3 +61,12 @@ export default function TargetPort(props: {
     </div>
   );
 }
+
+function propsAreEqual(
+  oldProps: TargetPortProps,
+  newProps: TargetPortProps,
+): boolean {
+  return oldProps.id === newProps.id && newProps.label === oldProps.label;
+}
+
+export default memo(TargetPort, propsAreEqual);

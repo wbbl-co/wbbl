@@ -2,6 +2,7 @@ use crate::{
     animation_frame::{AnimationFrameHandler, AnimationFrameProcessor},
     builtin_geometry::BuiltInGeometry,
     data_types::AbstractDataType,
+    graph_functions,
     graph_transfer_types::WbblWebappGraphSnapshot,
     graph_types::{Graph, PortId},
     preview_renderer::{PreviewRendererResources, SharedPreviewRendererResources},
@@ -9,16 +10,16 @@ use crate::{
     vertex_shader::make_vertex_shader_module,
 };
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, collections::HashMap, panic, rc::Rc, str::FromStr};
+use std::{cell::RefCell, collections::HashMap, panic, rc::Rc, str::FromStr, sync::Arc};
 use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, OffscreenCanvas, Window};
 
 pub struct WbblGraphWebWorkerMain {
     current_graph: Option<Graph>,
-    preview_resources: HashMap<u128, Rc<RefCell<PreviewRendererResources>>>,
-    shared_preview_resources: Rc<SharedPreviewRendererResources>,
-    animation_frame_handler: Rc<RefCell<AnimationFrameHandler>>,
-    worker_scope: Rc<DedicatedWorkerGlobalScope>,
+    preview_resources: HashMap<u128, Arc<RefCell<PreviewRendererResources>>>,
+    shared_preview_resources: Arc<SharedPreviewRendererResources>,
+    animation_frame_handler: Arc<RefCell<AnimationFrameHandler>>,
+    worker_scope: Arc<DedicatedWorkerGlobalScope>,
 }
 
 #[wasm_bindgen]
@@ -32,9 +33,9 @@ impl WbblGraphWebWorkerJsWrapper {
         window: Window,
         worker_scope: DedicatedWorkerGlobalScope,
     ) -> WbblGraphWebWorkerJsWrapper {
-        let animation_frame_handler: Rc<RefCell<AnimationFrameHandler>> =
-            Rc::new(AnimationFrameHandler::new(window).into());
-        let worker_scope = Rc::new(worker_scope);
+        let animation_frame_handler: Arc<RefCell<AnimationFrameHandler>> =
+            Arc::new(AnimationFrameHandler::new(window).into());
+        let worker_scope = Arc::new(worker_scope);
         let main: Rc<RefCell<WbblGraphWebWorkerMain>> = Rc::new(
             WbblGraphWebWorkerMain::new(animation_frame_handler.clone(), worker_scope.clone())
                 .await
@@ -81,6 +82,7 @@ pub enum WbblGraphWebWorkerRequestMessage {
 pub enum WbblGraphWebWorkerResponseMessage {
     Ready,
     TypesUpdated(HashMap<PortId, AbstractDataType>),
+    TypeUnificationFailure,
 }
 
 #[wasm_bindgen]
@@ -88,19 +90,21 @@ pub enum WbblGraphWebWorkerError {
     MalformedMessage,
     MalformedId,
     WebGpuError,
+    CouldNotPostMessage,
+    CouldNotUnifyTypes,
 }
 
 impl WbblGraphWebWorkerMain {
     pub async fn new(
-        animation_frame_handler: Rc<RefCell<AnimationFrameHandler>>,
-        worker_scope: Rc<DedicatedWorkerGlobalScope>,
+        animation_frame_handler: Arc<RefCell<AnimationFrameHandler>>,
+        worker_scope: Arc<DedicatedWorkerGlobalScope>,
     ) -> WbblGraphWebWorkerMain {
         panic::set_hook(Box::new(console_error_panic_hook::hook));
         let shared_preview_resources = SharedPreviewRendererResources::new()
             .await
             .expect("Expected success");
         let result = WbblGraphWebWorkerMain {
-            current_graph: None.into(),
+            current_graph: None,
             shared_preview_resources: shared_preview_resources.into(),
             preview_resources: HashMap::new().into(),
             animation_frame_handler,
@@ -110,22 +114,40 @@ impl WbblGraphWebWorkerMain {
         result
     }
 
+    fn post_message(
+        &self,
+        message: WbblGraphWebWorkerResponseMessage,
+    ) -> Result<(), WbblGraphWebWorkerError> {
+        self.worker_scope
+            .post_message(&serde_wasm_bindgen::to_value(&message).unwrap())
+            .map_err(|_| WbblGraphWebWorkerError::CouldNotPostMessage)
+    }
+
     pub fn handle_message(&mut self, value: JsValue) -> Result<(), WbblGraphWebWorkerError> {
         let message = serde_wasm_bindgen::from_value::<WbblGraphWebWorkerRequestMessage>(value)
             .map_err(|_| WbblGraphWebWorkerError::MalformedMessage)?;
         match message {
             WbblGraphWebWorkerRequestMessage::Poll => {
-                self.worker_scope
-                    .post_message(
-                        &serde_wasm_bindgen::to_value(&WbblGraphWebWorkerResponseMessage::Ready)
-                            .unwrap(),
-                    )
-                    .unwrap();
-                Ok(())
+                self.post_message(WbblGraphWebWorkerResponseMessage::Ready)
             }
             WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot) => {
-                self.current_graph = Some(snapshot.into());
-                Ok(())
+                let graph: Graph = snapshot.into();
+                if Some(&graph) != self.current_graph.as_ref() {
+                    match graph_functions::narrow_abstract_types(&graph) {
+                        Ok(types) => {
+                            let result = self.post_message(
+                                WbblGraphWebWorkerResponseMessage::TypesUpdated(types),
+                            );
+                            self.current_graph = Some(graph);
+                            result
+                        }
+                        Err(_) => self.post_message(
+                            WbblGraphWebWorkerResponseMessage::TypeUnificationFailure,
+                        ),
+                    }
+                } else {
+                    Ok(())
+                }
             }
         }
     }
@@ -137,7 +159,6 @@ impl WbblGraphWebWorkerMain {
         offscreen_canvas: OffscreenCanvas,
     ) -> Result<(), WbblGraphWebWorkerError> {
         let id = uuid::Uuid::from_str(node_id).map_err(|_| WbblGraphWebWorkerError::MalformedId)?;
-
         let resources = PreviewRendererResources::new_from_offscreen_canvas(
             self.shared_preview_resources.clone(),
             BuiltInGeometry::UVSphere,

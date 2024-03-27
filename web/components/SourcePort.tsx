@@ -1,9 +1,13 @@
 import { Handle, Position } from "@xyflow/react";
+import usePortType from "../hooks/use-port-type";
+import { getStyleForPortType } from "../port-type-styling";
 
 export default function SourcePort(props: {
-  id: `s-${number}`;
+  id: `s#${number}`;
   label?: string;
 }) {
+  const portType = usePortType(props.id);
+
   return (
     <div className="inline-flex justify-end gap-0 pr-4">
       {props.label && (
@@ -19,7 +23,7 @@ export default function SourcePort(props: {
           padding: 0,
           margin: 0,
         }}
-        className="bg-lime relative"
+        className={`relative ${getStyleForPortType(portType)}`}
         isConnectable={true}
         isConnectableStart={true}
         isConnectableEnd={false}

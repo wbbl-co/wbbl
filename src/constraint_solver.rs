@@ -6,9 +6,10 @@ use crate::data_types::{AbstractDataType, ConcreteDataType};
 use crate::graph_types::PortId;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::hash::Hash;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ConstraintSolverError {
     ContradictionFound,
 }
@@ -44,7 +45,7 @@ where
     Ok(())
 }
 
-fn assign_types<Value>(
+fn assign_types<Value: Debug>(
     i: usize,
     topologically_ordered_ports: &Vec<PortId>,
     assignments: &mut HashMap<PortId, Value>,

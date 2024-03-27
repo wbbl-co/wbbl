@@ -13,7 +13,7 @@ const items = [
     name: "Slab",
     description: "Primary PBR Shader Node. Can be mixed with other slabs",
     url: "#",
-    color: "bg-indigo-500",
+    color: "bg-blue",
     icon: DocumentIcon,
   },
   {
@@ -21,7 +21,7 @@ const items = [
     name: "Preview",
     description: "Visualises Input Values",
     url: "#",
-    color: "bg-red-500",
+    color: "bg-black",
     icon: DocumentIcon,
   },
   {
@@ -29,7 +29,7 @@ const items = [
     name: "Add",
     description: "Adds Values Together",
     url: "#",
-    color: "bg-purple-500",
+    color: "bg-orange",
     icon: DocumentIcon,
   },
   {
@@ -37,7 +37,7 @@ const items = [
     name: "Subtract",
     description: "Subtracts Values From One Another",
     url: "#",
-    color: "bg-purple-500",
+    color: "bg-orange",
     icon: DocumentIcon,
   },
   {
@@ -45,7 +45,7 @@ const items = [
     name: "Multiply",
     description: "Multiplies Values Together",
     url: "#",
-    color: "bg-purple-500",
+    color: "bg-orange",
     icon: DocumentIcon,
   },
   {
@@ -53,7 +53,7 @@ const items = [
     name: "Divide",
     description: "Divides Values By One Another",
     url: "#",
-    color: "bg-purple-500",
+    color: "bg-orange",
     icon: DocumentIcon,
   },
   {
@@ -61,7 +61,7 @@ const items = [
     name: "Modulo",
     description: "Returns the remainder of two values",
     url: "#",
-    color: "bg-purple-500",
+    color: "bg-orange",
     icon: DocumentIcon,
   },
   {
@@ -69,7 +69,7 @@ const items = [
     name: ">",
     description: "Returns whether x is greater than y",
     url: "#",
-    color: "bg-yellow-500",
+    color: "bg-orange",
     icon: DocumentIcon,
   },
   {
@@ -77,7 +77,7 @@ const items = [
     name: ">=",
     description: "Returns whether x is greater or equal to y",
     url: "#",
-    color: "bg-yellow-500",
+    color: "bg-lime",
     icon: DocumentIcon,
   },
   {
@@ -85,7 +85,7 @@ const items = [
     name: "<",
     description: "Returns whether x is less than y",
     url: "#",
-    color: "bg-yellow-500",
+    color: "bg-lime",
     icon: DocumentIcon,
   },
   {
@@ -93,7 +93,7 @@ const items = [
     name: "<=",
     description: "Returns whether x is lesser or equal to y",
     url: "#",
-    color: "bg-yellow-500",
+    color: "bg-lime",
     icon: DocumentIcon,
   },
   {
@@ -101,7 +101,7 @@ const items = [
     name: "==",
     description: "Returns whether x is equal to y",
     url: "#",
-    color: "bg-yellow-500",
+    color: "bg-lime",
     icon: DocumentIcon,
   },
   {
@@ -109,7 +109,7 @@ const items = [
     name: "!=",
     description: "Returns whether x is not equal to y",
     url: "#",
-    color: "bg-yellow-500",
+    color: "bg-lime",
     icon: DocumentIcon,
   },
   {
@@ -118,7 +118,7 @@ const items = [
     description:
       "If x and y are booleans, returns whether they are both true, else if a number, computes the logical conjunction of their bits",
     url: "#",
-    color: "bg-pink-500",
+    color: "bg-dustPink",
     icon: DocumentIcon,
   },
   {
@@ -127,7 +127,7 @@ const items = [
     description:
       "If x and y are booleans, returns whether either are true, else if a number, computes the logical intersection of their bits",
     url: "#",
-    color: "bg-pink-500",
+    color: "bg-dustPink",
     icon: DocumentIcon,
   },
   {
@@ -135,7 +135,7 @@ const items = [
     name: "<<",
     description: "Returns the bits of x bit shifted left y times",
     url: "#",
-    color: "bg-pink-500",
+    color: "bg-dustPink",
     icon: DocumentIcon,
   },
   {
@@ -143,7 +143,7 @@ const items = [
     name: ">>",
     description: "Returns the bits of x bit shifted right y times",
     url: "#",
-    color: "bg-pink-500",
+    color: "bg-dustPink",
     icon: DocumentIcon,
   },
 
@@ -277,7 +277,7 @@ export default function NodeMenu(props: {
               className="absolute transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all"
             >
               <Combobox<(typeof items)[0]> onChange={onSelect}>
-                <div className="relative">
+                <div className="relative bg-white">
                   <MagnifyingGlassIcon
                     className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400"
                     aria-hidden="true"

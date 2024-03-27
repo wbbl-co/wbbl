@@ -1,4 +1,4 @@
-use crate::constraint_solver::{assign_concrete_types, ConstraintSolverError};
+use crate::constraint_solver::{self, assign_concrete_types, ConstraintSolverError};
 use crate::constraint_solver_constraints::Constraint::SameTypes;
 use crate::constraint_solver_constraints::{Constraint, SameTypesConstraint};
 use crate::data_types::{AbstractDataType, ComputationDomain, ConcreteDataType};
@@ -326,5 +326,28 @@ pub fn decompose_branches(
         result.subgraphs.insert(graph_id, branched_subgraph);
     }
 
+    result
+}
+
+pub fn narrow_abstract_types(
+    graph: &Graph,
+) -> Result<HashMap<PortId, AbstractDataType>, ConstraintSolverError> {
+    let ordered_nodes = topologically_order_nodes(graph);
+    let ordered_ports = topologically_order_ports(graph, &ordered_nodes);
+    let mut port_types: Vec<(PortId, AbstractDataType)> = graph
+        .input_ports
+        .values()
+        .map(|p| (PortId::Input(p.id.clone()), p.abstract_data_type.clone()))
+        .collect();
+    let mut output_port_types: Vec<(PortId, AbstractDataType)> = graph
+        .output_ports
+        .values()
+        .map(|p| (PortId::Output(p.id.clone()), p.abstract_data_type.clone()))
+        .collect();
+    port_types.append(&mut output_port_types);
+    let port_types: HashMap<PortId, AbstractDataType> = port_types.into_iter().collect();
+    let constraints = map_constraints_to_ports(graph);
+    let result =
+        constraint_solver::narrow_abstract_types(&ordered_ports, &port_types, &constraints);
     result
 }

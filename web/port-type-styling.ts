@@ -1,4 +1,4 @@
-export function getStyleForPortType(portType: unknown): string {
+export function getStyleForType(portType: unknown): string {
   if (portType === undefined) {
     return "";
   }
@@ -9,7 +9,7 @@ export function getStyleForPortType(portType: unknown): string {
     for (const [key, value] of Object.entries(
       portType as { [s: string]: unknown },
     )) {
-      result += `${key} ${getStyleForPortType(value)}`;
+      result += `${key} ${getStyleForType(value)}`;
     }
     return result;
   }

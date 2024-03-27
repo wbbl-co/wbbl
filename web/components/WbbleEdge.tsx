@@ -6,9 +6,11 @@ import {
   useReactFlow,
   useViewport,
 } from "@xyflow/react";
-import { WbblRope } from "../../pkg/wbbl";
+import { WbblRope, WbblWebappGraphStore } from "../../pkg/wbbl";
 import { createPortal } from "react-dom";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
+import { usePortTypeWithNodeId } from "../hooks/use-port-type";
+import { getStyleForType } from "../port-type-styling";
 
 export default function WbbleEdge({
   id,
@@ -23,6 +25,23 @@ export default function WbbleEdge({
 }: EdgeProps) {
   const flow = useReactFlow();
   const viewport = useViewport();
+  const sourceType = usePortTypeWithNodeId(
+    source,
+    sourceHandleId as `${"s" | "t"}#${number}`,
+  );
+  const targetType = usePortTypeWithNodeId(
+    target,
+    targetHandleId as `${"s" | "t"}#${number}`,
+  );
+  const edgeClassName = useMemo(() => {
+    if (targetType && sourceType) {
+      return getStyleForType(
+        WbblWebappGraphStore.get_edge_type(sourceType, targetType),
+      );
+    }
+    return "";
+  }, [sourceType, targetType]);
+
   const handleStart = useMemo(() => {
     return document.querySelector(
       `div[data-handleid="${sourceHandleId}"][data-nodeid="${source}"]`,
@@ -119,7 +138,7 @@ export default function WbbleEdge({
             <circle
               ref={startMarker}
               key="start-marker"
-              className={"fill-orange"}
+              className={`start-marker ${edgeClassName}`}
               cx={-7.5 * flow.getZoom()}
               cy="0"
               r={7.5 * flow.getZoom()}
@@ -131,16 +150,15 @@ export default function WbbleEdge({
             />
             <path
               ref={ropePath}
-              className="fill-none"
+              className={`rope-path ${edgeClassName}`}
               style={{
                 strokeWidth: 4 * viewport.zoom,
-                stroke: "#FFD92D",
               }}
             />
             <circle
               ref={endMarker}
               key="end-marker"
-              className={"fill-orange shadow-red-50"}
+              className={`end-marker ${edgeClassName}`}
               cx={7.5 * flow.getZoom()}
               cy="0"
               r={7.5 * flow.getZoom()}

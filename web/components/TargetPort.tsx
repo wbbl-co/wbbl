@@ -8,7 +8,7 @@ import {
 import { memo, useMemo } from "react";
 import usePortType, { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { WbblWebappGraphStore } from "../../pkg/wbbl";
-import { getStyleForPortType } from "../port-type-styling";
+import { getStyleForType } from "../port-type-styling";
 
 const selector = (s: ReactFlowState) => ({
   nodeInternals: s.nodes,
@@ -52,7 +52,7 @@ function TargetPort(props: TargetPortProps) {
           borderWidth: 2,
         }}
         isConnectableStart={false}
-        className={`relative ${getStyleForPortType(portType)} bg-transparent ${isHandleConnectable ? "outline outline-green" : " "}`}
+        className={`relative ${getStyleForType(portType)} bg-transparent ${isHandleConnectable ? "outline outline-green" : " "}`}
         isConnectable={isHandleConnectable}
       />
       {props.label && (

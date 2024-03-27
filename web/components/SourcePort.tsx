@@ -1,6 +1,6 @@
 import { Handle, Position } from "@xyflow/react";
 import usePortType from "../hooks/use-port-type";
-import { getStyleForPortType } from "../port-type-styling";
+import { getStyleForType } from "../port-type-styling";
 
 export default function SourcePort(props: {
   id: `s#${number}`;
@@ -23,7 +23,7 @@ export default function SourcePort(props: {
           padding: 0,
           margin: 0,
         }}
-        className={`relative ${getStyleForPortType(portType)}`}
+        className={`relative ${getStyleForType(portType)}`}
         isConnectable={true}
         isConnectableStart={true}
         isConnectableEnd={false}

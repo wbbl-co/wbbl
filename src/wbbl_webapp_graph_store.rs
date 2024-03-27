@@ -812,6 +812,24 @@ impl WbblWebappGraphStore {
             (Err(_), Err(_)) => false,
         }
     }
+
+    pub fn get_edge_type(
+        type_a: JsValue,
+        type_b: JsValue,
+    ) -> Result<JsValue, WbblWebappGraphStoreError> {
+        match (
+            serde_wasm_bindgen::from_value::<AbstractDataType>(type_a),
+            serde_wasm_bindgen::from_value::<AbstractDataType>(type_b),
+        ) {
+            (Ok(a), Ok(b)) => Ok(serde_wasm_bindgen::to_value(
+                &AbstractDataType::get_most_specific_type(a, b),
+            )
+            .unwrap()),
+            (Ok(_), Err(_)) => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+            (Err(_), Ok(_)) => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+            (Err(_), Err(_)) => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+        }
+    }
 }
 
 impl Drop for WbblWebappGraphStore {

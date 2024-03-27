@@ -144,3 +144,91 @@ path.react-flow__edge-path {
 .target.Bool {
     border-color: var(--bool-color);
 }
+
+.rope-path {
+    &.Any {
+        stroke: white;
+    }
+    &.AnyField {
+        stroke: var(--field-color);
+    }
+    &.AnyProceduralField {
+        stroke: var(--field-color);
+    }
+    &.AnyProceduralFieldWithDimensionality {
+        stroke: var(--field-color);
+    }
+    &.Field {
+        stroke: var(--field-color);
+    }
+    &.AnyTexture {
+        stroke: var(--field-color);
+    }
+    &.Texture {
+        stroke: var(--field-color);
+    }
+    &.ProceduralField {
+        stroke: var(--field-color);
+    }
+    &.AnyNumber {
+        stroke: var(--number-color);
+    }
+    &.AnyFloat {
+        stroke: var(--float-color);
+    }
+    &.Float {
+        stroke: var(--float-color);
+    }
+    &.Int {
+        stroke: var(--int-color);
+    }
+    &.Bool {
+        stroke: var(--bool-color);
+    }
+    &.SlabMaterial {
+        stroke: var(--material-color);
+    }
+    &.Material {
+        stroke: var(--material-color);
+    }
+}
+
+.start-marker,
+.end-marker {
+    &.Any {
+        fill: white;
+    }
+    &.Field {
+        fill: var(--field-color);
+    }
+    &.Texture {
+        fill: var(--field-color);
+    }
+    &.ProceduralField {
+        fill: var(--field-color);
+    }
+    &.AnyNumber {
+        fill: var(--number-color);
+    }
+    &.AnyFloat123 {
+        stroke: var(--float-color);
+    }
+    &.AnyFloat {
+        fill: var(--float-color);
+    }
+    &.Float {
+        fill: var(--float-color);
+    }
+    &.Int {
+        fill: var(--int-color);
+    }
+    &.Bool {
+        fill: var(--bool-color);
+    }
+    &.SlabMaterial {
+        fill: var(--material-color);
+    }
+    &.Material {
+        fill: var(--material-color);
+    }
+}

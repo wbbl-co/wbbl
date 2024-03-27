@@ -18,7 +18,7 @@ export default function usePortType(portId: `${"s" | "t"}#${number}`): unknown {
 
 export function usePortTypeWithNodeId(
   nodeId?: string,
-  portId?: `s#${number}`,
+  portId?: `${"s" | "t"}#${number}`,
 ): unknown {
   const qualifiedId = useMemo(() => `${nodeId}#${portId}`, [nodeId, portId]);
   const getPortType = useCallback(

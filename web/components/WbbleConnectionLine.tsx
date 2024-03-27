@@ -1,14 +1,27 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ConnectionLineComponentProps, useReactFlow } from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
 import { createPortal } from "react-dom";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
+import { usePortTypeWithNodeId } from "../hooks/use-port-type";
+import { getStyleForType } from "../port-type-styling";
 
 export default function WbblConnectionLine(
   props: ConnectionLineComponentProps,
 ) {
   const flow = useReactFlow();
   const edgeEnd = useContext(WbblEdgeEndContext);
+
+  const sourceType = usePortTypeWithNodeId(
+    props.fromNode?.id,
+    props.fromHandle?.id as `${"s" | "t"}#${number}`,
+  );
+  const connectionLineClassName = useMemo(() => {
+    if (sourceType) {
+      return getStyleForType(sourceType);
+    }
+    return "";
+  }, [sourceType]);
 
   const startMarkerPos = flow.flowToScreenPosition({
     x: props.fromX,
@@ -64,15 +77,14 @@ export default function WbblConnectionLine(
       <path
         d={path}
         fill="none"
-        className="react-flow__connection-path"
-        style={{ ...props.connectionLineStyle, strokeWidth: 4, stroke: "red" }}
-        stroke="red"
+        className={`react-flow__connection-path rope-path ${connectionLineClassName}`}
+        style={{ ...props.connectionLineStyle, strokeWidth: 4 }}
       />
       {edgeEnd != null &&
         createPortal(
           <>
             <circle
-              fill="red"
+              className={`start-marker ${connectionLineClassName}`}
               style={{
                 transform: `translate(${startMarkerPos.x}px,${startMarkerPos.y}px)`,
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
@@ -84,7 +96,7 @@ export default function WbblConnectionLine(
               r={7.5 * flow.getZoom()}
             />
             <circle
-              fill="red"
+              className={`end-marker ${connectionLineClassName}`}
               style={{
                 transform: `translate(${endMarkerPos.x}px,${endMarkerPos.y}px)`,
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",

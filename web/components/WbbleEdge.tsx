@@ -96,8 +96,8 @@ export default function WbbleEdge({
           y: rectEnd.top,
         });
         if (startMarker.current && endMarker.current && typeLabel.current) {
-          startMarker.current.style.transform = `translate(${rectStart.x + 15 * viewport.zoom}px,${rectStart.y + 7.5 * viewport.zoom}px)`;
-          endMarker.current.style.transform = `translate(${rectEnd.x}px,${rectEnd.y + 7.5 * viewport.zoom}px)`;
+          startMarker.current.style.transform = `translate(${rectStart.x + 7.5 * viewport.zoom}px,${rectStart.y + 7.5 * viewport.zoom}px)`;
+          endMarker.current.style.transform = `translate(${rectEnd.x + 7.5 * viewport.zoom}px,${rectEnd.y + 7.5 * viewport.zoom}px)`;
           typeLabel.current.style.transform = `translate(${(rectEnd.x + rectStart.x) / 2}px,${(rectEnd.y + rectStart.y) / 2}px)`;
         }
         rope.update(
@@ -142,7 +142,7 @@ export default function WbbleEdge({
               ref={startMarker}
               key="start-marker"
               className={`start-marker ${edgeClassName}`}
-              cx={-7.5 * flow.getZoom()}
+              cx="0"
               cy="0"
               r={7.5 * flow.getZoom()}
               style={{
@@ -165,7 +165,7 @@ export default function WbbleEdge({
               ref={endMarker}
               key="end-marker"
               className={`end-marker ${edgeClassName}`}
-              cx={7.5 * flow.getZoom()}
+              cx="0"
               cy="0"
               r={7.5 * flow.getZoom()}
               style={{

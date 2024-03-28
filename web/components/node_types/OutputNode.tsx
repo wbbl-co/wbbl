@@ -1,6 +1,5 @@
 import { NodeProps } from "@xyflow/react";
 import WbblNode from "./WbbleNode";
-import TargetPort from "../TargetPort";
 import { graphWorker } from "../../graph-worker-reference";
 import { memo, useLayoutEffect, useState } from "react";
 import { DeregisterCanvas, RegisterCanvas } from "../../worker_message_types";
@@ -25,12 +24,8 @@ function OutputNode(props: NodeProps) {
 
   return (
     <WbblNode
-      outputPorts={<></>}
-      inputPorts={
-        <>
-          <TargetPort id="t#0" key="t#0" />
-        </>
-      }
+      outputPortLabels={[]}
+      inputPortLabels={[null]}
       w={300}
       h={300}
       {...props}

@@ -1,6 +1,8 @@
 import { NodeProps } from "@xyflow/react";
 import { ReactElement, useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../../pkg/wbbl";
+import TargetPort from "../TargetPort";
+import SourcePort from "../SourcePort";
 
 function WbblNode({
   type,
@@ -10,11 +12,11 @@ function WbblNode({
   w,
   h,
   children,
-  inputPorts,
-  outputPorts,
+  inputPortLabels,
+  outputPortLabels,
 }: Omit<NodeProps, "width" | "height"> & {
-  inputPorts: ReactElement;
-  outputPorts: ReactElement;
+  inputPortLabels: (null | string)[];
+  outputPortLabels: (null | string)[];
   w: number;
   h: number;
   children: ReactElement;
@@ -107,6 +109,7 @@ function WbblNode({
         height={h * 2}
         ref={canvasRef}
       />
+
       <div
         ref={contentsRef}
         style={{
@@ -120,13 +123,22 @@ function WbblNode({
           {type}
         </div>
         {children}
-        <div className="absolute left-0 top-0 mt-8 flex w-full flex-row justify-between">
-          <div className="top-0 flex flex-col justify-start gap-2">
-            {inputPorts}
-          </div>
-          <div className="flex flex-col gap-2">{outputPorts}</div>
-        </div>
       </div>
+      {inputPortLabels.map((x: string | null, idx: number) => (
+        <TargetPort
+          top={idx * 25 + 45}
+          id={`t#${idx}`}
+          label={x ?? undefined}
+          key={idx}
+        />
+      ))}
+      {outputPortLabels.map((x: string | null, idx: number) => (
+        <SourcePort
+          top={idx * 25 + 45}
+          id={`s#${idx}`}
+          label={x ?? undefined}
+        />
+      ))}
     </div>
   );
 }

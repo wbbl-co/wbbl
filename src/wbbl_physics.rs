@@ -489,7 +489,7 @@ impl WbblBox {
         let bottom_left = self.get_pos(self.bottom[self.bottom.len() - 1]);
         let delta_left = bottom_left - top_left;
         let angle_top = (vec2(1.0, 0.0).angle_between(delta_top) / PI) * 180.0;
-        let angle_left = (vec2(0.0, -1.0).angle_between(delta_left) / PI) * 180.0;
+        let angle_left = (vec2(0.0, 1.0).angle_between(delta_left) / PI) * 180.0;
 
         format!(
             "translate({}px, {}px) skew({}deg,{}deg)",

@@ -1,33 +1,51 @@
 import { Handle, Position } from "@xyflow/react";
 import usePortType from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
+import { memo } from "react";
 
-export default function SourcePort(props: {
-  id: `s#${number}`;
-  label?: string;
-}) {
+type SourcePortProps = { id: `s#${number}`; label?: string; top: number };
+
+function SourcePort(props: SourcePortProps) {
   const portType = usePortType(props.id);
 
   return (
-    <div className="inline-flex justify-end gap-0 pr-4">
+    <>
       {props.label && (
-        <div className="font-mono text-sm italic">{props.label}</div>
+        <div
+          style={{ top: props.top - 10, right: 30 }}
+          className="absolute font-mono text-sm italic"
+        >
+          {props.label}
+        </div>
       )}
       <Handle
         type="source"
         id={props.id}
         position={Position.Right}
         style={{
+          right: 15,
           width: 15,
           height: 15,
-          padding: 0,
-          margin: 0,
+          top: props.top,
         }}
-        className={`relative ${getStyleForType(portType)}`}
+        className={`absolute border-none ${getStyleForType(portType)}`}
         isConnectable={true}
         isConnectableStart={true}
         isConnectableEnd={false}
       />
-    </div>
+    </>
   );
 }
+
+function propsAreEqual(
+  oldProps: SourcePortProps,
+  newProps: SourcePortProps,
+): boolean {
+  return (
+    oldProps.id === newProps.id &&
+    newProps.label === oldProps.label &&
+    newProps.top == oldProps.top
+  );
+}
+
+export default memo(SourcePort, propsAreEqual);

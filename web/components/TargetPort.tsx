@@ -16,7 +16,7 @@ const selector = (s: ReactFlowState) => ({
   handle: s.connectionStartHandle,
 });
 
-type TargetPortProps = { id: `t#${number}`; label?: string };
+type TargetPortProps = { id: `t#${number}`; label?: string; top: number };
 function TargetPort(props: TargetPortProps) {
   const { handle } = useStore(selector);
   const portType = usePortType(props.id);
@@ -41,7 +41,7 @@ function TargetPort(props: TargetPortProps) {
   }, [connections, portType, handlePortType]);
 
   return (
-    <div className="inline-flex justify-start gap-0 pl-4">
+    <>
       <Handle
         type="target"
         id={props.id}
@@ -50,15 +50,23 @@ function TargetPort(props: TargetPortProps) {
           width: 15,
           height: 15,
           borderWidth: 2,
+          left: 15,
+          top: props.top,
+          position: "absolute",
         }}
         isConnectableStart={false}
-        className={`relative ${getStyleForType(portType)} bg-transparent ${isHandleConnectable ? "outline outline-green" : " "}`}
+        className={` ${getStyleForType(portType)} bg-transparent ${isHandleConnectable ? "outline outline-green" : " "}`}
         isConnectable={isHandleConnectable}
       />
       {props.label && (
-        <div className="font-mono text-sm italic">{props.label}</div>
+        <div
+          style={{ top: props.top - 10, left: 30 }}
+          className="absolute text-left font-mono text-sm italic"
+        >
+          {props.label}
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -66,7 +74,11 @@ function propsAreEqual(
   oldProps: TargetPortProps,
   newProps: TargetPortProps,
 ): boolean {
-  return oldProps.id === newProps.id && newProps.label === oldProps.label;
+  return (
+    oldProps.id === newProps.id &&
+    newProps.label === oldProps.label &&
+    oldProps.top === newProps.top
+  );
 }
 
 export default memo(TargetPort, propsAreEqual);

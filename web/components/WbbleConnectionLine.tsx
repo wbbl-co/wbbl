@@ -1,17 +1,13 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ConnectionLineComponentProps, useReactFlow } from "@xyflow/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ConnectionLineComponentProps } from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
-import { createPortal } from "react-dom";
-import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
 
 export default function WbblConnectionLine(
   props: ConnectionLineComponentProps,
 ) {
-  const flow = useReactFlow();
-  const edgeEnd = useContext(WbblEdgeEndContext);
-
+  const pathRef = useRef<SVGPathElement | null>(null);
   const sourceType = usePortTypeWithNodeId(
     props.fromNode?.id,
     props.fromHandle?.id as `${"s" | "t"}#${number}`,
@@ -23,23 +19,11 @@ export default function WbblConnectionLine(
     return "";
   }, [sourceType]);
 
-  const startMarkerPos = flow.flowToScreenPosition({
-    x: props.fromX,
-    y: props.fromY,
-  });
-  const endMarkerPos = flow.flowToScreenPosition({
-    x: props.toX,
-    y: props.toY,
-  });
-
   const [rope] = useState(() =>
     WbblRope.new(
       new Float32Array([props.fromX, props.fromY]),
       new Float32Array([props.toX, props.toY]),
     ),
-  );
-  const [path, setPath] = useState(() =>
-    rope.get_path(new Float32Array([0, 0]), 1),
   );
 
   const lastUpdate = useRef<number>(Date.now());
@@ -56,7 +40,13 @@ export default function WbblConnectionLine(
         new Float32Array([props.toX, props.toY]),
         delta,
       );
-      setPath(rope.get_path(new Float32Array([0, 0]), 1));
+
+      if (pathRef.current) {
+        pathRef.current.setAttribute(
+          "d",
+          rope.get_path(new Float32Array([0, 0]), 1),
+        );
+      }
       lastUpdate.current = time;
       animationFrame = requestAnimationFrame(update);
     }
@@ -69,48 +59,32 @@ export default function WbblConnectionLine(
     props.toX,
     props.toY,
     lastUpdate,
-    setPath,
+    pathRef,
   ]);
 
   return (
     <>
       <path
-        d={path}
+        ref={pathRef}
         fill="none"
         className={`react-flow__connection-path rope-path ${connectionLineClassName}`}
         style={{ ...props.connectionLineStyle, strokeWidth: 4 }}
       />
-      {edgeEnd != null &&
-        createPortal(
-          <>
-            <circle
-              className={`start-marker ${connectionLineClassName}`}
-              style={{
-                transform: `translate(${startMarkerPos.x}px,${startMarkerPos.y}px)`,
-                filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
-                width: 15,
-                height: 15,
-              }}
-              cx="0"
-              cy="0"
-              r={7.5 * flow.getZoom()}
-            />
-            <circle
-              className={`end-marker ${connectionLineClassName}`}
-              style={{
-                transform: `translate(${endMarkerPos.x}px,${endMarkerPos.y}px)`,
-                filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
-                width: 15 * flow.getZoom(),
-                height: 15 * flow.getZoom(),
-              }}
-              cx="0"
-              cy="0"
-              r={7.5 * flow.getZoom()}
-            />
-          </>,
-          edgeEnd,
-          `connection-line`,
-        )}
+      <circle
+        className={`start-marker ${connectionLineClassName}`}
+        cx={props.fromX}
+        cy={props.fromY}
+        r={7.5}
+      />
+      <circle
+        className={`end-marker ${connectionLineClassName}`}
+        style={{
+          filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+        }}
+        cx={props.toX}
+        cy={props.toY}
+        r={7.5}
+      />
     </>
   );
 }

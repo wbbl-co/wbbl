@@ -452,7 +452,7 @@ impl AbstractDataType {
             AnyProceduralFieldWithCompositeSize(c) => vec![AnyProceduralFieldWithCompositeSize(*c)],
             AnyFloat123 => vec![AnyFloat123],
             ConcreteType(_) => vec![],
-            AnyVectorOrScalar => vec![AnyVectorOrScalar, AnyFloat, AnyFloat123],
+            AnyVectorOrScalar => vec![AnyVectorOrScalar, AnyNumber, AnyFloat, AnyFloat123],
             AnyNumber => vec![AnyNumber, AnyFloat, AnyFloat123],
         };
 

@@ -21,6 +21,7 @@ body,
 #root {
     height: 100%;
     margin: 0;
+    font-size: 1rem;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 
@@ -34,7 +35,7 @@ body,
 
 .react-flow__node,
 .react-flow__node.selected {
-    background: transparent !important;
+    background-color: transparent !important;
     border: none;
     box-shadow: none !important;
     outline: none;
@@ -45,7 +46,7 @@ path.react-flow__edge-path {
 }
 
 .source.Any {
-    background: yellow;
+    background: white;
 }
 
 .target.Any {
@@ -204,4 +205,8 @@ path.react-flow__edge-path {
     &.Material {
         fill: var(--material-color);
     }
+}
+
+.glow {
+    box-shadow: 0 0px 7px rgba(255, 255, 255, 0.8);
 }

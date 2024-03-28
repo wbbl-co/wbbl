@@ -3,6 +3,7 @@ import { ReactElement, useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../../pkg/wbbl";
 import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
+import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
 
 function WbblNode({
   type,
@@ -67,7 +68,7 @@ function WbblNode({
       );
 
       context.closePath();
-      context.strokeStyle = "rgb(172, 155, 245)";
+      context.strokeStyle = "rgb(100, 100, 100)";
       context.lineWidth = 4;
       context.stroke();
       let skew = box.get_skew(
@@ -97,10 +98,7 @@ function WbblNode({
   ]);
 
   return (
-    <div
-      className="text-sm"
-      style={{ width: w, height: h, overflow: "visible" }}
-    >
+    <div style={{ width: w, height: h, overflow: "visible" }}>
       <canvas
         style={{ left: -(w / 2), top: -(h / 2) }}
         className="nodrag pointer-events-none absolute"
@@ -118,14 +116,14 @@ function WbblNode({
         }}
         className="absolute left-0 top-0"
       >
-        <div className="pt-1 text-center font-mono text-xl font-bold">
+        <div className="pt-1 text-center font-mono text-lg font-bold">
           {type}
         </div>
         {children}
       </div>
       {inputPortLabels.map((x: string | null, idx: number) => (
         <TargetPort
-          top={idx * 25 + 45}
+          top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 45}
           id={`t#${idx}`}
           label={x ?? undefined}
           key={idx}
@@ -133,7 +131,7 @@ function WbblNode({
       ))}
       {outputPortLabels.map((x: string | null, idx: number) => (
         <SourcePort
-          top={idx * 25 + 45}
+          top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 45}
           id={`s#${idx}`}
           label={x ?? undefined}
           key={idx}

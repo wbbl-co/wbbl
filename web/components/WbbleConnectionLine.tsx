@@ -3,6 +3,11 @@ import { ConnectionLineComponentProps } from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
+import {
+  EDGE_STROKE_WIDTH,
+  HALF_PORT_SIZE,
+  VECTOR_EDGE_STROKE_WIDTH,
+} from "../port-constants";
 
 export default function WbblConnectionLine(
   props: ConnectionLineComponentProps,
@@ -42,10 +47,99 @@ export default function WbblConnectionLine(
       );
 
       if (pathRef.current) {
-        pathRef.current.setAttribute(
-          "d",
-          rope.get_path(new Float32Array([0, 0]), 1),
+        const angle = Math.atan2(
+          props.toY - props.fromY,
+          props.toX - props.fromX,
         );
+        const cosAngle = Math.cos(angle);
+        const sinAngle = Math.sin(angle);
+        const factorX = -sinAngle;
+        const factorY = cosAngle;
+        if (
+          !!connectionLineClassName &&
+          connectionLineClassName.includes("S2")
+        ) {
+          pathRef.current.style.strokeWidth =
+            String(VECTOR_EDGE_STROKE_WIDTH) + "px";
+          pathRef.current.setAttribute(
+            "d",
+            `${rope.get_path(
+              new Float32Array([
+                -factorX * VECTOR_EDGE_STROKE_WIDTH * 1.5,
+                -factorY * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+              ]),
+              1,
+            )} ${rope.get_path(
+              new Float32Array([
+                factorX * VECTOR_EDGE_STROKE_WIDTH * 1.5,
+                factorY * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+              ]),
+              1,
+            )}`,
+          );
+        } else if (
+          !!connectionLineClassName &&
+          connectionLineClassName.includes("S3")
+        ) {
+          pathRef.current.style.strokeWidth =
+            String(VECTOR_EDGE_STROKE_WIDTH) + "px";
+          pathRef.current.setAttribute(
+            "d",
+            `${rope.get_path(
+              new Float32Array([
+                -factorX * VECTOR_EDGE_STROKE_WIDTH * 2.5,
+                -factorY * VECTOR_EDGE_STROKE_WIDTH * 2.5,
+              ]),
+              1,
+            )} ${rope.get_path(new Float32Array([0, 0]), 1)} ${rope.get_path(
+              new Float32Array([
+                factorX * VECTOR_EDGE_STROKE_WIDTH * 2.5,
+                factorY * VECTOR_EDGE_STROKE_WIDTH * 2.5,
+              ]),
+              1,
+            )}`,
+          );
+        } else if (
+          !!connectionLineClassName &&
+          connectionLineClassName.includes("S4")
+        ) {
+          pathRef.current.style.strokeWidth =
+            String(VECTOR_EDGE_STROKE_WIDTH) + "px";
+          pathRef.current.setAttribute(
+            "d",
+            `${rope.get_path(
+              new Float32Array([
+                -factorX * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                -factorY * 4 * VECTOR_EDGE_STROKE_WIDTH,
+              ]),
+              1,
+            )} ${rope.get_path(
+              new Float32Array([
+                -factorX * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                -factorY * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+              ]),
+              1,
+            )} ${rope.get_path(
+              new Float32Array([
+                factorX * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                factorY * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+              ]),
+              1,
+            )} ${rope.get_path(
+              new Float32Array([
+                factorX * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                factorY * 4 * VECTOR_EDGE_STROKE_WIDTH,
+              ]),
+              1,
+            )}`,
+          );
+        } else {
+          pathRef.current.setAttribute(
+            "d",
+            rope.get_path(new Float32Array([0, 0]), 1),
+          );
+          pathRef.current.style.strokeWidth = String(EDGE_STROKE_WIDTH) + "px";
+        }
       }
       lastUpdate.current = time;
       animationFrame = requestAnimationFrame(update);
@@ -60,6 +154,7 @@ export default function WbblConnectionLine(
     props.toY,
     lastUpdate,
     pathRef,
+    connectionLineClassName,
   ]);
 
   return (
@@ -67,14 +162,14 @@ export default function WbblConnectionLine(
       <path
         ref={pathRef}
         fill="none"
-        className={`react-flow__connection-path rope-path ${connectionLineClassName}`}
-        style={{ ...props.connectionLineStyle, strokeWidth: 4 }}
+        className={`react-flow__connection-path rope-path transition-colors ${connectionLineClassName}`}
+        style={{ ...props.connectionLineStyle }}
       />
       <circle
         className={`start-marker ${connectionLineClassName}`}
         cx={props.fromX}
         cy={props.fromY}
-        r={7.5}
+        r={HALF_PORT_SIZE}
       />
       <circle
         className={`end-marker ${connectionLineClassName}`}
@@ -83,7 +178,7 @@ export default function WbblConnectionLine(
         }}
         cx={props.toX}
         cy={props.toY}
-        r={7.5}
+        r={HALF_PORT_SIZE}
       />
     </>
   );

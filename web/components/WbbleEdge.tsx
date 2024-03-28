@@ -11,6 +11,12 @@ import { createPortal } from "react-dom";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
+import {
+  EDGE_STROKE_WIDTH,
+  HALF_PORT_SIZE,
+  VECTOR_EDGE_STROKE_WIDTH,
+  VECTOR_EDGE_STROKE_WIDTH,
+} from "../port-constants";
 
 export default function WbbleEdge({
   id,
@@ -71,7 +77,6 @@ export default function WbbleEdge({
   const startMarker = useRef<SVGCircleElement>(null);
   const endMarker = useRef<SVGCircleElement>(null);
   const ropePath = useRef<SVGPathElement>(null);
-  const typeLabel = useRef<SVGTextElement>(null);
 
   const edgeEnd = useContext(WbblEdgeEndContext);
 
@@ -87,32 +92,161 @@ export default function WbbleEdge({
       if (handleStart && handleEnd) {
         let rectStart = handleStart.getBoundingClientRect();
         let rectEnd = handleEnd.getBoundingClientRect();
-        let startPos = flow.screenToFlowPosition({
-          x: rectStart.left,
-          y: rectStart.top,
-        });
-        let endPos = flow.screenToFlowPosition({
-          x: rectEnd.left,
-          y: rectEnd.top,
-        });
-        if (startMarker.current && endMarker.current && typeLabel.current) {
-          startMarker.current.style.transform = `translate(${rectStart.x + 7.5 * viewport.zoom}px,${rectStart.y + 7.5 * viewport.zoom}px)`;
-          endMarker.current.style.transform = `translate(${rectEnd.x + 7.5 * viewport.zoom}px,${rectEnd.y + 7.5 * viewport.zoom}px)`;
-          typeLabel.current.style.transform = `translate(${(rectEnd.x + rectStart.x) / 2}px,${(rectEnd.y + rectStart.y) / 2}px)`;
+        let startPos1 = flow.screenToFlowPosition(
+          {
+            x: rectStart.left,
+            y: rectStart.top,
+          },
+          { snapToGrid: false },
+        );
+        let startPos2 = flow.screenToFlowPosition(
+          {
+            x: rectStart.right,
+            y: rectStart.bottom,
+          },
+          { snapToGrid: false },
+        );
+        let startPos = {
+          x: (startPos1.x + startPos2.x) / 2,
+          y: (startPos1.y + startPos2.y) / 2,
+        };
+        let endPos1 = flow.screenToFlowPosition(
+          {
+            x: rectEnd.left,
+            y: rectEnd.top,
+          },
+          { snapToGrid: false },
+        );
+        let endPos2 = flow.screenToFlowPosition(
+          {
+            x: rectEnd.right,
+            y: rectEnd.bottom,
+          },
+          { snapToGrid: false },
+        );
+        let endPos = {
+          x: (endPos1.x + endPos2.x) / 2,
+          y: (endPos1.y + endPos2.y) / 2,
+        };
+
+        if (startMarker.current && endMarker.current) {
+          startMarker.current.style.transform = `translate(${rectStart.x}px,${rectStart.y}px)`;
+          endMarker.current.style.transform = `translate(${rectEnd.x}px,${rectEnd.y}px)`;
         }
         rope.update(
-          new Float32Array([startPos.x + 7.5, startPos.y + 7.5]),
-          new Float32Array([endPos.x + 7.5, endPos.y + 7.5]),
+          new Float32Array([startPos.x, startPos.y]),
+          new Float32Array([endPos.x, endPos.y]),
           delta,
         );
         if (ropePath.current) {
-          ropePath.current.setAttribute(
-            "d",
-            rope.get_path(
-              new Float32Array([viewport.x, viewport.y]),
-              viewport.zoom,
-            ),
+          const angle = Math.atan2(
+            endPos.y - startPos.y,
+            endPos.x - startPos.x,
           );
+          const cosAngle = Math.cos(angle);
+          const sinAngle = Math.sin(angle);
+          const factorX = -sinAngle;
+          const factorY = cosAngle;
+
+          if (!!edgeClassName && edgeClassName.includes("S2")) {
+            ropePath.current.style.strokeWidth =
+              viewport.zoom * VECTOR_EDGE_STROKE_WIDTH + "px";
+            ropePath.current.setAttribute(
+              "d",
+              `${rope.get_path(
+                new Float32Array([
+                  viewport.x -
+                    factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  viewport.y -
+                    factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                ]),
+                viewport.zoom,
+              )} ${rope.get_path(
+                new Float32Array([
+                  viewport.x +
+                    factorX * 2 * viewport.zoom * VECTOR_EDGE_STROKE_WIDTH,
+                  viewport.y +
+                    factorY * 2 * viewport.zoom * VECTOR_EDGE_STROKE_WIDTH,
+                ]),
+                viewport.zoom,
+              )}`,
+            );
+          } else if (!!edgeClassName && edgeClassName.includes("S3")) {
+            ropePath.current.style.strokeWidth =
+              viewport.zoom * VECTOR_EDGE_STROKE_WIDTH + "px";
+            ropePath.current.setAttribute(
+              "d",
+              `${rope.get_path(
+                new Float32Array([
+                  viewport.x -
+                    factorX * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  viewport.y -
+                    factorY * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
+                ]),
+                viewport.zoom,
+              )} ${rope.get_path(
+                new Float32Array([viewport.x, viewport.y]),
+                viewport.zoom,
+              )} ${rope.get_path(
+                new Float32Array([
+                  viewport.x +
+                    factorX * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  viewport.y +
+                    factorY * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
+                ]),
+                viewport.zoom,
+              )}`,
+            );
+          } else if (!!edgeClassName && edgeClassName.includes("S4")) {
+            ropePath.current.style.strokeWidth =
+              viewport.zoom * VECTOR_EDGE_STROKE_WIDTH + "px";
+            ropePath.current.setAttribute(
+              "d",
+              `${rope.get_path(
+                new Float32Array([
+                  viewport.x -
+                    factorX * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                  viewport.y -
+                    factorY * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                ]),
+                viewport.zoom,
+              )} ${rope.get_path(
+                new Float32Array([
+                  viewport.x -
+                    factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  viewport.y -
+                    factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                ]),
+                viewport.zoom,
+              )} ${rope.get_path(
+                new Float32Array([
+                  viewport.x +
+                    factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  viewport.y +
+                    factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                ]),
+                viewport.zoom,
+              )} ${rope.get_path(
+                new Float32Array([
+                  viewport.x +
+                    factorX * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                  viewport.y +
+                    factorY * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                ]),
+                viewport.zoom,
+              )}`,
+            );
+          } else {
+            ropePath.current.style.strokeWidth =
+              viewport.zoom * EDGE_STROKE_WIDTH + "px";
+            ropePath.current.setAttribute(
+              "d",
+              rope.get_path(
+                new Float32Array([viewport.x, viewport.y]),
+                viewport.zoom,
+              ),
+            );
+          }
         }
       }
       lastUpdate.current = time;
@@ -123,14 +257,16 @@ export default function WbbleEdge({
   }, [
     rope,
     ropePath,
-    typeLabel,
     lastUpdate,
     handleStart,
     handleEnd,
     flow,
     startMarker,
     endMarker,
-    viewport,
+    viewport.x,
+    viewport.y,
+    viewport.zoom,
+    edgeClassName,
   ]);
 
   return (
@@ -142,36 +278,26 @@ export default function WbbleEdge({
               ref={startMarker}
               key="start-marker"
               className={`start-marker ${edgeClassName}`}
-              cx="0"
-              cy="0"
-              r={7.5 * flow.getZoom()}
+              cx={HALF_PORT_SIZE * viewport.zoom}
+              cy={HALF_PORT_SIZE * viewport.zoom}
+              r={HALF_PORT_SIZE * viewport.zoom}
               style={{
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
-                width: 15,
-                height: 15,
               }}
             />
             <path
               ref={ropePath}
               className={`rope-path fill-none ${edgeClassName}`}
-              style={{
-                strokeWidth: 4 * viewport.zoom,
-              }}
             />
-            <text ref={typeLabel} fill="white">
-              {edgeClassName}
-            </text>
             <circle
               ref={endMarker}
               key="end-marker"
               className={`end-marker ${edgeClassName}`}
-              cx="0"
-              cy="0"
-              r={7.5 * flow.getZoom()}
+              cx={HALF_PORT_SIZE * viewport.zoom}
+              cy={HALF_PORT_SIZE * viewport.zoom}
+              r={HALF_PORT_SIZE * viewport.zoom}
               style={{
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
-                width: 15,
-                height: 15,
               }}
             />
           </>,

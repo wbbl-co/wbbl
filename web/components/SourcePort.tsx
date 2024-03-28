@@ -2,6 +2,7 @@ import { Handle, Position } from "@xyflow/react";
 import usePortType from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
 import { memo } from "react";
+import { HALF_PORT_SIZE, PORT_SIZE } from "../port-constants";
 
 type SourcePortProps = { id: `s#${number}`; label?: string; top: number };
 
@@ -13,7 +14,7 @@ function SourcePort(props: SourcePortProps) {
       {props.label && (
         <div
           key="label"
-          style={{ top: props.top - 10, right: 30 }}
+          style={{ top: props.top - 10, right: 2 * PORT_SIZE }}
           className="absolute font-mono text-sm italic"
         >
           {props.label}
@@ -25,12 +26,12 @@ function SourcePort(props: SourcePortProps) {
         id={props.id}
         position={Position.Right}
         style={{
-          right: 15,
-          width: 15,
-          height: 15,
+          right: PORT_SIZE,
+          width: PORT_SIZE,
+          height: PORT_SIZE,
           top: props.top,
         }}
-        className={`absolute border-none ${getStyleForType(portType)}`}
+        className={`absolute border-none transition-colors duration-300 ${getStyleForType(portType)}`}
         isConnectable={true}
         isConnectableStart={true}
         isConnectableEnd={false}

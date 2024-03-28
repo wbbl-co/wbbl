@@ -9,6 +9,7 @@ import { memo, useMemo } from "react";
 import usePortType, { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { WbblWebappGraphStore } from "../../pkg/wbbl";
 import { getStyleForType } from "../port-type-styling";
+import { HALF_PORT_SIZE, PORT_SIZE } from "../port-constants";
 
 const selector = (s: ReactFlowState) => ({
   nodeInternals: s.nodes,
@@ -48,21 +49,21 @@ function TargetPort(props: TargetPortProps) {
         id={props.id}
         position={Position.Left}
         style={{
-          width: 15,
-          height: 15,
+          width: PORT_SIZE,
+          height: PORT_SIZE,
           borderWidth: 2,
-          left: 15,
+          left: PORT_SIZE,
           top: props.top,
           position: "absolute",
         }}
         isConnectableStart={false}
-        className={` ${getStyleForType(portType)} bg-transparent ${isHandleConnectable ? "outline outline-green" : " "}`}
+        className={` ${getStyleForType(portType)} bg-transparent  transition-colors duration-300 ${isHandleConnectable ? "glow" : " "}`}
         isConnectable={isHandleConnectable}
       />
       {props.label && (
         <div
           key="label"
-          style={{ top: props.top - 10, left: 30 }}
+          style={{ top: props.top - 10, left: 2 * PORT_SIZE }}
           className="absolute text-left font-mono text-sm italic"
         >
           {props.label}

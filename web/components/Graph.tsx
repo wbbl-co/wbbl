@@ -14,7 +14,13 @@ import {
   Panel,
   useReactFlow,
 } from "@xyflow/react";
-import React, { useContext, useCallback, useState, useMemo } from "react";
+import React, {
+  useContext,
+  useCallback,
+  useState,
+  useMemo,
+  useEffect,
+} from "react";
 import {
   NewWbblWebappNode,
   WbblWebappGraphStore,
@@ -66,7 +72,10 @@ function Graph() {
       let target = evt.target as HTMLElement;
       let rect = target.getBoundingClientRect();
       if (nodeMenuOpen === false && !isConnecting) {
-        let pos = flow.screenToFlowPosition({ x: evt.clientX, y: evt.clientY });
+        let pos = flow.screenToFlowPosition(
+          { x: evt.clientX, y: evt.clientY },
+          { snapToGrid: false },
+        );
         setNodeMenuOpen(true);
         setNodeMenuPosition({
           x: pos.x,
@@ -222,10 +231,17 @@ function Graph() {
   const [edgeRendererRef, setEdgeRenderRef] = useState<SVGSVGElement | null>(
     null,
   );
-  let boundingRect = useMemo(
-    () => edgeRendererRef?.parentElement?.getBoundingClientRect(),
-    [edgeRendererRef],
-  );
+  let [boundingRect, setBoundingRect] = useState<DOMRect | null>();
+  useEffect(() => {
+    setBoundingRect(edgeRendererRef?.parentElement?.getBoundingClientRect());
+    const listener = () => {
+      setBoundingRect(edgeRendererRef?.parentElement?.getBoundingClientRect());
+    };
+    edgeRendererRef?.parentElement?.addEventListener("resize", listener);
+    return () => {
+      edgeRendererRef?.parentElement?.removeEventListener("resize", listener);
+    };
+  }, [edgeRendererRef, setBoundingRect]);
   let width = boundingRect?.width ?? 1080;
   let height = boundingRect?.height ?? 1920;
 

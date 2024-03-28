@@ -12,6 +12,7 @@ function SourcePort(props: SourcePortProps) {
     <>
       {props.label && (
         <div
+          key="label"
           style={{ top: props.top - 10, right: 30 }}
           className="absolute font-mono text-sm italic"
         >
@@ -20,6 +21,7 @@ function SourcePort(props: SourcePortProps) {
       )}
       <Handle
         type="source"
+        key="handle"
         id={props.id}
         position={Position.Right}
         style={{

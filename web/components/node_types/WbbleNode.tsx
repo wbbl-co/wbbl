@@ -66,7 +66,6 @@ function WbblNode({
         new Float32Array([positionAbsoluteX, positionAbsoluteY]),
       );
 
-      context.globalCompositeOperation = "difference";
       context.closePath();
       context.strokeStyle = "rgb(172, 155, 245)";
       context.lineWidth = 4;
@@ -137,6 +136,7 @@ function WbblNode({
           top={idx * 25 + 45}
           id={`s#${idx}`}
           label={x ?? undefined}
+          key={idx}
         />
       ))}
     </div>

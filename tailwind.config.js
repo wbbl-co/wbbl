@@ -15,9 +15,9 @@ export default {
         dustPink: "rgb(231, 178, 178)",
       },
       fontFamily: {
-        gasoek: ["GasoekOne", "sans-serif"],
-        mono: ["DMMono", "monospace"],
-        sans: ["DMMono", "monospace"],
+        gasoek: ["Gasoek One", "sans-serif"],
+        mono: ["DM Mono", "monospace"],
+        sans: ["DM Sans", "sans-serif"],
       },
     },
   },

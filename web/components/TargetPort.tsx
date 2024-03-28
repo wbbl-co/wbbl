@@ -44,6 +44,7 @@ function TargetPort(props: TargetPortProps) {
     <>
       <Handle
         type="target"
+        key="handle"
         id={props.id}
         position={Position.Left}
         style={{
@@ -60,6 +61,7 @@ function TargetPort(props: TargetPortProps) {
       />
       {props.label && (
         <div
+          key="label"
           style={{ top: props.top - 10, left: 30 }}
           className="absolute text-left font-mono text-sm italic"
         >

@@ -1,63 +1,11 @@
 @import "@xyflow/react/dist/style.css";
+@import "@fontsource/gasoek-one";
+@import "@fontsource/dm-mono";
+@import "@fontsource/dm-sans";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@font-face {
-    font-family: "DMMono";
-    font-style: normal;
-    font-weight: lighter;
-    font-display: swap;
-    src: url("./web/fonts/DM_Mono/DMMono-Light.ttf");
-}
-
-@font-face {
-    font-family: "DMMono";
-    font-style: italic;
-    font-weight: lighter;
-    font-display: swap;
-    src: url("./web/fonts/DM_Mono/DMMono-LightItalic.ttf");
-}
-
-@font-face {
-    font-family: "DMMono";
-    font-style: normal;
-    font-weight: normal;
-    font-display: swap;
-    src: url("./web/fonts/DM_Mono/DMMono-Regular.ttf");
-}
-
-@font-face {
-    font-family: "DMMono";
-    font-style: italic;
-    font-weight: normal;
-    font-display: swap;
-    src: url("./web/fonts/DM_Mono/DMMono-Italic.ttf");
-}
-
-@font-face {
-    font-family: "DMMono";
-    font-style: italic;
-    font-weight: bold;
-    font-display: swap;
-    src: url("./web/fonts/DM_Mono/DMMono-MediumItalic.ttf");
-}
-
-@font-face {
-    font-family: "DMMono";
-    font-style: normal;
-    font-weight: bold;
-    font-display: swap;
-    src: url("./web/fonts/DM_Mono/DMMono-Medium.ttf");
-}
-
-@font-face {
-    font-family: "GasoekOne";
-    font-style: normal;
-    font-weight: 400;
-    font-display: swap;
-    src: url("./web/fonts/Gasoek_One/GasoekOne-Regular.woff2") format("woff2");
-}
 
 .react-flow {
     --bg-color: #000;
@@ -149,45 +97,59 @@ path.react-flow__edge-path {
     &.Any {
         stroke: white;
     }
+
     &.AnyField {
         stroke: var(--field-color);
     }
+
     &.AnyProceduralField {
         stroke: var(--field-color);
     }
+
     &.AnyProceduralFieldWithDimensionality {
         stroke: var(--field-color);
     }
+
     &.Field {
         stroke: var(--field-color);
     }
+
     &.AnyTexture {
         stroke: var(--field-color);
     }
+
     &.Texture {
         stroke: var(--field-color);
     }
+
     &.ProceduralField {
         stroke: var(--field-color);
     }
+
     &.AnyNumber {
         stroke: var(--number-color);
     }
+
     &.AnyFloat {
         stroke: var(--float-color);
     }
+
     &.Float {
         stroke: var(--float-color);
     }
+
     &.Int {
         stroke: var(--int-color);
     }
+
     &.Bool {
         stroke: var(--bool-color);
     }
+
     &.SlabMaterial {
         stroke: var(--material-color);
     }
+
     &.Material {
         stroke: var(--material-color);
     }
@@ -198,36 +160,47 @@ path.react-flow__edge-path {
     &.Any {
         fill: white;
     }
+
     &.Field {
         fill: var(--field-color);
     }
+
     &.Texture {
         fill: var(--field-color);
     }
+
     &.ProceduralField {
         fill: var(--field-color);
     }
+
     &.AnyNumber {
         fill: var(--number-color);
     }
+
     &.AnyFloat123 {
         stroke: var(--float-color);
     }
+
     &.AnyFloat {
         fill: var(--float-color);
     }
+
     &.Float {
         fill: var(--float-color);
     }
+
     &.Int {
         fill: var(--int-color);
     }
+
     &.Bool {
         fill: var(--bool-color);
     }
+
     &.SlabMaterial {
         fill: var(--material-color);
     }
+
     &.Material {
         fill: var(--material-color);
     }

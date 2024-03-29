@@ -9,7 +9,7 @@ import { memo, useMemo } from "react";
 import usePortType, { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { WbblWebappGraphStore } from "../../pkg/wbbl";
 import { getStyleForType } from "../port-type-styling";
-import { HALF_PORT_SIZE, PORT_SIZE } from "../port-constants";
+import { PORT_SIZE } from "../port-constants";
 
 const selector = (s: ReactFlowState) => ({
   nodeInternals: s.nodes,
@@ -49,22 +49,24 @@ function TargetPort(props: TargetPortProps) {
         id={props.id}
         position={Position.Left}
         style={{
-          width: PORT_SIZE,
-          height: PORT_SIZE,
+          width: PORT_SIZE - 4,
+          height: PORT_SIZE - 4,
           borderWidth: 2,
           left: PORT_SIZE,
           top: props.top,
+          background: 'transparent',
           position: "absolute",
+          transitionDuration: "300ms",
+          transitionProperty: "stroke"
         }}
         isConnectableStart={false}
-        className={` ${getStyleForType(portType)} bg-transparent  transition-colors duration-300 ${isHandleConnectable ? "glow" : " "}`}
+        className={` ${getStyleForType(portType)} ${isHandleConnectable ? "glow" : " "}`}
         isConnectable={isHandleConnectable}
       />
       {props.label && (
         <div
           key="label"
-          style={{ top: props.top - 10, left: 2 * PORT_SIZE }}
-          className="absolute text-left font-mono text-sm italic"
+          style={{ top: props.top - 10, left: 2 * PORT_SIZE, position: "absolute", textAlign: "left", fontSize: "0.8rem", fontFamily: 'DM Mono', fontStyle: "italic" }}
         >
           {props.label}
         </div>

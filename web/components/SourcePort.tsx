@@ -2,7 +2,8 @@ import { Handle, Position } from "@xyflow/react";
 import usePortType from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
 import { memo } from "react";
-import { HALF_PORT_SIZE, PORT_SIZE } from "../port-constants";
+import { PORT_SIZE } from "../port-constants";
+import { Text } from "@radix-ui/themes";
 
 type SourcePortProps = { id: `s#${number}`; label?: string; top: number };
 
@@ -12,13 +13,13 @@ function SourcePort(props: SourcePortProps) {
   return (
     <>
       {props.label && (
-        <div
+        <Text
           key="label"
-          style={{ top: props.top - 10, right: 2 * PORT_SIZE }}
-          className="absolute font-mono text-sm italic"
+          as="label"
+          style={{ top: props.top - 10, right: 2 * PORT_SIZE, position: "absolute", fontFamily: "DM Mono", fontStyle: "italic" }}
         >
           {props.label}
-        </div>
+        </Text>
       )}
       <Handle
         type="source"
@@ -30,8 +31,12 @@ function SourcePort(props: SourcePortProps) {
           width: PORT_SIZE,
           height: PORT_SIZE,
           top: props.top,
+          position: "absolute",
+          border: "none",
+          transitionProperty: "background-color",
+          transitionDuration: "300ms"
         }}
-        className={`absolute border-none transition-colors duration-300 ${getStyleForType(portType)}`}
+        className={`${getStyleForType(portType)}`}
         isConnectable={true}
         isConnectableStart={true}
         isConnectableEnd={false}

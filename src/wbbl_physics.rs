@@ -5,7 +5,6 @@ use web_sys::CanvasRenderingContext2d;
 
 const BOX_X_COUNT: usize = 4;
 const BOX_Y_COUNT: usize = 4;
-const BOX_CORNER_RADIUS: f32 = 20.0;
 const BOX_SPRING_DAMPING_COEFFICIENT: f32 = 8.0;
 const BOX_SPRING_SPRING_COEFFICIENT: f32 = 75.0;
 const BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF: f32 = 200.0;
@@ -412,14 +411,15 @@ impl WbblBox {
         b: Vec2,
         c: Vec2,
         canvas_position: Vec2,
+        radius: f32,
     ) {
         let delta_ab = b - a;
         let delta_cb = c - b;
         let a = a - canvas_position;
         let b = b - canvas_position;
         let z = z - canvas_position;
-        let p1 = b - (delta_ab.normalize() * BOX_CORNER_RADIUS);
-        let p2 = b + (delta_cb.normalize() * BOX_CORNER_RADIUS);
+        let p1 = b - (delta_ab.normalize() * radius);
+        let p2 = b + (delta_cb.normalize() * radius);
 
         context.bezier_curve_to(
             z.x as f64,
@@ -437,12 +437,11 @@ impl WbblBox {
         self.vertlets[index].position
     }
 
-    pub fn draw(&self, context: &CanvasRenderingContext2d, canvas_position: &[f32]) {
+    pub fn draw(&self, context: &CanvasRenderingContext2d, canvas_position: &[f32], radius: f32) {
         let canvas_position = Vec2::from_slice(canvas_position);
 
         let start_point = self.get_pos(self.top[0])
-            + (self.get_pos(self.top[1]) - self.get_pos(self.top[0])).normalize()
-                * BOX_CORNER_RADIUS
+            + (self.get_pos(self.top[1]) - self.get_pos(self.top[0])).normalize() * radius
             - canvas_position;
         context.move_to(start_point.x as f64, start_point.y as f64);
         WbblBox::draw_corner(
@@ -452,6 +451,7 @@ impl WbblBox {
             self.get_pos(self.top[3]),
             self.get_pos(self.right[0]),
             canvas_position,
+            radius,
         );
 
         WbblBox::draw_corner(
@@ -461,6 +461,7 @@ impl WbblBox {
             self.get_pos(self.bottom[0]),
             self.get_pos(self.bottom[1]),
             canvas_position,
+            radius,
         );
 
         WbblBox::draw_corner(
@@ -470,6 +471,7 @@ impl WbblBox {
             self.get_pos(self.bottom[3]),
             self.get_pos(self.left[0]),
             canvas_position,
+            radius,
         );
 
         WbblBox::draw_corner(
@@ -479,6 +481,7 @@ impl WbblBox {
             self.get_pos(self.top[0]),
             self.get_pos(self.top[1]),
             canvas_position,
+            radius,
         );
     }
 

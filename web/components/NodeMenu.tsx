@@ -1,215 +1,18 @@
-import { Fragment, useCallback, useState } from "react";
-import { Combobox, Dialog, Transition } from "@headlessui/react";
-import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
-import {
-  DocumentIcon,
-  ExclamationCircleIcon,
-} from "@heroicons/react/24/outline";
+import { ChangeEvent, useCallback, useState, useMemo, useRef, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { WbblWebappNodeType } from "../../pkg/wbbl";
+import { NodeCategory, nodeMetaData } from "./node_types";
+import { TextField, Text, DropdownMenu, Box, Callout } from "@radix-ui/themes";
+import { MagnifyingGlassIcon, StarIcon, PhotoIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
+import { ScrollArea } from "@radix-ui/themes/dist/cjs/index.js";
 
-const items = [
-  {
-    node_type: WbblWebappNodeType.Slab,
-    name: "Slab",
-    description: "Primary PBR Shader Node. Can be mixed with other slabs",
-    url: "#",
-    color: "bg-blue",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Preview,
-    name: "Preview",
-    description: "Visualises Input Values",
-    url: "#",
-    color: "bg-black",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Add,
-    name: "Add",
-    description: "Adds Values Together",
-    url: "#",
-    color: "bg-orange",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Subtract,
-    name: "Subtract",
-    description: "Subtracts Values From One Another",
-    url: "#",
-    color: "bg-orange",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Multiply,
-    name: "Multiply",
-    description: "Multiplies Values Together",
-    url: "#",
-    color: "bg-orange",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Divide,
-    name: "Divide",
-    description: "Divides Values By One Another",
-    url: "#",
-    color: "bg-orange",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Modulo,
-    name: "Modulo",
-    description: "Returns the remainder of two values",
-    url: "#",
-    color: "bg-orange",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Greater,
-    name: ">",
-    description: "Returns whether x is greater than y",
-    url: "#",
-    color: "bg-orange",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.GreaterEqual,
-    name: ">=",
-    description: "Returns whether x is greater or equal to y",
-    url: "#",
-    color: "bg-lime",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Less,
-    name: "<",
-    description: "Returns whether x is less than y",
-    url: "#",
-    color: "bg-lime",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.LessEqual,
-    name: "<=",
-    description: "Returns whether x is lesser or equal to y",
-    url: "#",
-    color: "bg-lime",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Equal,
-    name: "==",
-    description: "Returns whether x is equal to y",
-    url: "#",
-    color: "bg-lime",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.NotEqual,
-    name: "!=",
-    description: "Returns whether x is not equal to y",
-    url: "#",
-    color: "bg-lime",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.And,
-    name: "And",
-    description:
-      "If x and y are booleans, returns whether they are both true, else if a number, computes the logical conjunction of their bits",
-    url: "#",
-    color: "bg-dustPink",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.Or,
-    name: "Or",
-    description:
-      "If x and y are booleans, returns whether either are true, else if a number, computes the logical intersection of their bits",
-    url: "#",
-    color: "bg-dustPink",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.ShiftLeft,
-    name: "<<",
-    description: "Returns the bits of x bit shifted left y times",
-    url: "#",
-    color: "bg-dustPink",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.ShiftRight,
-    name: ">>",
-    description: "Returns the bits of x bit shifted right y times",
-    url: "#",
-    color: "bg-dustPink",
-    icon: DocumentIcon,
-  },
 
-  {
-    node_type: WbblWebappNodeType.WorldPosition,
-    name: "World Position",
-    description: "Returns the position of the texel in world space",
-    url: "#",
-    color: "bg-green",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.WorldNormal,
-    name: "World Normal",
-    description: "Returns the normal of the texel in world space",
-    url: "#",
-    color: "bg-green",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.WorldTangent,
-    name: "World Tangent",
-    description: "Returns the tangent of the texel in world space",
-    url: "#",
-    color: "bg-green",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.WorldBitangent,
-    name: "World Bitangent",
-    description: "Returns the bitangent of the texel in world space",
-    url: "#",
-    color: "bg-green",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.ClipPosition,
-    name: "Clip Position",
-    description: "Returns the position of the texel in clip space",
-    url: "#",
-    color: "bg-green",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.TexCoord,
-    name: "Tex Coord",
-    description: "Returns the 1st texture coordinate of this model",
-    url: "#",
-    color: "bg-green",
-    icon: DocumentIcon,
-  },
-  {
-    node_type: WbblWebappNodeType.TexCoord2,
-    name: "Tex Coord 2",
-    description: "Returns the 1st texture coordinate of this model, if present",
-    url: "#",
-    color: "bg-green",
-    icon: DocumentIcon,
-  },
-] as const;
 
-function classNames(...classes: (boolean | string)[]) {
-  return classes.filter(Boolean).join(" ");
+function NodeDropdownMenuItem({ id, onSelect, value, color, onKeyEvent }: { color?: boolean, id: string, onSelect: (key: string) => void, value: (typeof nodeMetaData)[keyof typeof nodeMetaData], onKeyEvent?: (evt: ReactKeyboardEvent<HTMLDivElement>) => void }) {
+  const whenSelected = useCallback(() => { onSelect(id) }, [id, onSelect, value]);
+  return <DropdownMenu.Item onKeyDown={onKeyEvent} textValue={id} onSelect={whenSelected} style={{ textTransform: 'capitalize', minWidth: 200, ...(color ? { color: `var(--${value.category}-color)` } : {}) }} key={id}>{value.nodeMenuName ?? id}</DropdownMenu.Item>;
 }
 
-export const NODE_MENU_DIMENSIONS = { width: 600, height: 400 } as const;
+export const NODE_MENU_DIMENSIONS = { width: 350, height: 400 } as const;
 export default function NodeMenu(props: {
   open: boolean;
   onClose: (open: boolean) => void;
@@ -223,150 +26,152 @@ export default function NodeMenu(props: {
   };
   addNode: (type: WbblWebappNodeType, x: number, y: number) => void;
 }) {
+  const sorted = useMemo(() => {
+    return Object.entries(nodeMetaData).filter(([, v]) => !v.hiddenFromNodeMenu).sort(([k1, v1], [k2, v2]) => (v1.nodeMenuName ?? k1).localeCompare((v2.nodeMenuName ?? k2), undefined, { usage: 'search', collation: 'phonebk' }))
+  }, [nodeMetaData]);
+
+
+
+  const grouped = useMemo(() => {
+    let groups = sorted.reduce((prev, curr) => {
+      let category = curr[1].category;
+      let categoryItems = prev[category] ?? [];
+      prev[category] = categoryItems;
+      categoryItems.push(curr as [keyof typeof nodeMetaData, (typeof nodeMetaData)[keyof typeof nodeMetaData]]);
+      return prev;
+    }, {} as { [K in NodeCategory]: [keyof typeof nodeMetaData, (typeof nodeMetaData)[keyof typeof nodeMetaData]][] });
+
+    return Object.entries(groups).sort(([k1,], [k2,]) => k1.localeCompare(k2, undefined, { usage: 'search', collation: 'phonebk' }))
+  }, [sorted]);
+
   const [query, setQuery] = useState("");
 
-  const filteredItems =
+  const onClose = useCallback((b: boolean) => {
+    if (!b) {
+      setQuery("");
+    }
+    props.onClose(b);
+  }, [props.onClose]);
+
+  const filteredItems = useMemo(() =>
     query === ""
       ? null
-      : items.filter((item) => {
-          return (
-            item.name.toLowerCase().includes(query.toLowerCase()) ||
-            item.description.toLowerCase().includes(query.toLowerCase())
-          );
-        });
+      : sorted.filter(([key, item]) => {
+        return (
+          (item.nodeMenuName ?? key).toLowerCase().includes(query.toLowerCase()) ||
+          item.description.toLowerCase().includes(query.toLowerCase())
+        );
+      }),
+    [query, sorted]);
 
   const onSelect = useCallback(
-    (value: { node_type: WbblWebappNodeType }) => {
-      props.addNode(value.node_type, props.position!.x, props.position!.y);
+    (evt: string) => {
+      props.addNode(nodeMetaData[evt as keyof typeof nodeMetaData].type, props.position!.x, props.position!.y);
       props.onClose(false);
+      setQuery("");
     },
-    [props.addNode, props.position, props.onClose],
+    [props.addNode, props.position, props.onClose, setQuery, nodeMetaData],
   );
+
+
+
+  const onSelectFirst = useCallback(
+    () => {
+      if (filteredItems == null) {
+        let element = (grouped[0][1][0])[1];
+        props.addNode(element.type, props.position!.x, props.position!.y);
+        props.onClose(false);
+        setQuery("");
+      } else {
+        let items = (filteredItems == null ? sorted : filteredItems);
+        if (items.length > 0) {
+          props.addNode(items[0][1].type, props.position!.x, props.position!.y);
+          props.onClose(false);
+          setQuery("");
+        }
+      }
+    },
+    [props.addNode, props.position, props.onClose, filteredItems, grouped, setQuery],
+  );
+
+
+  const onSelectPreview = useCallback(
+    () => {
+      props.addNode(WbblWebappNodeType.Preview, props.position!.x, props.position!.y);
+      props.onClose(false);
+      setQuery("");
+    },
+    [props.addNode, props.position, props.onClose, setQuery],
+  );
+
+  const updateQuery = useCallback((evt: ChangeEvent<HTMLInputElement>) => {
+    setQuery(evt.target.value)
+  }, [setQuery]);
+
+  const dropdownMenuRef = useRef<HTMLDivElement | null>(null);
+  const searchBoxRef = useRef<HTMLInputElement | null>(null);
+
+  const keydownFromSearch = useCallback((evt: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (evt.key === "ArrowDown" && dropdownMenuRef.current && (filteredItems == null || filteredItems.length > 0)) {
+      dropdownMenuRef.current.focus();
+      evt.preventDefault();
+    }
+  }, [dropdownMenuRef.current, filteredItems]);
+
+  const keydownUpFromMenu = useCallback((evt: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (evt.key === "ArrowUp" && searchBoxRef.current) {
+      searchBoxRef.current.focus();
+      evt.preventDefault();
+    }
+  }, [searchBoxRef.current]);
+
   return (
-    <Transition.Root
-      show={props.open}
-      as={Fragment}
-      afterLeave={() => setQuery("")}
-      appear
-    >
-      <Dialog as="div" className="relative z-10" onClose={props.onClose}>
-        <div className="fixed inset-0 z-10 h-screen w-screen overflow-hidden">
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0 scale-95"
-            enterTo="opacity-100 scale-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100 scale-100"
-            leaveTo="opacity-0 scale-95"
-          >
-            <Dialog.Panel
-              style={
-                props.position == null
-                  ? {
-                      width: NODE_MENU_DIMENSIONS.width - 30,
-                      maxHeight: NODE_MENU_DIMENSIONS.height - 30,
-                    }
-                  : {
-                      ...props.position,
-                      width: NODE_MENU_DIMENSIONS.width - 30,
-                      maxHeight: NODE_MENU_DIMENSIONS.height - 30,
-                    }
-              }
-              id="node-menu"
-              className="absolute transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all"
-            >
-              <Combobox<(typeof items)[0]> onChange={onSelect}>
-                <div className="relative bg-white">
-                  <MagnifyingGlassIcon
-                    className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400"
-                    aria-hidden="true"
-                  />
-                  <Combobox.Input
-                    className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
-                    placeholder="Search..."
-                    onChange={(event) => setQuery(event.target.value)}
-                  />
-                </div>
+    <DropdownMenu.Root open={props.open} onOpenChange={onClose}>
+      <DropdownMenu.Content ref={dropdownMenuRef} style={{ ...props.position, position: 'absolute', width: NODE_MENU_DIMENSIONS.width }}>
+        <Box p='3'>
+          <TextField.Root ref={searchBoxRef} autoFocus onKeyDown={keydownFromSearch} size='3' color="red" onSubmit={onSelectFirst} onChange={updateQuery} placeholder="Search for nodes…">
+            <TextField.Slot>
+              <MagnifyingGlassIcon height="16" width="16" />
+            </TextField.Slot>
+          </TextField.Root>
+        </Box>
+        <ScrollArea type="hover" scrollbars="vertical" style={{ maxHeight: NODE_MENU_DIMENSIONS.height }}>
+          {filteredItems == null ?
+            (<>
+              <DropdownMenu.Item onKeyDown={keydownUpFromMenu} onSelect={onSelectPreview}><PhotoIcon color="current" width={'1em'} height={'1em'} /> Add Preview</DropdownMenu.Item>
+              <DropdownMenu.Sub>
+                <DropdownMenu.SubTrigger><StarIcon color="current" width={'1em'} height={'1em'} /> Favourites</DropdownMenu.SubTrigger>
+                <DropdownMenu.SubContent>
+                  <DropdownMenu.Item color="gray">No Favourites</DropdownMenu.Item>
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Sub>
+              <DropdownMenu.Separator />
+              {grouped.map(([key, values]) => (
+                <DropdownMenu.Sub key={key}>
+                  <DropdownMenu.SubTrigger style={{ textTransform: 'capitalize' }}><Text style={{ color: `var(--${key}-color)` }}>⬤</Text>{key}</DropdownMenu.SubTrigger>
+                  <DropdownMenu.SubContent>
+                    {values.map(([key, value]) => <NodeDropdownMenuItem id={key} key={key} value={value} onSelect={onSelect} />)}
+                  </DropdownMenu.SubContent>
+                </DropdownMenu.Sub>
+              )
+              )}
+            </>)
 
-                {(filteredItems == null || filteredItems.length > 0) && (
-                  <Combobox.Options
-                    static
-                    className="max-h-96 transform-gpu overflow-y-auto p-3 pb-20"
-                  >
-                    {(filteredItems == null ? items : filteredItems).map(
-                      (item) => (
-                        <Combobox.Option
-                          key={item.node_type}
-                          value={item}
-                          className={({ active }) =>
-                            classNames(
-                              "flex cursor-default select-none rounded-xl p-3",
-                              active && "bg-gray-100",
-                            )
-                          }
-                        >
-                          {({ active }) => (
-                            <>
-                              <div
-                                className={classNames(
-                                  "flex h-10 w-10 flex-none items-center justify-center rounded-lg",
-                                  item.color,
-                                )}
-                              >
-                                <item.icon
-                                  className="h-6 w-6 text-white"
-                                  aria-hidden="true"
-                                />
-                              </div>
-                              <div className="ml-4 flex-auto">
-                                <p
-                                  className={classNames(
-                                    "text-sm font-medium",
-                                    active ? "text-gray-900" : "text-gray-700",
-                                  )}
-                                >
-                                  {item.name}
-                                </p>
-                                <p
-                                  className={classNames(
-                                    "text-sm",
-                                    active ? "text-gray-700" : "text-gray-500",
-                                  )}
-                                >
-                                  {item.description}
-                                </p>
-                              </div>
-                            </>
-                          )}
-                        </Combobox.Option>
-                      ),
-                    )}
-                  </Combobox.Options>
-                )}
-
-                {query !== "" &&
-                  filteredItems !== null &&
-                  filteredItems.length === 0 && (
-                    <div className="px-6 py-14 text-center text-sm sm:px-14">
-                      <ExclamationCircleIcon
-                        type="outline"
-                        name="exclamation-circle"
-                        className="mx-auto h-6 w-6 text-gray-400"
-                      />
-                      <p className="mt-4 font-semibold text-gray-900">
-                        No results found
-                      </p>
-                      <p className="mt-2 text-gray-500">
-                        No nodes found for this search term. Please try again.
-                      </p>
-                    </div>
-                  )}
-              </Combobox>
-            </Dialog.Panel>
-          </Transition.Child>
-        </div>
-      </Dialog>
-    </Transition.Root>
+            : (filteredItems.length > 0
+              ? <>{filteredItems.map(([key, value], idx) => <NodeDropdownMenuItem id={key} key={key} value={value} onSelect={onSelect} color={true} onKeyEvent={idx == 0 ? keydownUpFromMenu : undefined} />)}</>
+              : <Box p='3'>
+                <Callout.Root color="amber">
+                  <Callout.Icon>
+                    <InformationCircleIcon width={24} height={24} />
+                  </Callout.Icon>
+                  <Callout.Text>
+                    No nodes were found matching the serach query
+                  </Callout.Text>
+                </Callout.Root>
+              </Box>)
+          }
+        </ScrollArea>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
   );
 }

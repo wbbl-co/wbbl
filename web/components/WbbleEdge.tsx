@@ -15,7 +15,6 @@ import {
   EDGE_STROKE_WIDTH,
   HALF_PORT_SIZE,
   VECTOR_EDGE_STROKE_WIDTH,
-  VECTOR_EDGE_STROKE_WIDTH,
 } from "../port-constants";
 
 export default function WbbleEdge({
@@ -156,17 +155,17 @@ export default function WbbleEdge({
               `${rope.get_path(
                 new Float32Array([
                   viewport.x -
-                    factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
                   viewport.y -
-                    factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
                 ]),
                 viewport.zoom,
               )} ${rope.get_path(
                 new Float32Array([
                   viewport.x +
-                    factorX * 2 * viewport.zoom * VECTOR_EDGE_STROKE_WIDTH,
+                  factorX * 2 * viewport.zoom * VECTOR_EDGE_STROKE_WIDTH,
                   viewport.y +
-                    factorY * 2 * viewport.zoom * VECTOR_EDGE_STROKE_WIDTH,
+                  factorY * 2 * viewport.zoom * VECTOR_EDGE_STROKE_WIDTH,
                 ]),
                 viewport.zoom,
               )}`,
@@ -179,9 +178,9 @@ export default function WbbleEdge({
               `${rope.get_path(
                 new Float32Array([
                   viewport.x -
-                    factorX * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorX * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
                   viewport.y -
-                    factorY * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorY * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
                 ]),
                 viewport.zoom,
               )} ${rope.get_path(
@@ -190,9 +189,9 @@ export default function WbbleEdge({
               )} ${rope.get_path(
                 new Float32Array([
                   viewport.x +
-                    factorX * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorX * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
                   viewport.y +
-                    factorY * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorY * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
                 ]),
                 viewport.zoom,
               )}`,
@@ -205,33 +204,33 @@ export default function WbbleEdge({
               `${rope.get_path(
                 new Float32Array([
                   viewport.x -
-                    factorX * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorX * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
                   viewport.y -
-                    factorY * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorY * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
                 ]),
                 viewport.zoom,
               )} ${rope.get_path(
                 new Float32Array([
                   viewport.x -
-                    factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
                   viewport.y -
-                    factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
                 ]),
                 viewport.zoom,
               )} ${rope.get_path(
                 new Float32Array([
                   viewport.x +
-                    factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
                   viewport.y +
-                    factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
                 ]),
                 viewport.zoom,
               )} ${rope.get_path(
                 new Float32Array([
                   viewport.x +
-                    factorX * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorX * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
                   viewport.y +
-                    factorY * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
+                  factorY * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
                 ]),
                 viewport.zoom,
               )}`,
@@ -287,6 +286,7 @@ export default function WbbleEdge({
             />
             <path
               ref={ropePath}
+              style={{ fill: "none" }}
               className={`rope-path fill-none ${edgeClassName}`}
             />
             <circle

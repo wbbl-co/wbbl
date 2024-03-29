@@ -11,7 +11,6 @@ import {
   Controls,
   MiniMap,
   ReactFlowProvider,
-  Panel,
   useReactFlow,
 } from "@xyflow/react";
 import React, {
@@ -35,7 +34,6 @@ import {
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import WbblConnectionLine from "./WbbleConnectionLine";
 import WbbleEdge from "./WbbleEdge";
-import Breadcrumb from "./Breadcrumb";
 import NodeMenu, { NODE_MENU_DIMENSIONS } from "./NodeMenu";
 import { nodeTypes } from "./node_types";
 import { graphWorker } from "../graph-worker-reference";
@@ -242,6 +240,7 @@ function Graph() {
       edgeRendererRef?.parentElement?.removeEventListener("resize", listener);
     };
   }, [edgeRendererRef, setBoundingRect]);
+
   let width = boundingRect?.width ?? 1080;
   let height = boundingRect?.height ?? 1920;
 
@@ -253,7 +252,6 @@ function Graph() {
           onNodesChange={onNodesChange}
           edges={snapshot.edges}
           edgeTypes={edgeTypes}
-          colorMode="dark"
           nodeTypes={nodeTypes}
           onConnect={onConnect}
           onPaneClick={onPaneClick}
@@ -267,23 +265,18 @@ function Graph() {
           proOptions={{ hideAttribution: true }}
           fitView
         >
-          <Background variant={BackgroundVariant.Dots} bgColor="black" />
-          <Controls className="rounded bg-black ring-2 ring-neutral-400" />
+          <Background variant={BackgroundVariant.Dots} />
+          <Controls />
           <svg
             id="edge-end-renderer"
-            className="pointer-events-none absolute left-0 top-0"
             viewBox={`0 0 ${width} ${height}`}
-            style={{ width: width, height: height, zIndex: 4 }}
+            style={{ width: width, height: height, zIndex: 4, pointerEvents: "none", position: "absolute", left: 0, top: 0 }}
             ref={setEdgeRenderRef}
           ></svg>
           <MiniMap
-            className="rounded ring-2 ring-neutral-400"
             pannable
             zoomable
           />
-          <Panel position="top-left">
-            <Breadcrumb />
-          </Panel>
           <NodeMenu
             open={nodeMenuOpen}
             onClose={setNodeMenuOpen}

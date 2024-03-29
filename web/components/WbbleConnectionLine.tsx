@@ -162,8 +162,8 @@ export default function WbblConnectionLine(
       <path
         ref={pathRef}
         fill="none"
-        className={`react-flow__connection-path rope-path transition-colors ${connectionLineClassName}`}
-        style={{ ...props.connectionLineStyle }}
+        className={`react-flow__connection-path rope-path ${connectionLineClassName}`}
+        style={{ ...props.connectionLineStyle, transitionProperty: "stroke", transitionDelay: "300ms" }}
       />
       <circle
         className={`start-marker ${connectionLineClassName}`}

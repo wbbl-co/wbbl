@@ -2,19 +2,9 @@
 @import "@fontsource/gasoek-one";
 @import "@fontsource/dm-mono";
 @import "@fontsource/dm-sans";
+@import '@radix-ui/themes/styles.css';
+@import "/web/brand-theme.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-.react-flow {
-    --bg-color: #000;
-    --text-color: #efeeeb;
-    --node-border-radius: 10px;
-    --node-box-shadow: none;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-}
 
 html,
 body,
@@ -24,14 +14,8 @@ body,
     font-size: 1rem;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-
-    --field-color: rgb(231, 178, 178);
-    --material-color: rgb(87, 84, 246);
-    --number-color: rgb(170, 240, 95);
-    --float-color: rgb(172, 155, 245);
-    --bool-color: rgb(245, 114, 49);
-    --int-color: rgb(6, 176, 113);
 }
+
 
 .react-flow__node,
 .react-flow__node.selected {
@@ -41,172 +25,127 @@ body,
     outline: none;
 }
 
+
+
+.dark {
+    --xy-controls-button-background-color: var(--gray-2);
+    --xy-controls-button-color: var(--gray-11);
+}
+
+.react-flow__panel {
+    border-radius: var(--radius-2);
+    border-width: 2px;
+    overflow: hidden;
+}
+
+.react-flow__panel {
+    background: var(--color-panel);
+}
+
+
 path.react-flow__edge-path {
     stroke: none !important;
 }
 
-.source.Any {
-    background: white;
+.port-label {
+    fontFamily: var(--code-font-family);
+    fontStyle: italic;
 }
 
-.target.Any {
-    border-color: white;
+.node-type-header {
+    font-family: var(--code-font-family);
+    font-weight: bold;
+    font-size: var(--font-size-5);
+    padding-top: 0.25rem;
+    margin-top: 0;
+    text-align: center;
 }
 
-.source.Material {
-    background: var(--material-color);
+
+.target {
+    border-color: var(--type-color);
 }
 
-.target.Material {
-    border-color: blue;
-    background: var(--material-color);
-}
-
-.source.Float {
-    background: var(--float-color);
-}
-
-.target.Float {
-    border-color: var(--float-color);
-}
-
-.source.AnyNumber {
-    background: var(--number-color);
-}
-
-.target.AnyNumber {
-    border-color: var(--number-color);
-}
-
-.source.Int {
-    background: var(--int-color);
-}
-
-.target.Int {
-    border-color: var(--int-color);
-}
-
-.source.Bool {
-    background: var(--bool-color);
-}
-
-.target.Bool {
-    border-color: var(--bool-color);
+.source {
+    background: var(--type-color);
 }
 
 .rope-path {
-    &.Any {
-        stroke: white;
-    }
-
-    &.AnyField {
-        stroke: var(--field-color);
-    }
-
-    &.AnyProceduralField {
-        stroke: var(--field-color);
-    }
-
-    &.AnyProceduralFieldWithDimensionality {
-        stroke: var(--field-color);
-    }
-
-    &.Field {
-        stroke: var(--field-color);
-    }
-
-    &.AnyTexture {
-        stroke: var(--field-color);
-    }
-
-    &.Texture {
-        stroke: var(--field-color);
-    }
-
-    &.ProceduralField {
-        stroke: var(--field-color);
-    }
-
-    &.AnyNumber {
-        stroke: var(--number-color);
-    }
-
-    &.AnyFloat {
-        stroke: var(--float-color);
-    }
-
-    &.Float {
-        stroke: var(--float-color);
-    }
-
-    &.Int {
-        stroke: var(--int-color);
-    }
-
-    &.Bool {
-        stroke: var(--bool-color);
-    }
-
-    &.SlabMaterial {
-        stroke: var(--material-color);
-    }
-
-    &.Material {
-        stroke: var(--material-color);
-    }
+    stroke: var(--type-color);
 }
 
 .start-marker,
 .end-marker {
-    &.Any {
-        fill: white;
-    }
+    fill: var(--type-color);
+}
 
-    &.Field {
-        fill: var(--field-color);
-    }
+.Any {
+    --type-color: var(--any-color);
+}
 
-    &.Texture {
-        fill: var(--field-color);
-    }
+.AnyField {
+    --type-color: var(--field-color);
+}
 
-    &.ProceduralField {
-        fill: var(--field-color);
-    }
+.AnyProceduralField {
+    --type-color: var(--field-color);
+}
 
-    &.AnyNumber {
-        fill: var(--number-color);
-    }
+.AnyProceduralFieldWithDimensionality {
+    --type-color: var(--field-color);
+}
 
-    &.AnyFloat123 {
-        stroke: var(--float-color);
-    }
+.Field {
+    --type-color: var(--field-color);
+}
 
-    &.AnyFloat {
-        fill: var(--float-color);
-    }
+.AnyTexture {
+    --type-color: var(--field-color);
+}
 
-    &.Float {
-        fill: var(--float-color);
-    }
+.Texture {
+    --type-color: var(--field-color);
+}
 
-    &.Int {
-        fill: var(--int-color);
-    }
+.ProceduralField {
+    --type-color: var(--field-color);
+}
 
-    &.Bool {
-        fill: var(--bool-color);
-    }
+.AnyNumber {
+    --type-color: var(--number-color);
+}
 
-    &.SlabMaterial {
-        fill: var(--material-color);
-    }
+.AnyFloat {
+    --type-color: var(--float-color);
+}
 
-    &.Material {
-        fill: var(--material-color);
-    }
+.Float {
+    --type-color: var(--float-color);
+}
+
+.Int {
+    --type-color: var(--int-color);
+}
+
+.Bool {
+    --type-color: var(--bool-color);
+}
+
+.SlabMaterial {
+    --type-color: var(--material-color);
+}
+
+.Material {
+    --type-color: var(--material-color);
 }
 
 .glow {
     box-shadow: 0 0px 7px rgba(255, 255, 255, 0.8);
+}
+
+.wbbl-node-canvas {
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }

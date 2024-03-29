@@ -10,6 +10,7 @@ function BinaryOperatorNode(props: NodeProps) {
       inputPortLabels={["x", "y"]}
       w={150}
       h={100}
+
       {...props}
     >
       <div></div>

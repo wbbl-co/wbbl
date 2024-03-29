@@ -81,19 +81,13 @@ function Graph() {
           top:
             evt.clientY < rect.height - NODE_MENU_DIMENSIONS.height
               ? evt.clientY
-              : undefined,
+              : rect.height - NODE_MENU_DIMENSIONS.height,
           left:
             evt.clientX < rect.width - NODE_MENU_DIMENSIONS.width
               ? evt.clientX
-              : undefined,
-          right:
-            evt.clientX >= rect.width - NODE_MENU_DIMENSIONS.width
-              ? 10
-              : undefined,
-          bottom:
-            evt.clientY >= rect.height - NODE_MENU_DIMENSIONS.height
-              ? 10
-              : undefined,
+              : rect.width - NODE_MENU_DIMENSIONS.width,
+          right: undefined,
+          bottom: undefined
         });
       } else {
         setNodeMenuOpen(false);

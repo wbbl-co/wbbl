@@ -125,6 +125,7 @@ export default function NodeMenu(props: {
     }
   }, [searchBoxRef.current]);
 
+
   return (
     <DropdownMenu.Root open={props.open} onOpenChange={onClose}>
       <DropdownMenu.Content ref={dropdownMenuRef} style={{ ...props.position, position: 'absolute', width: NODE_MENU_DIMENSIONS.width }}>

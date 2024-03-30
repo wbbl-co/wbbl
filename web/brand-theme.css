@@ -530,6 +530,7 @@
     /* Your custom font for <Em> components */
     --quote-font-family: "DM Mono";
     /* Your custom font for <Quote> components */
+    --brand-font-family: 'Gasoek One';
 }
 
 .radix-themes {

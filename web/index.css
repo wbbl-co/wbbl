@@ -63,6 +63,7 @@ path.react-flow__edge-path {
 
 
 .target {
+    color: var(--type-color);
     border-color: var(--type-color);
 }
 
@@ -144,8 +145,9 @@ path.react-flow__edge-path {
     --type-color: var(--material-color);
 }
 
+
 .glow {
-    box-shadow: 0 0px 7px rgba(255, 255, 255, 0.8);
+    box-shadow: 0px 0px 7px currentColor;
 }
 
 .wbbl-node-canvas {

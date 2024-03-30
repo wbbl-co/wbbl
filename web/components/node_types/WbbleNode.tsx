@@ -6,6 +6,7 @@ import SourcePort from "../SourcePort";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
 import { Text } from "@radix-ui/themes";
 import { nodeMetaData } from ".";
+import { Heading } from "@radix-ui/themes/dist/cjs/index.js";
 
 function WbblNode({
   type,
@@ -84,15 +85,19 @@ function WbblNode({
       context.strokeStyle = getComputedStyle(canvasRef.current!).getPropertyValue(`--${nodeMetaData[type as keyof typeof nodeMetaData].category}-color`);
       context.lineWidth = 4;
       context.stroke();
-      let skew = box.get_skew();
+      let contentsSkew = box.get_contents_skew(new Float32Array([
+        positionAbsoluteX,
+        positionAbsoluteY,
+      ]));
 
       if (contentsRef.current) {
-        contentsRef.current.style.transform = skew;
+        contentsRef.current.style.transform = contentsSkew;
       }
-      console.log('handleRefs', handleRefs.length);
-      for (let handleRef of handleRefs) {
 
-        handleRef.style.transform = skew;
+      let handleSkew = box.get_handle_skew();
+
+      for (let handleRef of handleRefs) {
+        handleRef.style.transform = handleSkew;
       }
 
       lastUpdate.current = time;
@@ -129,15 +134,13 @@ function WbblNode({
           width: w,
           height: h,
           position: "absolute",
-          left: 0,
-          top: 0
+          left: -w / 2,
+          top: -h / 2,
         }}
       >
-        <div className="node-type-header">
-          <Text>
-            {type}
-          </Text>
-        </div>
+        <Heading as="h3" align='center' className="node-type-heading">
+          {type}
+        </Heading>
         {children}
       </div>
       {inputPortLabels.map((x: string | null, idx: number) => (

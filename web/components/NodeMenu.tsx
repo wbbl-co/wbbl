@@ -1,16 +1,49 @@
-import { ChangeEvent, useCallback, useState, useMemo, useRef, KeyboardEvent as ReactKeyboardEvent } from "react";
+import { ChangeEvent, useCallback, useState, useMemo, useRef, KeyboardEvent as ReactKeyboardEvent, forwardRef, ForwardedRef, useEffect } from "react";
 import { WbblWebappNodeType } from "../../pkg/wbbl";
 import { NodeCategory, nodeMetaData } from "./node_types";
-import { TextField, Text, DropdownMenu, Box, Callout } from "@radix-ui/themes";
+import { TextField, Text, DropdownMenu, Box, Callout, Tooltip } from "@radix-ui/themes";
 import { MagnifyingGlassIcon, StarIcon, PhotoIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
 import { ScrollArea } from "@radix-ui/themes/dist/cjs/index.js";
 
 
+function useTooltipOpen() {
+  const [tooltipMaybeOpen, setTooltipMaybeOpen] = useState(false);
+  const [tooltipOpen, setTooltipOpen] = useState(false);
 
-function NodeDropdownMenuItem({ id, onSelect, value, color, onKeyEvent }: { color?: boolean, id: string, onSelect: (key: string) => void, value: (typeof nodeMetaData)[keyof typeof nodeMetaData], onKeyEvent?: (evt: ReactKeyboardEvent<HTMLDivElement>) => void }) {
-  const whenSelected = useCallback(() => { onSelect(id) }, [id, onSelect, value]);
-  return <DropdownMenu.Item onKeyDown={onKeyEvent} textValue={id} onSelect={whenSelected} style={{ textTransform: 'capitalize', minWidth: 200, ...(color ? { color: `var(--${value.category}-color)` } : {}) }} key={id}>{value.nodeMenuName ?? id}</DropdownMenu.Item>;
+  const setTooltipMaybeOpenTrue = useCallback(() => { setTooltipMaybeOpen(true) }, [setTooltipMaybeOpen]);
+  const setTooltipOpenFalse = useCallback(() => { setTooltipMaybeOpen(false); setTooltipOpen(false); }, [setTooltipMaybeOpen, setTooltipOpen]);
+  useEffect(() => {
+    if (tooltipMaybeOpen) {
+      const handle = setTimeout(() => {
+        setTooltipOpen(true);
+      }, 250);
+      return () => { clearTimeout(handle); }
+    }
+  }, [tooltipMaybeOpen, setTooltipOpen]);
+
+  return [tooltipOpen, setTooltipMaybeOpenTrue, setTooltipOpenFalse] as const;
 }
+
+function NodeDropdownMenuItemImpl({ id, onSelect, value, color, onKeyEvent }: { color?: boolean, id: string, onSelect: (key: string) => void, value: (typeof nodeMetaData)[keyof typeof nodeMetaData], onKeyEvent?: (evt: ReactKeyboardEvent<HTMLDivElement>) => void }, forwardRef: ForwardedRef<HTMLDivElement>) {
+  const whenSelected = useCallback(() => { onSelect(id) }, [id, onSelect, value]);
+  const [tooltipOpen, setTooltipMaybeOpenTrue, setTooltipOpenFalse] = useTooltipOpen();
+  return <div><Tooltip open={tooltipOpen} content={value.description}><DropdownMenu.Item onBlur={setTooltipOpenFalse} onFocus={setTooltipMaybeOpenTrue} onMouseOver={setTooltipMaybeOpenTrue} onMouseLeave={setTooltipOpenFalse} ref={forwardRef} onKeyDown={onKeyEvent} textValue={id} onSelect={whenSelected} style={{ textTransform: 'capitalize', minWidth: 200, ...(color ? { color: `var(--${value.category}-color)` } : {}) }} key={id}>
+    <Text>{value.nodeMenuName ?? id}</Text>
+  </DropdownMenu.Item></Tooltip></div>;
+}
+
+
+function PreviewNodeDropdownMenuItemImpl({ onSelect, onKeyEvent }: { onSelect: (key: string) => void, onKeyEvent?: (evt: ReactKeyboardEvent<HTMLDivElement>) => void }, forwardRef: ForwardedRef<HTMLDivElement>) {
+  const whenSelected = useCallback(() => { onSelect('preview') }, [onSelect]);
+  const [tooltipOpen, setTooltipMaybeOpenTrue, setTooltipOpenFalse] = useTooltipOpen();
+  return <div><Tooltip open={tooltipOpen} content={nodeMetaData.preview.description}>
+    <DropdownMenu.Item onBlur={setTooltipOpenFalse} onFocus={setTooltipMaybeOpenTrue} onMouseOver={setTooltipMaybeOpenTrue} onMouseLeave={setTooltipOpenFalse} ref={forwardRef} onKeyDown={onKeyEvent} style={{ color: `var(--utility-color)` }} onSelect={whenSelected}><PhotoIcon color="current" width={'1em'} height={'1em'} />Preview</DropdownMenu.Item>
+  </Tooltip>
+  </div>;
+}
+
+const NodeDropdownMenuItem = forwardRef(NodeDropdownMenuItemImpl);
+const PreviewNodeDropdownMenuItem = forwardRef(PreviewNodeDropdownMenuItemImpl);
 
 export const NODE_MENU_DIMENSIONS = { width: 350, height: 400 } as const;
 export default function NodeMenu(props: {
@@ -95,14 +128,6 @@ export default function NodeMenu(props: {
   );
 
 
-  const onSelectPreview = useCallback(
-    () => {
-      props.addNode(WbblWebappNodeType.Preview, props.position!.x, props.position!.y);
-      props.onClose(false);
-      setQuery("");
-    },
-    [props.addNode, props.position, props.onClose, setQuery],
-  );
 
   const updateQuery = useCallback((evt: ChangeEvent<HTMLInputElement>) => {
     setQuery(evt.target.value)
@@ -139,9 +164,9 @@ export default function NodeMenu(props: {
         <ScrollArea type="hover" scrollbars="vertical" style={{ maxHeight: NODE_MENU_DIMENSIONS.height }}>
           {filteredItems == null ?
             (<>
-              <DropdownMenu.Item onKeyDown={keydownUpFromMenu} onSelect={onSelectPreview}><PhotoIcon color="current" width={'1em'} height={'1em'} /> Add Preview</DropdownMenu.Item>
+              <PreviewNodeDropdownMenuItem onSelect={onSelect} onKeyEvent={keydownUpFromMenu} />
               <DropdownMenu.Sub>
-                <DropdownMenu.SubTrigger><StarIcon color="current" width={'1em'} height={'1em'} /> Favourites</DropdownMenu.SubTrigger>
+                <DropdownMenu.SubTrigger><StarIcon color="current" width={'1em'} height={'1em'} />Favourites</DropdownMenu.SubTrigger>
                 <DropdownMenu.SubContent>
                   <DropdownMenu.Item color="gray">No Favourites</DropdownMenu.Item>
                 </DropdownMenu.SubContent>

@@ -248,6 +248,9 @@ function Graph() {
           edgeTypes={edgeTypes}
           nodeTypes={nodeTypes}
           onConnect={onConnect}
+          maxZoom={1.4}
+          minZoom={0.25}
+          snapToGrid={false}
           onPaneClick={onPaneClick}
           onEdgeDoubleClick={removeEdge}
           onConnectStart={onConnectStart}

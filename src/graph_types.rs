@@ -347,7 +347,15 @@ impl BinaryOperation {
                 let ports: HashSet<PortId> = node.port_ids().iter().map(|p| p.clone()).collect();
                 vec![Constraint::SameTypes(SameTypesConstraint { ports })]
             }
-            BinaryOperation::ShiftLeft | BinaryOperation::ShiftRight => vec![],
+            BinaryOperation::ShiftLeft | BinaryOperation::ShiftRight => {
+                let fst_input_port =
+                    PortId::Input(node.input_ports_ids().first().unwrap().to_owned());
+                let fst_output_port =
+                    PortId::Output(node.output_ports_ids().first().unwrap().to_owned());
+                vec![Constraint::SameTypes(SameTypesConstraint {
+                    ports: HashSet::from([fst_input_port, fst_output_port]),
+                })]
+            }
         }
     }
 }

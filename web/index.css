@@ -139,6 +139,11 @@ path.react-flow__edge-path {
     --type-color: var(--material-color);
 }
 
+
+.AnyVectorOrScalar {
+    --type-color: var(--material-color);
+}
+
 .glow {
     box-shadow: 0 0px 7px rgba(255, 255, 255, 0.8);
 }

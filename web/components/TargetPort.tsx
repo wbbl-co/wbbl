@@ -5,9 +5,9 @@ import {
   useHandleConnections,
   useStore,
 } from "@xyflow/react";
-import { memo, useMemo } from "react";
+import { ForwardedRef, forwardRef, memo, useMemo } from "react";
 import usePortType, { usePortTypeWithNodeId } from "../hooks/use-port-type";
-import { WbblWebappGraphStore } from "../../pkg/wbbl";
+import { WbblBox, WbblWebappGraphStore } from "../../pkg/wbbl";
 import { getStyleForType } from "../port-type-styling";
 import { PORT_SIZE } from "../port-constants";
 
@@ -18,7 +18,7 @@ const selector = (s: ReactFlowState) => ({
 });
 
 type TargetPortProps = { id: `t#${number}`; label?: string; top: number };
-function TargetPort(props: TargetPortProps) {
+function TargetPort(props: TargetPortProps, forwardRef: ForwardedRef<HTMLDivElement>) {
   const { handle } = useStore(selector);
   const portType = usePortType(props.id);
 
@@ -50,6 +50,7 @@ function TargetPort(props: TargetPortProps) {
         position={Position.Left}
         style={{
           width: PORT_SIZE - 4,
+          transformOrigin: `${-props.top}px ${-PORT_SIZE}px`,
           height: PORT_SIZE - 4,
           borderWidth: 2,
           left: PORT_SIZE,
@@ -59,6 +60,7 @@ function TargetPort(props: TargetPortProps) {
           transitionDuration: "300ms",
           transitionProperty: "stroke"
         }}
+        ref={forwardRef}
         isConnectableStart={false}
         className={` ${getStyleForType(portType)} ${isHandleConnectable ? "glow" : " "}`}
         isConnectable={isHandleConnectable}
@@ -86,4 +88,4 @@ function propsAreEqual(
   );
 }
 
-export default memo(TargetPort, propsAreEqual);
+export default memo(forwardRef(TargetPort), propsAreEqual);

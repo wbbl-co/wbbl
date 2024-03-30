@@ -1,5 +1,5 @@
 import { NodeProps } from "@xyflow/react";
-import { ReactElement, useEffect, useRef, useState } from "react";
+import { ReactElement, useCallback, useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../../pkg/wbbl";
 import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
@@ -33,6 +33,11 @@ function WbblNode({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contentsRef = useRef<HTMLDivElement>(null);
+  const [handleRefs, setHandleRefs] = useState<[HTMLDivElement]>([]);
+  const addHandleRef = useCallback((handleRef: HTMLDivElement) => {
+    setHandleRefs((prev) => { prev.push(handleRef); return prev; })
+  }, [setHandleRefs]);
+
 
   const lastUpdate = useRef<number>(Date.now());
 
@@ -81,8 +86,14 @@ function WbblNode({
           positionAbsoluteY + h / 2,
         ]),
       );
+
       if (contentsRef.current) {
         contentsRef.current.style.transform = skew;
+      }
+      console.log(handleRefs.length);
+      for (let handleRef of handleRefs) {
+
+        handleRef.style.transform = skew;
       }
 
       lastUpdate.current = time;
@@ -99,14 +110,15 @@ function WbblNode({
     positionAbsoluteY,
     w,
     h,
-    type
+    type,
+    handleRefs
   ]);
 
   return (
     <div style={{ width: w, height: h, overflow: "visible" }}>
       <canvas
         style={{ left: -(w / 2), top: -(h / 2), pointerEvents: "none", position: "absolute" }}
-        className="nodrag"
+        className="nodrag wbbl-node-canvas"
         width={w * 2}
         height={h * 2}
         ref={canvasRef}
@@ -134,6 +146,7 @@ function WbblNode({
           top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 45}
           id={`t#${idx}`}
           label={x ?? undefined}
+          ref={addHandleRef}
           key={idx}
         />
       ))}
@@ -143,6 +156,8 @@ function WbblNode({
           id={`s#${idx}`}
           label={x ?? undefined}
           key={idx}
+          width={w}
+          ref={addHandleRef}
         />
       ))}
     </div>

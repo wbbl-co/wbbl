@@ -5,11 +5,12 @@ import {
   useHandleConnections,
   useStore,
 } from "@xyflow/react";
-import { ForwardedRef, forwardRef, memo, useMemo } from "react";
+import { memo, useMemo } from "react";
 import usePortType, { usePortTypeWithNodeId } from "../hooks/use-port-type";
-import { WbblBox, WbblWebappGraphStore } from "../../pkg/wbbl";
+import { WbblWebappGraphStore } from "../../pkg/wbbl";
 import { getStyleForType } from "../port-type-styling";
 import { PORT_SIZE } from "../port-constants";
+import { Text } from "@radix-ui/themes";
 
 const selector = (s: ReactFlowState) => ({
   nodeInternals: s.nodes,
@@ -17,8 +18,8 @@ const selector = (s: ReactFlowState) => ({
   handle: s.connectionStartHandle,
 });
 
-type TargetPortProps = { id: `t#${number}`; label?: string; top: number };
-function TargetPort(props: TargetPortProps, forwardRef: ForwardedRef<HTMLDivElement>) {
+type TargetPortProps = { id: `t#${number}`; label?: string; top: number, addRef: (element: HTMLDivElement) => void };
+function TargetPort(props: TargetPortProps) {
   const { handle } = useStore(selector);
   const portType = usePortType(props.id);
 
@@ -60,18 +61,22 @@ function TargetPort(props: TargetPortProps, forwardRef: ForwardedRef<HTMLDivElem
           transitionDuration: "300ms",
           transitionProperty: "stroke"
         }}
-        ref={forwardRef}
+        ref={props.addRef}
         isConnectableStart={false}
         className={` ${getStyleForType(portType)} ${isHandleConnectable ? "glow" : " "}`}
         isConnectable={isHandleConnectable}
       />
       {props.label && (
-        <div
+        <Text
+          className="port-label"
           key="label"
-          style={{ top: props.top - 10, left: 2 * PORT_SIZE, position: "absolute", textAlign: "left", fontSize: "0.8rem", fontFamily: 'DM Mono', fontStyle: "italic" }}
+          as="label"
+          ref={props.addRef}
+          htmlFor={props.id}
+          style={{ top: `calc(${props.top}px - 0.2rem)`, left: 2.2 * PORT_SIZE, position: "absolute", textAlign: "left", fontSize: "0.8rem", fontFamily: 'DM Mono', fontStyle: "italic" }}
         >
           {props.label}
-        </div>
+        </Text>
       )}
     </>
   );
@@ -88,4 +93,4 @@ function propsAreEqual(
   );
 }
 
-export default memo(forwardRef(TargetPort), propsAreEqual);
+export default memo(TargetPort, propsAreEqual);

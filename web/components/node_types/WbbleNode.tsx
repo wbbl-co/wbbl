@@ -33,11 +33,15 @@ function WbblNode({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contentsRef = useRef<HTMLDivElement>(null);
-  const [handleRefs, setHandleRefs] = useState<[HTMLDivElement]>([]);
+  const [handleRefs, setHandleRefs] = useState<HTMLDivElement[]>([]);
   const addHandleRef = useCallback((handleRef: HTMLDivElement) => {
-    setHandleRefs((prev) => { prev.push(handleRef); return prev; })
+    setHandleRefs((prev: HTMLDivElement[]) => {
+      if (!prev.includes(handleRef)) {
+        return [...prev, handleRef].filter(x => !!x);
+      }
+      return prev;
+    })
   }, [setHandleRefs]);
-
 
   const lastUpdate = useRef<number>(Date.now());
 
@@ -80,17 +84,12 @@ function WbblNode({
       context.strokeStyle = getComputedStyle(canvasRef.current!).getPropertyValue(`--${nodeMetaData[type as keyof typeof nodeMetaData].category}-color`);
       context.lineWidth = 4;
       context.stroke();
-      let skew = box.get_skew(
-        new Float32Array([
-          positionAbsoluteX + w / 2,
-          positionAbsoluteY + h / 2,
-        ]),
-      );
+      let skew = box.get_skew();
 
       if (contentsRef.current) {
         contentsRef.current.style.transform = skew;
       }
-      console.log(handleRefs.length);
+      console.log('handleRefs', handleRefs.length);
       for (let handleRef of handleRefs) {
 
         handleRef.style.transform = skew;
@@ -146,7 +145,7 @@ function WbblNode({
           top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 45}
           id={`t#${idx}`}
           label={x ?? undefined}
-          ref={addHandleRef}
+          addRef={addHandleRef}
           key={idx}
         />
       ))}
@@ -157,7 +156,7 @@ function WbblNode({
           label={x ?? undefined}
           key={idx}
           width={w}
-          ref={addHandleRef}
+          addRef={addHandleRef}
         />
       ))}
     </div>

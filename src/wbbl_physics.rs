@@ -485,7 +485,7 @@ impl WbblBox {
         );
     }
 
-    pub fn get_skew(&self, canvas_position: &[f32]) -> String {
+    pub fn get_skew(&self) -> String {
         let top_left = self.get_pos(self.top[0]);
         let top_right = self.get_pos(self.top[self.top.len() - 1]);
         let delta_top = top_right - top_left;
@@ -494,14 +494,7 @@ impl WbblBox {
         let angle_top = (vec2(1.0, 0.0).angle_between(delta_top) / PI) * 180.0;
         let angle_left = (vec2(0.0, 1.0).angle_between(delta_left) / PI) * 180.0;
 
-        format!(
-            "translate({}px, {}px) skew({}deg,{}deg)",
-            top_left.x - canvas_position[0],
-            top_left.y - canvas_position[1],
-            -angle_left,
-            angle_top
-        )
-        .to_owned()
+        format!("skew({}deg,{}deg)", -angle_left, angle_top).to_owned()
     }
 }
 

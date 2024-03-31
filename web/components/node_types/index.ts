@@ -87,32 +87,32 @@ export const nodeMetaData: {
     description: "Divides Values By One Another",
   },
   ">": {
-    category: "math",
+    category: "logic",
     type: WbblWebappNodeType.Greater,
     description: "Returns whether x is greater than y",
   },
   ">=": {
-    category: "math",
+    category: "logic",
     type: WbblWebappNodeType.GreaterEqual,
     description: "Returns whether x is greater than or equal to y",
   },
   "<": {
-    category: "math",
+    category: "logic",
     type: WbblWebappNodeType.Less,
     description: "Returns whether x is less than y",
   },
   "<=": {
-    category: "math",
+    category: "logic",
     type: WbblWebappNodeType.LessEqual,
     description: "Returns whether x is less than or equal to y",
   },
   "==": {
-    category: "math",
+    category: "logic",
     type: WbblWebappNodeType.Equal,
     description: "Returns whether x is equal to y",
   },
   "!=": {
-    category: "math",
+    category: "logic",
     type: WbblWebappNodeType.NotEqual,
     description: "Returns whether x is not equal to y",
   },

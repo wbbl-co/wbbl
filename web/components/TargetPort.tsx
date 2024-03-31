@@ -18,7 +18,7 @@ const selector = (s: ReactFlowState) => ({
   handle: s.connectionStartHandle,
 });
 
-type TargetPortProps = { id: `t#${number}`; label?: string; top: number, addRef: (element: HTMLDivElement) => void };
+type TargetPortProps = { id: `t#${number}`; label?: string; top: number };
 function TargetPort(props: TargetPortProps) {
   const { handle } = useStore(selector);
   const portType = usePortType(props.id);
@@ -51,7 +51,6 @@ function TargetPort(props: TargetPortProps) {
         position={Position.Left}
         style={{
           width: PORT_SIZE - 4,
-          transformOrigin: `${-props.top}px ${-PORT_SIZE}px`,
           height: PORT_SIZE - 4,
           borderWidth: 2,
           left: PORT_SIZE,
@@ -61,9 +60,8 @@ function TargetPort(props: TargetPortProps) {
           transitionDuration: "300ms",
           transitionProperty: "stroke"
         }}
-        ref={props.addRef}
         isConnectableStart={false}
-        className={` ${getStyleForType(portType)} ${isHandleConnectable ? "glow" : " "}`}
+        className={`${getStyleForType(portType)} ${isHandleConnectable ? "glow" : " "}`}
         isConnectable={isHandleConnectable}
       />
       {props.label && (
@@ -71,9 +69,12 @@ function TargetPort(props: TargetPortProps) {
           className="port-label"
           key="label"
           as="label"
-          ref={props.addRef}
           htmlFor={props.id}
-          style={{ top: `calc(${props.top}px - 0.2rem)`, left: 2.2 * PORT_SIZE, position: "absolute", textAlign: "left", fontSize: "0.8rem", fontFamily: 'DM Mono', fontStyle: "italic" }}
+          style={{
+            top: `calc(${props.top}px - 0.8em)`,
+            left: 1.8 * PORT_SIZE,
+            position: "absolute", textAlign: "left", fontSize: "0.8em", fontFamily: 'var(--code-font-family)', fontStyle: "italic"
+          }}
         >
           {props.label}
         </Text>

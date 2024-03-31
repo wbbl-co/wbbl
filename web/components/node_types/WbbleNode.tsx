@@ -1,12 +1,12 @@
 import { NodeProps } from "@xyflow/react";
-import { ReactElement, useCallback, useEffect, useRef, useState } from "react";
+import { ReactElement, MouseEvent, useCallback, useEffect, useRef, useState } from "react";
 import { WbblBox } from "../../../pkg/wbbl";
 import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
-import { Text } from "@radix-ui/themes";
 import { nodeMetaData } from ".";
-import { Heading } from "@radix-ui/themes/dist/cjs/index.js";
+import { NodeContextMenu } from "../NodeContextMenu";
+import { Card, Heading } from "@radix-ui/themes";
 
 function WbblNode({
   type,
@@ -31,19 +31,8 @@ function WbblNode({
       new Float32Array([w, h]),
     ),
   );
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [dragOrigin, setDragOrigin] = useState<[number, number]>([w / 2, h / 2]);
   const contentsRef = useRef<HTMLDivElement>(null);
-  const [handleRefs, setHandleRefs] = useState<HTMLDivElement[]>([]);
-  const addHandleRef = useCallback((handleRef: HTMLDivElement) => {
-    setHandleRefs((prev: HTMLDivElement[]) => {
-      if (!prev.includes(handleRef)) {
-        return [...prev, handleRef].filter(x => !!x);
-      }
-      return prev;
-    })
-  }, [setHandleRefs]);
-
   const lastUpdate = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -55,49 +44,20 @@ function WbblNode({
       );
       box.update(
         new Float32Array([
-          positionAbsoluteX + w / 2,
-          positionAbsoluteY + h / 2,
+          positionAbsoluteX,
+          positionAbsoluteY,
         ]),
         new Float32Array([w, h]),
         delta,
         dragging
-          ? new Float32Array([positionAbsoluteX, positionAbsoluteY])
+          ? new Float32Array([positionAbsoluteX + dragOrigin[0], positionAbsoluteY + dragOrigin[1]])
           : undefined,
       );
 
-      let context = canvasRef.current!.getContext("2d")!;
-      context.clearRect(
-        0,
-        0,
-        canvasRef.current!.width,
-        canvasRef.current!.height,
-      );
-
-      context.beginPath();
-      let radiusFactor = getComputedStyle(canvasRef.current!).getPropertyValue('--radius-factor');
-      box.draw(
-        context,
-        new Float32Array([positionAbsoluteX, positionAbsoluteY]),
-        Number(radiusFactor) * 12
-      );
-
-      context.closePath();
-      context.strokeStyle = getComputedStyle(canvasRef.current!).getPropertyValue(`--${nodeMetaData[type as keyof typeof nodeMetaData].category}-color`);
-      context.lineWidth = 4;
-      context.stroke();
-      let contentsSkew = box.get_contents_skew(new Float32Array([
-        positionAbsoluteX,
-        positionAbsoluteY,
-      ]));
 
       if (contentsRef.current) {
-        contentsRef.current.style.transform = contentsSkew;
-      }
-
-      let handleSkew = box.get_handle_skew();
-
-      for (let handleRef of handleRefs) {
-        handleRef.style.transform = handleSkew;
+        let skew = box.get_skew(new Float32Array([w, h]));
+        contentsRef.current.style.transform = skew;
       }
 
       lastUpdate.current = time;
@@ -115,54 +75,53 @@ function WbblNode({
     w,
     h,
     type,
-    handleRefs
+    dragOrigin
   ]);
 
+  const onDrag = useCallback((evt: MouseEvent<HTMLDivElement>) => {
+    let rect = (evt.target as HTMLDivElement).getBoundingClientRect();
+    setDragOrigin([evt.screenX - rect.x, evt.screenY - rect.y]);
+  }, [setDragOrigin]);
+
   return (
-    <div style={{ width: w, height: h, overflow: "visible" }}>
-      <canvas
-        style={{ left: -(w / 2), top: -(h / 2), pointerEvents: "none", position: "absolute" }}
-        className="nodrag wbbl-node-canvas"
-        width={w * 2}
-        height={h * 2}
-        ref={canvasRef}
-      />
-      <div
-        ref={contentsRef}
-        style={{
-          background: "rgba(0,0,0,0.01)",
-          width: w,
-          height: h,
-          position: "absolute",
-          left: -w / 2,
-          top: -h / 2,
-        }}
-      >
-        <Heading as="h3" align='center' className="node-type-heading">
-          {type}
-        </Heading>
-        {children}
+    <NodeContextMenu>
+      <div style={{ width: w, height: h, overflow: "visible", padding: 0, margin: 0 }}>
+        <Card
+          onDragStartCapture={onDrag}
+          ref={contentsRef}
+          className="node-contents"
+          style={{
+            width: w,
+            height: h,
+            top: 0,
+            left: 0,
+            color: `var(--${nodeMetaData[type as keyof typeof nodeMetaData].category}-color)`,
+          }}
+        >
+          <Heading as="h3" align='center' size={'4'} className="node-type-heading">
+            {type}
+          </Heading>
+          {children}
+          {inputPortLabels.map((x: string | null, idx: number) => (
+            <TargetPort
+              top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 35}
+              id={`t#${idx}`}
+              label={x ?? undefined}
+              key={idx}
+            />
+          ))}
+          {outputPortLabels.map((x: string | null, idx: number) => (
+            <SourcePort
+              top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 35}
+              id={`s#${idx}`}
+              label={x ?? undefined}
+              key={idx}
+            />
+          ))}
+        </Card>
+
       </div>
-      {inputPortLabels.map((x: string | null, idx: number) => (
-        <TargetPort
-          top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 45}
-          id={`t#${idx}`}
-          label={x ?? undefined}
-          addRef={addHandleRef}
-          key={idx}
-        />
-      ))}
-      {outputPortLabels.map((x: string | null, idx: number) => (
-        <SourcePort
-          top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 45}
-          id={`s#${idx}`}
-          label={x ?? undefined}
-          key={idx}
-          width={w}
-          addRef={addHandleRef}
-        />
-      ))}
-    </div>
+    </NodeContextMenu>
   );
 }
 

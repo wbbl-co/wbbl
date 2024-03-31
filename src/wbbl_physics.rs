@@ -1,13 +1,10 @@
-use glam::{vec2, Vec2};
-use std::{f32::consts::PI, fmt::Write};
+use glam::{Mat3, Vec2};
+use std::fmt::Write;
 use wasm_bindgen::prelude::*;
-use web_sys::CanvasRenderingContext2d;
 
-const BOX_X_COUNT: usize = 4;
-const BOX_Y_COUNT: usize = 4;
 const BOX_SPRING_DAMPING_COEFFICIENT: f32 = 8.0;
 const BOX_SPRING_SPRING_COEFFICIENT: f32 = 75.0;
-const BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF: f32 = 200.0;
+const BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF: f32 = 100.0;
 const UPDATE_ITERATIONS: u32 = 4;
 const CONSTRAINT_ITERATIONS: u32 = 4;
 const ROPE_GRAVITY: f32 = 200.0;
@@ -207,10 +204,6 @@ impl Constraint {
 #[wasm_bindgen]
 pub struct WbblBox {
     vertlets: Vec<VelocityVertlet>,
-    top: Vec<usize>,
-    bottom: Vec<usize>,
-    left: Vec<usize>,
-    right: Vec<usize>,
 }
 
 #[wasm_bindgen]
@@ -220,63 +213,39 @@ impl WbblBox {
         let box_size = Vec2::from_slice(box_size);
         let mut result = WbblBox {
             vertlets: Vec::new(),
-            top: Vec::new(),
-            bottom: Vec::new(),
-            left: Vec::new(),
-            right: Vec::new(),
         };
 
-        let x_stride = Vec2::new(box_size.x / ((BOX_X_COUNT - 1) as f32), 0.0);
-        let y_stride = Vec2::new(0.0, box_size.y / (BOX_Y_COUNT as f32));
+        // TOP LEFT
+        result.vertlets.push(VelocityVertlet {
+            acceleration: Vec2::ZERO,
+            position: initial_position_top_left,
+            velocity: Vec2::ZERO,
+            new_acceleration: Vec2::ZERO,
+        });
 
-        // TOP
-        for i in 0..BOX_X_COUNT {
-            let offset = x_stride * Vec2::splat(i as f32);
-            let intial_position = offset + initial_position_top_left;
-            result.top.push(result.vertlets.len());
-            result.vertlets.push(VelocityVertlet {
-                acceleration: Vec2::ZERO,
-                position: intial_position,
-                velocity: Vec2::ZERO,
-                new_acceleration: Vec2::ZERO,
-            });
-        }
-        // BOTTOM
-        for i in (0..BOX_X_COUNT).rev() {
-            let offset = (x_stride * Vec2::splat(i as f32)) + box_size * Vec2::new(0.0, 1.0);
-            let intial_position = offset + initial_position_top_left;
-            result.bottom.push(result.vertlets.len());
-            result.vertlets.push(VelocityVertlet {
-                acceleration: Vec2::ZERO,
-                position: intial_position,
-                velocity: Vec2::ZERO,
-                new_acceleration: Vec2::ZERO,
-            });
-        }
-        // LEFT
-        for i in (1..BOX_Y_COUNT).rev() {
-            let offset = y_stride * Vec2::splat(i as f32);
-            let intial_position = offset + initial_position_top_left;
-            result.left.push(result.vertlets.len());
-            result.vertlets.push(VelocityVertlet {
-                acceleration: Vec2::ZERO,
-                position: intial_position,
-                velocity: Vec2::ZERO,
-                new_acceleration: Vec2::ZERO,
-            });
-        }
-        // RIGHT
-        for i in 1..BOX_Y_COUNT {
-            let offset = (y_stride * Vec2::splat(i as f32)) + box_size * Vec2::new(1.0, 0.0);
-            let intial_position = offset + initial_position_top_left;
-            result.right.push(result.vertlets.len());
-            result.vertlets.push(VelocityVertlet {
-                acceleration: Vec2::ZERO,
-                position: intial_position,
-                velocity: Vec2::ZERO,
-                new_acceleration: Vec2::ZERO,
-            });
-        }
+        // TOP RIGHT
+        result.vertlets.push(VelocityVertlet {
+            acceleration: Vec2::ZERO,
+            position: initial_position_top_left + Vec2::new(box_size[0], 0.0),
+            velocity: Vec2::ZERO,
+            new_acceleration: Vec2::ZERO,
+        });
+
+        // BOTTOM RIGHT
+        result.vertlets.push(VelocityVertlet {
+            acceleration: Vec2::ZERO,
+            position: initial_position_top_left + Vec2::new(box_size[0], box_size[1]),
+            velocity: Vec2::ZERO,
+            new_acceleration: Vec2::ZERO,
+        });
+
+        // BOTTOM LEFT
+        result.vertlets.push(VelocityVertlet {
+            acceleration: Vec2::ZERO,
+            position: initial_position_top_left + Vec2::new(0.0, box_size[1]),
+            velocity: Vec2::ZERO,
+            new_acceleration: Vec2::ZERO,
+        });
 
         result
     }
@@ -291,9 +260,6 @@ impl WbblBox {
         let position_top_left = Vec2::from_slice(position_top_left);
         let box_size = Vec2::from_slice(box_size);
 
-        let x_stride = Vec2::new(box_size.x / ((BOX_X_COUNT - 1) as f32), 0.0);
-        let y_stride = Vec2::new(0.0, box_size.y / (BOX_Y_COUNT as f32));
-
         let mut forces: Vec<Vec<Force>> = Vec::new();
         let mut constraints: Vec<Constraint> = Vec::new();
 
@@ -307,82 +273,52 @@ impl WbblBox {
 
         let drag_point = drag_point.map(|b| Vec2::from_slice(&b));
 
-        // TOP
-        for i in 0..BOX_X_COUNT {
-            let offset = x_stride * Vec2::splat(i as f32);
-            let target_position = offset + position_top_left;
-            let index = self.top[i];
-            forces[index].push(Force::Spring {
-                coefficient: BOX_SPRING_SPRING_COEFFICIENT,
-                target_position,
-            });
-            if let Some(drag_point) = drag_point {
-                constraints.push(Constraint::InteractionDragging {
-                    target_position,
-                    drag_point,
-                    falloff: BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF,
-                    v: index,
-                });
-            }
-        }
+        // TOP LEFT
+        forces[0].push(Force::Spring {
+            coefficient: BOX_SPRING_SPRING_COEFFICIENT,
+            target_position: position_top_left,
+        });
+        // TOP RIGHT
+        forces[1].push(Force::Spring {
+            coefficient: BOX_SPRING_SPRING_COEFFICIENT,
+            target_position: position_top_left + Vec2::new(box_size.x, 0.0),
+        });
+        // BOTTOM RIGHT
+        forces[2].push(Force::Spring {
+            coefficient: BOX_SPRING_SPRING_COEFFICIENT,
+            target_position: position_top_left + Vec2::new(box_size.x, box_size.y),
+        });
+        // BOTTOM LEFT
+        forces[3].push(Force::Spring {
+            coefficient: BOX_SPRING_SPRING_COEFFICIENT,
+            target_position: position_top_left + Vec2::new(0.0, box_size.y),
+        });
 
-        // BOTTOM
-        for i in 0..BOX_X_COUNT {
-            let offset = (x_stride * (i as f32)) + Vec2::new(0.0, box_size.y);
-            let target_position = offset + position_top_left;
-            // Bottom's order is reversed for efficient drawing
-            let index = self.bottom[self.bottom.len() - 1 - i];
-            forces[index].push(Force::Spring {
-                coefficient: BOX_SPRING_SPRING_COEFFICIENT,
-                target_position,
+        if let Some(drag_point) = drag_point {
+            constraints.push(Constraint::InteractionDragging {
+                target_position: position_top_left,
+                drag_point,
+                falloff: BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF,
+                v: 0,
             });
-            if let Some(drag_point) = drag_point {
-                constraints.push(Constraint::InteractionDragging {
-                    target_position,
-                    drag_point,
-                    falloff: BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF,
-                    v: index,
-                });
-            }
-        }
-
-        // LEFT
-        for i in 1..BOX_Y_COUNT {
-            let offset = y_stride * Vec2::splat(i as f32);
-            let target_position = offset + position_top_left;
-            // Lefts order is reversed for efficient drawing
-            let index = self.left[self.left.len() - i];
-            forces[index].push(Force::Spring {
-                coefficient: BOX_SPRING_SPRING_COEFFICIENT,
-                target_position,
+            constraints.push(Constraint::InteractionDragging {
+                target_position: position_top_left + Vec2::new(box_size.x, 0.0),
+                drag_point,
+                falloff: BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF,
+                v: 1,
             });
-            if let Some(drag_point) = drag_point {
-                constraints.push(Constraint::InteractionDragging {
-                    target_position,
-                    drag_point,
-                    falloff: BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF,
-                    v: index,
-                });
-            }
-        }
-
-        // RIGHT
-        for i in 1..BOX_Y_COUNT {
-            let offset = (y_stride * (i as f32)) + Vec2::new(box_size.x, 0.0);
-            let target_position = offset + position_top_left;
-            let index = self.right[i - 1];
-            forces[index].push(Force::Spring {
-                coefficient: BOX_SPRING_SPRING_COEFFICIENT,
-                target_position,
+            constraints.push(Constraint::InteractionDragging {
+                target_position: position_top_left + Vec2::new(box_size.x, box_size.y),
+                drag_point,
+                falloff: BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF,
+                v: 2,
             });
-            if let Some(drag_point) = drag_point {
-                constraints.push(Constraint::InteractionDragging {
-                    target_position,
-                    drag_point,
-                    falloff: BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF,
-                    v: index,
-                });
-            }
+            constraints.push(Constraint::InteractionDragging {
+                target_position: position_top_left + Vec2::new(0.0, box_size.y),
+                drag_point,
+                falloff: BOX_INTERACTION_DRAGGING_CONSTRAINT_FALLOFF,
+                v: 3,
+            });
         }
 
         let delta_time = delta_time / (UPDATE_ITERATIONS as f64);
@@ -404,116 +340,54 @@ impl WbblBox {
         }
     }
 
-    fn draw_corner(
-        context: &CanvasRenderingContext2d,
-        z: Vec2,
-        a: Vec2,
-        b: Vec2,
-        c: Vec2,
-        canvas_position: Vec2,
-        radius: f32,
-    ) {
-        let delta_ab = b - a;
-        let delta_cb = c - b;
-        let a = a - canvas_position;
-        let b = b - canvas_position;
-        let z = z - canvas_position;
-        let p1 = b - (delta_ab.normalize() * radius);
-        let p2 = b + (delta_cb.normalize() * radius);
-
-        context.bezier_curve_to(
-            z.x as f64,
-            z.y as f64,
-            a.x as f64,
-            a.y as f64,
-            p1.x as f64,
-            p1.y as f64,
-        );
-
-        context.quadratic_curve_to(b.x as f64, b.y as f64, p2.x as f64, p2.y as f64);
-    }
-
     fn get_pos(&self, index: usize) -> Vec2 {
         self.vertlets[index].position
     }
 
-    pub fn draw(&self, context: &CanvasRenderingContext2d, canvas_position: &[f32], radius: f32) {
-        let canvas_position = Vec2::from_slice(canvas_position);
-
-        let start_point = self.get_pos(self.top[0])
-            + (self.get_pos(self.top[1]) - self.get_pos(self.top[0])).normalize() * radius
-            - canvas_position;
-        context.move_to(start_point.x as f64, start_point.y as f64);
-        WbblBox::draw_corner(
-            context,
-            self.get_pos(self.top[1]),
-            self.get_pos(self.top[2]),
-            self.get_pos(self.top[3]),
-            self.get_pos(self.right[0]),
-            canvas_position,
-            radius,
-        );
-
-        WbblBox::draw_corner(
-            context,
-            self.get_pos(self.right[1]),
-            self.get_pos(self.right[2]),
-            self.get_pos(self.bottom[0]),
-            self.get_pos(self.bottom[1]),
-            canvas_position,
-            radius,
-        );
-
-        WbblBox::draw_corner(
-            context,
-            self.get_pos(self.bottom[1]),
-            self.get_pos(self.bottom[2]),
-            self.get_pos(self.bottom[3]),
-            self.get_pos(self.left[0]),
-            canvas_position,
-            radius,
-        );
-
-        WbblBox::draw_corner(
-            context,
-            self.get_pos(self.left[1]),
-            self.get_pos(self.left[2]),
-            self.get_pos(self.top[0]),
-            self.get_pos(self.top[1]),
-            canvas_position,
-            radius,
-        );
+    fn compute_adjugate(m: &Mat3) -> Mat3 {
+        m.inverse()
     }
 
-    pub fn get_contents_skew(&self, canvas_position: &[f32]) -> String {
-        let top_left = self.get_pos(self.top[0]);
-        let top_right = self.get_pos(self.top[self.top.len() - 1]);
-        let delta_top = top_right - top_left;
-        let bottom_left = self.get_pos(self.bottom[self.bottom.len() - 1]);
-        let delta_left = bottom_left - top_left;
-        let angle_top = (vec2(1.0, 0.0).angle_between(delta_top) / PI) * 180.0;
-        let angle_left = (vec2(0.0, 1.0).angle_between(delta_left) / PI) * 180.0;
+    fn basis_to_points(v1: &Vec2, v2: &Vec2, v3: &Vec2, v4: &Vec2) -> Mat3 {
+        let m = Mat3::from_cols(v1.extend(1.0), v2.extend(1.0), v3.extend(1.0));
+        let v = WbblBox::compute_adjugate(&m) * v4.extend(1.0);
+        m * Mat3::from_diagonal(v)
+    }
+
+    pub fn get_skew(&self, box_size: &[f32]) -> String {
+        let top_left = self.get_pos(0);
+        let top_right = self.get_pos(1);
+        let bottom_right = self.get_pos(2);
+        let bottom_left = self.get_pos(3);
+
+        let source = WbblBox::basis_to_points(
+            &Vec2::ZERO,
+            &Vec2::new(0.0, box_size[1]),
+            &Vec2::new(box_size[0], 0.0),
+            &Vec2::new(box_size[0], box_size[1]),
+        );
+        let destination = WbblBox::basis_to_points(
+            &Vec2::ZERO,
+            &(bottom_left - top_left),
+            &(top_right - top_left),
+            &(bottom_right - top_left),
+        );
+        let proj_matrix = destination * WbblBox::compute_adjugate(&source);
+        let col_array = proj_matrix.to_cols_array();
 
         format!(
-            "translate({}px, {}px) skew({}deg,{}deg)",
-            top_left.x - canvas_position[0],
-            top_left.y - canvas_position[1],
-            -angle_left,
-            angle_top
+            "matrix3d({}, {}, 0, {}, {}, {}, 0, {}, 0, 0, -1, 0, {}, {}, 0, {})",
+            col_array[0],
+            col_array[1],
+            col_array[2],
+            col_array[3],
+            col_array[4],
+            col_array[5],
+            col_array[6],
+            col_array[7],
+            col_array[8],
         )
         .to_owned()
-    }
-
-    pub fn get_handle_skew(&self) -> String {
-        let top_left = self.get_pos(self.top[0]);
-        let top_right = self.get_pos(self.top[self.top.len() - 1]);
-        let delta_top = top_right - top_left;
-        let bottom_left = self.get_pos(self.bottom[self.bottom.len() - 1]);
-        let delta_left = bottom_left - top_left;
-        let angle_top = (vec2(1.0, 0.0).angle_between(delta_top) / PI) * 180.0;
-        let angle_left = (vec2(0.0, 1.0).angle_between(delta_left) / PI) * 180.0;
-
-        format!("skew({}deg,{}deg)", -angle_left, angle_top).to_owned()
     }
 }
 

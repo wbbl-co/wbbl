@@ -273,6 +273,11 @@ export default function WbbleEdge({
       {edgeEnd != null &&
         createPortal(
           <>
+            <path
+              ref={ropePath}
+              style={{ fill: "none" }}
+              className={`rope-path ${edgeClassName}`}
+            />
             <circle
               ref={startMarker}
               key="start-marker"
@@ -284,11 +289,7 @@ export default function WbbleEdge({
                 filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
               }}
             />
-            <path
-              ref={ropePath}
-              style={{ fill: "none" }}
-              className={`rope-path fill-none ${edgeClassName}`}
-            />
+
             <circle
               ref={endMarker}
               key="end-marker"

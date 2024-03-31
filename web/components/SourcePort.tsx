@@ -1,11 +1,11 @@
 import { Handle, Position } from "@xyflow/react";
 import usePortType from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
-import { ForwardedRef, forwardRef, memo } from "react";
+import { memo } from "react";
 import { PORT_SIZE } from "../port-constants";
 import { Text } from "@radix-ui/themes";
 
-type SourcePortProps = { id: `s#${number}`; label?: string; top: number, width: number, addRef: (elem: HTMLDivElement) => void };
+type SourcePortProps = { id: `s#${number}`; label?: string; top: number };
 
 function SourcePort(props: SourcePortProps) {
   const portType = usePortType(props.id);
@@ -17,9 +17,10 @@ function SourcePort(props: SourcePortProps) {
           className="port-label"
           key="label"
           as="label"
-          ref={props.addRef}
           htmlFor={props.id}
-          style={{ top: props.top, right: 2 * PORT_SIZE, position: "absolute" }}
+          style={{
+            top: props.top, right: 2 * PORT_SIZE, position: "absolute",
+          }}
         >
           {props.label}
         </Text>
@@ -28,13 +29,11 @@ function SourcePort(props: SourcePortProps) {
         type="source"
         key="handle"
         id={props.id}
-        ref={props.addRef}
         position={Position.Right}
         style={{
           right: PORT_SIZE,
           width: PORT_SIZE,
           height: PORT_SIZE,
-          transformOrigin: `${-props.top}px ${-(props.width - PORT_SIZE)}px`,
           top: props.top,
           position: "absolute",
           border: "none",
@@ -61,4 +60,4 @@ function propsAreEqual(
   );
 }
 
-export default memo(forwardRef(SourcePort), propsAreEqual);
+export default memo(SourcePort, propsAreEqual);

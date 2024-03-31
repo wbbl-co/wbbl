@@ -31,7 +31,7 @@ function PreviewNode(props: NodeProps) {
       <canvas
         style={{ backgroundColor: "transparent" }}
         width={200}
-        height={175}
+        height={150}
         ref={setCanvasRef}
       />
     </WbblNode>

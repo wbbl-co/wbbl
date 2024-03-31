@@ -33,7 +33,7 @@ function OutputNode(props: NodeProps) {
       <canvas
         style={{ backgroundColor: "transparent" }}
         width={300}
-        height={250}
+        height={230}
         ref={setCanvasRef}
       />
     </WbblNode>

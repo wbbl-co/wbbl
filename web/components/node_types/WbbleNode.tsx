@@ -6,7 +6,7 @@ import SourcePort from "../SourcePort";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
 import { nodeMetaData } from ".";
 import { NodeContextMenu } from "../NodeContextMenu";
-import { Card, Heading } from "@radix-ui/themes";
+import { Card, Heading, Flex } from "@radix-ui/themes";
 
 function WbblNode({
   type,
@@ -93,15 +93,15 @@ function WbblNode({
           style={{
             width: w,
             height: h,
-            top: 0,
-            left: 0,
             color: `var(--${nodeMetaData[type as keyof typeof nodeMetaData].category}-color)`,
           }}
         >
           <Heading as="h3" align='center' size={'4'} className="node-type-heading">
             {type}
           </Heading>
-          {children}
+          <Flex justify={"center"} align={"center"}>
+            {children}
+          </Flex>
           {inputPortLabels.map((x: string | null, idx: number) => (
             <TargetPort
               top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 35}

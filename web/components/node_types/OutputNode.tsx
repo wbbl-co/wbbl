@@ -26,14 +26,14 @@ function OutputNode(props: NodeProps) {
     <WbblNode
       outputPortLabels={[]}
       inputPortLabels={[null]}
-      w={300}
-      h={300}
+      w={315}
+      h={315}
       {...props}
     >
       <canvas
         style={{ backgroundColor: "transparent" }}
-        width={300}
-        height={230}
+        width={256}
+        height={256}
         ref={setCanvasRef}
       />
     </WbblNode>

@@ -16,6 +16,7 @@ import {
   HALF_PORT_SIZE,
   VECTOR_EDGE_STROKE_WIDTH,
 } from "../port-constants";
+import { setConnectionPath } from "../utils/set-connection-path";
 
 export default function WbbleEdge({
   id,
@@ -146,106 +147,14 @@ export default function WbbleEdge({
           const sinAngle = Math.sin(angle);
           const factorX = -sinAngle;
           const factorY = cosAngle;
-
-          if (!!edgeClassName && edgeClassName.includes("S2")) {
-            ropePath.current.style.strokeWidth =
-              viewport.zoom * VECTOR_EDGE_STROKE_WIDTH + "px";
-            ropePath.current.setAttribute(
-              "d",
-              `${rope.get_path(
-                new Float32Array([
-                  viewport.x -
-                  factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-                  viewport.y -
-                  factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-                ]),
-                viewport.zoom,
-              )} ${rope.get_path(
-                new Float32Array([
-                  viewport.x +
-                  factorX * 2 * viewport.zoom * VECTOR_EDGE_STROKE_WIDTH,
-                  viewport.y +
-                  factorY * 2 * viewport.zoom * VECTOR_EDGE_STROKE_WIDTH,
-                ]),
-                viewport.zoom,
-              )}`,
-            );
-          } else if (!!edgeClassName && edgeClassName.includes("S3")) {
-            ropePath.current.style.strokeWidth =
-              viewport.zoom * VECTOR_EDGE_STROKE_WIDTH + "px";
-            ropePath.current.setAttribute(
-              "d",
-              `${rope.get_path(
-                new Float32Array([
-                  viewport.x -
-                  factorX * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
-                  viewport.y -
-                  factorY * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
-                ]),
-                viewport.zoom,
-              )} ${rope.get_path(
-                new Float32Array([viewport.x, viewport.y]),
-                viewport.zoom,
-              )} ${rope.get_path(
-                new Float32Array([
-                  viewport.x +
-                  factorX * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
-                  viewport.y +
-                  factorY * viewport.zoom * 2.5 * VECTOR_EDGE_STROKE_WIDTH,
-                ]),
-                viewport.zoom,
-              )}`,
-            );
-          } else if (!!edgeClassName && edgeClassName.includes("S4")) {
-            ropePath.current.style.strokeWidth =
-              viewport.zoom * VECTOR_EDGE_STROKE_WIDTH + "px";
-            ropePath.current.setAttribute(
-              "d",
-              `${rope.get_path(
-                new Float32Array([
-                  viewport.x -
-                  factorX * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
-                  viewport.y -
-                  factorY * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
-                ]),
-                viewport.zoom,
-              )} ${rope.get_path(
-                new Float32Array([
-                  viewport.x -
-                  factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-                  viewport.y -
-                  factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-                ]),
-                viewport.zoom,
-              )} ${rope.get_path(
-                new Float32Array([
-                  viewport.x +
-                  factorX * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-                  viewport.y +
-                  factorY * viewport.zoom * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-                ]),
-                viewport.zoom,
-              )} ${rope.get_path(
-                new Float32Array([
-                  viewport.x +
-                  factorX * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
-                  viewport.y +
-                  factorY * viewport.zoom * 4 * VECTOR_EDGE_STROKE_WIDTH,
-                ]),
-                viewport.zoom,
-              )}`,
-            );
-          } else {
-            ropePath.current.style.strokeWidth =
-              viewport.zoom * EDGE_STROKE_WIDTH + "px";
-            ropePath.current.setAttribute(
-              "d",
-              rope.get_path(
-                new Float32Array([viewport.x, viewport.y]),
-                viewport.zoom,
-              ),
-            );
-          }
+          setConnectionPath(
+            ropePath.current,
+            viewport,
+            edgeClassName,
+            rope,
+            factorX,
+            factorY,
+          );
         }
       }
       lastUpdate.current = time;
@@ -285,11 +194,7 @@ export default function WbbleEdge({
               cx={HALF_PORT_SIZE * viewport.zoom}
               cy={HALF_PORT_SIZE * viewport.zoom}
               r={HALF_PORT_SIZE * viewport.zoom}
-              style={{
-                filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
-              }}
             />
-
             <circle
               ref={endMarker}
               key="end-marker"
@@ -305,12 +210,7 @@ export default function WbbleEdge({
           edgeEnd,
           `edge-marker-${id}`,
         )}
-      <BaseEdge
-        path={edgePath}
-        style={{ zIndex: 100 }}
-        className="stroke-transparent shadow-lg shadow-red-50"
-        interactionWidth={50}
-      ></BaseEdge>
+      <BaseEdge path={edgePath} interactionWidth={25}></BaseEdge>
     </>
   );
 }

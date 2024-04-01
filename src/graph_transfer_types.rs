@@ -368,7 +368,7 @@ impl WbblWebappEdge {
             deletable: true,
             selected: false,
             selectable: true,
-            updatable: true,
+            updatable: false,
         }
     }
 }

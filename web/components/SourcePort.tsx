@@ -19,7 +19,9 @@ function SourcePort(props: SourcePortProps) {
           as="label"
           htmlFor={props.id}
           style={{
-            top: props.top, right: 2 * PORT_SIZE, position: "absolute",
+            top: props.top,
+            right: 2 * PORT_SIZE,
+            position: "absolute",
           }}
         >
           {props.label}
@@ -38,7 +40,8 @@ function SourcePort(props: SourcePortProps) {
           position: "absolute",
           border: "none",
           transitionProperty: "background-color",
-          transitionDuration: "300ms"
+          transitionDuration: "300ms",
+          filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
         }}
         className={`${getStyleForType(portType)}`}
         isConnectable={true}

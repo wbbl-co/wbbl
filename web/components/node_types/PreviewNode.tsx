@@ -24,14 +24,14 @@ function PreviewNode(props: NodeProps) {
     <WbblNode
       outputPortLabels={[]}
       inputPortLabels={[null]}
-      w={200}
-      h={200}
+      w={150}
+      h={170}
       {...props}
     >
       <canvas
         style={{ backgroundColor: "transparent" }}
-        width={200}
-        height={150}
+        width={128}
+        height={128}
         ref={setCanvasRef}
       />
     </WbblNode>

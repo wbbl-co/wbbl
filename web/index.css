@@ -2,9 +2,8 @@
 @import "@fontsource/gasoek-one";
 @import "@fontsource/dm-mono";
 @import "@fontsource/dm-sans";
-@import '@radix-ui/themes/styles.css';
+@import "@radix-ui/themes/styles.css";
 @import "/web/brand-theme.css";
-
 
 html,
 body,
@@ -16,7 +15,6 @@ body,
     -moz-osx-font-smoothing: grayscale;
 }
 
-
 .react-flow__node,
 .react-flow__node.selected {
     background-color: transparent !important;
@@ -24,8 +22,6 @@ body,
     box-shadow: none !important;
     outline: none;
 }
-
-
 
 .dark {
     --xy-controls-button-background-color: var(--gray-2);
@@ -43,14 +39,13 @@ body,
     background: var(--color-panel);
 }
 
-
 path.react-flow__edge-path {
-    stroke: none !important;
+    stroke: none;
 }
 
 .port-label {
-    fontFamily: var(--code-font-family);
-    fontStyle: italic;
+    fontfamily: var(--code-font-family);
+    fontstyle: italic;
 }
 
 .node-type-header {
@@ -61,7 +56,6 @@ path.react-flow__edge-path {
     margin-top: 0;
     text-align: center;
 }
-
 
 .target {
     color: var(--type-color);
@@ -143,19 +137,16 @@ path.react-flow__edge-path {
     --type-color: var(--material-color);
 }
 
-
 .AnyVectorOrScalar {
     --type-color: var(--material-color);
 }
-
-
 
 .glow {
     box-shadow: 0px 0px 7px currentColor;
 }
 
 .node-type-heading {
-    padding-top: var(--space-3);
+    padding-top: var(--space-2);
     font-family: var(--code-font-family);
 }
 
@@ -166,14 +157,27 @@ path.react-flow__edge-path {
     transform-origin: 0% 0%;
     padding: 0;
     --card-background-color-weight: 90%;
+    display: block;
 
     .dark {
         --card-background-color-weight: 30%;
     }
 
-    background-color: color-mix(in srgb, currentColor, var(--card-background-color) var(--card-background-color-weight));
+    background-color: color-mix(
+        in srgb,
+        currentColor,
+        var(--card-background-color) var(--card-background-color-weight)
+    );
 }
 
 .node-contents::after {
     box-shadow: 0 0 2px currentColor;
+}
+
+.connection {
+    z-index: 10000;
+}
+
+.react-flow__connectionline {
+    z-index: 10000;
 }

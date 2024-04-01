@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ConnectionLineComponentProps } from "@xyflow/react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ConnectionLineComponentProps,
+  useReactFlow,
+  useViewport,
+} from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
@@ -8,10 +12,20 @@ import {
   HALF_PORT_SIZE,
   VECTOR_EDGE_STROKE_WIDTH,
 } from "../port-constants";
+import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
+import { createPortal } from "react-dom";
+import { setConnectionPath } from "../utils/set-connection-path";
 
 export default function WbblConnectionLine(
   props: ConnectionLineComponentProps,
 ) {
+  const edgeEnd = useContext(WbblEdgeEndContext);
+  const viewport = useViewport();
+  const flow = useReactFlow();
+
+  const startMarker = useRef<SVGCircleElement>(null);
+  const endMarker = useRef<SVGCircleElement>(null);
+
   const pathRef = useRef<SVGPathElement | null>(null);
   const sourceType = usePortTypeWithNodeId(
     props.fromNode?.id,
@@ -40,6 +54,16 @@ export default function WbblConnectionLine(
         0.5,
         Math.max(0.0, (time - lastUpdate.current) / 1000.0),
       );
+      if (startMarker.current && endMarker.current) {
+        let startPos = flow.flowToScreenPosition({
+          x: props.fromX,
+          y: props.fromY,
+        });
+        let endPos = flow.flowToScreenPosition({ x: props.toX, y: props.toY });
+        startMarker.current.style.transform = `translate(${startPos.x}px,${startPos.y}px)`;
+        endMarker.current.style.transform = `translate(${endPos.x}px,${endPos.y}px)`;
+      }
+
       rope.update(
         new Float32Array([props.fromX, props.fromY]),
         new Float32Array([props.toX, props.toY]),
@@ -55,94 +79,17 @@ export default function WbblConnectionLine(
         const sinAngle = Math.sin(angle);
         const factorX = -sinAngle;
         const factorY = cosAngle;
-        if (
-          !!connectionLineClassName &&
-          connectionLineClassName.includes("S2")
-        ) {
-          pathRef.current.style.strokeWidth =
-            String(VECTOR_EDGE_STROKE_WIDTH) + "px";
-          pathRef.current.setAttribute(
-            "d",
-            `${rope.get_path(
-              new Float32Array([
-                -factorX * VECTOR_EDGE_STROKE_WIDTH * 1.5,
-                -factorY * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-              ]),
-              1,
-            )} ${rope.get_path(
-              new Float32Array([
-                factorX * VECTOR_EDGE_STROKE_WIDTH * 1.5,
-                factorY * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-              ]),
-              1,
-            )}`,
-          );
-        } else if (
-          !!connectionLineClassName &&
-          connectionLineClassName.includes("S3")
-        ) {
-          pathRef.current.style.strokeWidth =
-            String(VECTOR_EDGE_STROKE_WIDTH) + "px";
-          pathRef.current.setAttribute(
-            "d",
-            `${rope.get_path(
-              new Float32Array([
-                -factorX * VECTOR_EDGE_STROKE_WIDTH * 2.5,
-                -factorY * VECTOR_EDGE_STROKE_WIDTH * 2.5,
-              ]),
-              1,
-            )} ${rope.get_path(new Float32Array([0, 0]), 1)} ${rope.get_path(
-              new Float32Array([
-                factorX * VECTOR_EDGE_STROKE_WIDTH * 2.5,
-                factorY * VECTOR_EDGE_STROKE_WIDTH * 2.5,
-              ]),
-              1,
-            )}`,
-          );
-        } else if (
-          !!connectionLineClassName &&
-          connectionLineClassName.includes("S4")
-        ) {
-          pathRef.current.style.strokeWidth =
-            String(VECTOR_EDGE_STROKE_WIDTH) + "px";
-          pathRef.current.setAttribute(
-            "d",
-            `${rope.get_path(
-              new Float32Array([
-                -factorX * 4 * VECTOR_EDGE_STROKE_WIDTH,
-                -factorY * 4 * VECTOR_EDGE_STROKE_WIDTH,
-              ]),
-              1,
-            )} ${rope.get_path(
-              new Float32Array([
-                -factorX * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-                -factorY * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-              ]),
-              1,
-            )} ${rope.get_path(
-              new Float32Array([
-                factorX * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-                factorY * 1.5 * VECTOR_EDGE_STROKE_WIDTH,
-              ]),
-              1,
-            )} ${rope.get_path(
-              new Float32Array([
-                factorX * 4 * VECTOR_EDGE_STROKE_WIDTH,
-                factorY * 4 * VECTOR_EDGE_STROKE_WIDTH,
-              ]),
-              1,
-            )}`,
-          );
-        } else {
-          pathRef.current.setAttribute(
-            "d",
-            rope.get_path(new Float32Array([0, 0]), 1),
-          );
-          pathRef.current.style.strokeWidth = String(EDGE_STROKE_WIDTH) + "px";
-        }
+        setConnectionPath(
+          pathRef.current,
+          viewport,
+          connectionLineClassName,
+          rope,
+          factorX,
+          factorY,
+        );
+        lastUpdate.current = time;
+        animationFrame = requestAnimationFrame(update);
       }
-      lastUpdate.current = time;
-      animationFrame = requestAnimationFrame(update);
     }
     update(lastUpdate.current);
     return () => cancelAnimationFrame(animationFrame);
@@ -155,31 +102,45 @@ export default function WbblConnectionLine(
     lastUpdate,
     pathRef,
     connectionLineClassName,
+    viewport,
+    flow,
   ]);
 
   return (
     <>
-      <path
-        ref={pathRef}
-        fill="none"
-        className={`react-flow__connection-path rope-path ${connectionLineClassName}`}
-        style={{ ...props.connectionLineStyle, transitionProperty: "stroke", transitionDelay: "300ms" }}
-      />
-      <circle
-        className={`start-marker ${connectionLineClassName}`}
-        cx={props.fromX}
-        cy={props.fromY}
-        r={HALF_PORT_SIZE}
-      />
-      <circle
-        className={`end-marker ${connectionLineClassName}`}
-        style={{
-          filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
-        }}
-        cx={props.toX}
-        cy={props.toY}
-        r={HALF_PORT_SIZE}
-      />
+      {createPortal(
+        <>
+          <path
+            ref={pathRef}
+            fill="none"
+            className={`connection rope-path ${connectionLineClassName}`}
+            style={{
+              fill: "none",
+              transitionProperty: "stroke",
+              transitionDelay: "300ms",
+            }}
+          />
+          <circle
+            className={`connection start-marker ${connectionLineClassName}`}
+            cx={0}
+            cy={0}
+            ref={startMarker}
+            r={HALF_PORT_SIZE * viewport.zoom}
+          />
+          <circle
+            className={`connection end-marker ${connectionLineClassName}`}
+            style={{
+              filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+            }}
+            ref={endMarker}
+            cx={0}
+            cy={0}
+            r={HALF_PORT_SIZE * viewport.zoom}
+          />
+        </>,
+        edgeEnd!,
+        "connection",
+      )}
     </>
   );
 }

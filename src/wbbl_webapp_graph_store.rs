@@ -290,7 +290,7 @@ impl WbblWebappEdge {
             target_handle,
             deletable: true,
             selectable: true,
-            updatable: true,
+            updatable: false,
             selected,
         })
     }
@@ -402,7 +402,7 @@ impl WbblWebappGraphStore {
         let slab_node = NewWbblWebappNode::new(200.0, 500.0, WbblWebappNodeType::Slab);
         store.add_node(slab_node.clone()).unwrap();
         store
-            .add_edge(
+            .add_or_replace_edge(
                 &uuid::Uuid::from_u128(slab_node.id).to_string(),
                 &uuid::Uuid::from_u128(output_node.id).to_string(),
                 0,
@@ -708,7 +708,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    pub fn add_edge(
+    pub fn add_or_replace_edge(
         &mut self,
         source: &str,
         target: &str,
@@ -729,45 +729,6 @@ impl WbblWebappGraphStore {
             );
 
             let mut mut_transaction = self.graph.transact_mut();
-            edge.encode(&mut mut_transaction, &self.edges)?;
-        }
-
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(true)?;
-
-        Ok(())
-    }
-
-    pub fn replace_edge(
-        &mut self,
-        edge_id: &str,
-        source: &str,
-        target: &str,
-        source_handle: i64,
-        target_handle: i64,
-        selected: bool,
-    ) -> Result<(), WbblWebappGraphStoreError> {
-        {
-            let mut mut_transaction = self.graph.transact_mut();
-            let edge_id = uuid::Uuid::from_str(edge_id)
-                .map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
-            let source =
-                uuid::Uuid::from_str(source).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
-            let target =
-                uuid::Uuid::from_str(target).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
-            let edge = WbblWebappEdge {
-                id: edge_id.as_u128(),
-                source: source.as_u128(),
-                target: target.as_u128(),
-                source_handle,
-                target_handle,
-                deletable: true,
-                selectable: true,
-                updatable: true,
-                selected,
-            };
-
             edge.encode(&mut mut_transaction, &self.edges)?;
         }
 

@@ -1,10 +1,8 @@
-import { ChangeEvent, useCallback, useState, useMemo, useRef, KeyboardEvent as ReactKeyboardEvent, forwardRef, ForwardedRef, useEffect } from "react";
+import { useCallback, useState, useMemo, KeyboardEvent as ReactKeyboardEvent, forwardRef, ForwardedRef, useEffect } from "react";
 import { WbblWebappNodeType } from "../../pkg/wbbl";
 import { NodeCategory, nodeMetaData } from "./node_types";
-import { TextField, Text, DropdownMenu, Box, Callout, Tooltip } from "@radix-ui/themes";
-import { MagnifyingGlassIcon, StarIcon, PhotoIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
-import { ScrollArea } from "@radix-ui/themes/dist/cjs/index.js";
-
+import { Text, DropdownMenu, Tooltip } from "@radix-ui/themes";
+import { StarIcon, PhotoIcon } from "@heroicons/react/24/solid";
 
 function useTooltipOpen() {
   const [tooltipMaybeOpen, setTooltipMaybeOpen] = useState(false);

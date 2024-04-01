@@ -12,13 +12,18 @@ import {
   MiniMap,
   ReactFlowProvider,
   useReactFlow,
+  useStoreApi,
 } from "@xyflow/react";
+import { addEdge } from "@xyflow/system";
+import { XYHandle } from "../hooks/use-edge-updater";
 import React, {
   useContext,
+  useRef,
   useCallback,
   useState,
   useMemo,
   useEffect,
+  MouseEvent as ReactMouseEvent,
 } from "react";
 import {
   NewWbblWebappNode,
@@ -37,6 +42,7 @@ import WbbleEdge from "./WbbleEdge";
 import NodeMenu, { NODE_MENU_DIMENSIONS } from "./NodeMenu";
 import { nodeTypes } from "./node_types";
 import { graphWorker } from "../graph-worker-reference";
+import { useOnEdgeDragUpdater } from "../hooks/use-on-edge-drag-updater";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -55,7 +61,9 @@ function Graph() {
   }>(null);
   const [nodeMenuOpen, setNodeMenuOpen] = useState<boolean>(false);
   const flow = useReactFlow();
+  const storeApi = useStoreApi();
   const [isConnecting, setIsConnecting] = useState(false);
+
   const onConnectStart = useCallback(() => {
     setIsConnecting(true);
   }, [setIsConnecting]);
@@ -87,7 +95,7 @@ function Graph() {
               ? evt.clientX
               : rect.width - NODE_MENU_DIMENSIONS.width,
           right: undefined,
-          bottom: undefined
+          bottom: undefined,
         });
       } else {
         setNodeMenuOpen(false);
@@ -152,7 +160,7 @@ function Graph() {
       for (let change of changes) {
         switch (change.type) {
           case "add":
-            graphStore.add_edge(
+            graphStore.add_or_replace_edge(
               change.item.source,
               change.item.target,
               BigInt(change.item.sourceHandle?.replace("s#", "") ?? "0"),
@@ -163,13 +171,11 @@ function Graph() {
             graphStore.remove_edge(change.id);
             break;
           case "replace":
-            graphStore.replace_edge(
-              change.id,
+            graphStore.add_or_replace_edge(
               change.item.source,
               change.item.target,
               BigInt(change.item.sourceHandle?.replace("s#", "") ?? "0"),
               BigInt(change.item.targetHandle?.replace("t#", "") ?? "0"),
-              change.item.selected ?? false,
             );
             break;
           case "select":
@@ -180,23 +186,38 @@ function Graph() {
     },
     [graphStore],
   );
-
+  const edgeUpdateSuccessful = useRef(true);
   const onEdgesUpdate = useCallback(
-    (oldEdge: Edge, newConnection: Connection) => {
-      graphStore.replace_edge(
-        oldEdge.id,
+    (_: Edge, newConnection: Connection) => {
+      edgeUpdateSuccessful.current = true;
+      graphStore.add_or_replace_edge(
         newConnection.source,
         newConnection.target,
         BigInt(newConnection.sourceHandle?.replace("s#", "") ?? "0"),
         BigInt(newConnection.targetHandle?.replace("t#", "") ?? "0"),
-        false,
       );
     },
     [graphStore],
   );
+
+  const onEdgeUpdateStart = useCallback((_: unknown, edge: Edge) => {
+    edgeUpdateSuccessful.current = false;
+    graphStore.remove_edge(edge.id);
+  }, []);
+
+  const onEdgeUpdateEnd = useCallback(
+    (_: unknown, edge: Edge) => {
+      if (!edgeUpdateSuccessful.current) {
+        graphStore.remove_edge(edge.id);
+      }
+      edgeUpdateSuccessful.current = true;
+    },
+    [graphStore],
+  );
+
   const onConnect = useCallback(
     (connection: Connection) => {
-      graphStore.add_edge(
+      graphStore.add_or_replace_edge(
         connection.source,
         connection.target,
         BigInt(connection.sourceHandle?.replace("s#", "") ?? "0"),
@@ -234,6 +255,7 @@ function Graph() {
       edgeRendererRef?.parentElement?.removeEventListener("resize", listener);
     };
   }, [edgeRendererRef, setBoundingRect]);
+  const connectingHandlers = useOnEdgeDragUpdater(graphStore, onConnectEnd);
 
   let width = boundingRect?.width ?? 1080;
   let height = boundingRect?.height ?? 1920;
@@ -251,13 +273,22 @@ function Graph() {
           maxZoom={1.4}
           minZoom={0.25}
           snapToGrid={false}
+          onEdgeMouseMove={connectingHandlers.onPointerDown}
           onPaneClick={onPaneClick}
           onEdgeDoubleClick={removeEdge}
           onConnectStart={onConnectStart}
           onConnectEnd={onConnectEnd}
           onEdgesChange={onEdgesChange}
           onEdgeUpdate={onEdgesUpdate}
+          onEdgeUpdateEnd={onEdgeUpdateEnd}
+          onEdgeUpdateStart={onEdgeUpdateStart}
           connectionLineComponent={WbblConnectionLine}
+          onPointerMove={
+            connectingHandlers ? connectingHandlers.onPointerMove : undefined
+          }
+          onPointerUp={
+            connectingHandlers ? connectingHandlers.onPointerMove : undefined
+          }
           selectionMode={SelectionMode.Partial}
           proOptions={{ hideAttribution: true }}
           fitView
@@ -267,13 +298,18 @@ function Graph() {
           <svg
             id="edge-end-renderer"
             viewBox={`0 0 ${width} ${height}`}
-            style={{ width: width, height: height, zIndex: 4, pointerEvents: "none", position: "absolute", left: 0, top: 0 }}
+            style={{
+              width: width,
+              height: height,
+              zIndex: 4,
+              pointerEvents: "none",
+              position: "absolute",
+              left: 0,
+              top: 0,
+            }}
             ref={setEdgeRenderRef}
           ></svg>
-          <MiniMap
-            pannable
-            zoomable
-          />
+          <MiniMap pannable zoomable />
           <NodeMenu
             open={nodeMenuOpen}
             onClose={setNodeMenuOpen}

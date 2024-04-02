@@ -21,7 +21,12 @@ import {
   type IsValidConnection,
   type ConnectionHandle,
 } from "@xyflow/system";
-import { useCallback, MouseEvent as ReactMouseEvent, useState } from "react";
+import {
+  useCallback,
+  MouseEvent as ReactMouseEvent,
+  useState,
+  useRef,
+} from "react";
 import {
   getClosestHandle,
   getConnectionStatus,
@@ -332,7 +337,7 @@ function isValidHandle(
 
 export function useOnEdgeDragUpdater(
   graphStore: WbblWebappGraphStore,
-  onConnectEnd: () => {},
+  onConnectEnd: () => void,
 ) {
   const storeApi = useStoreApi();
   const [connectingHandlers, setConnectingHandlers] = useState<{
@@ -340,13 +345,21 @@ export function useOnEdgeDragUpdater(
     onPointerUp: (evt: ReactMouseEvent) => void;
   }>({ onPointerMove: () => {}, onPointerUp: () => {} });
 
+  const selecting = useRef<boolean>();
   return {
     ...connectingHandlers,
+    onSelectStart: useCallback(() => {
+      selecting.current = true;
+    }, [selecting]),
+    onSelectEnd: useCallback(() => {
+      selecting.current = false;
+    }, [selecting]),
     onPointerDown: useCallback(
       (evt: ReactMouseEvent, edge: Edge) => {
         if (
           evt.buttons === 1 &&
-          storeApi.getState().connectionStartHandle === null
+          storeApi.getState().connectionStartHandle === null &&
+          !selecting.current
         ) {
           graphStore.remove_edge(edge.id);
           storeApi.setState({
@@ -424,7 +437,7 @@ export function useOnEdgeDragUpdater(
           });
         }
       },
-      [graphStore, setConnectingHandlers, storeApi],
+      [graphStore, setConnectingHandlers, storeApi, selecting],
     ),
   };
 }

@@ -34,7 +34,6 @@
 
 @supports (color: color(display-p3 1 1 1)) {
     @media (color-gamut: p3) {
-
         .dark,
         .dark-theme {
             --orange-1: oklch(0 0.011 43.98);
@@ -107,7 +106,6 @@
 
 @supports (color: color(display-p3 1 1 1)) {
     @media (color-gamut: p3) {
-
         .dark,
         .dark-theme {
             --blue-1: oklch(0 0.032 267);
@@ -180,7 +178,6 @@
 
 @supports (color: color(display-p3 1 1 1)) {
     @media (color-gamut: p3) {
-
         .dark,
         .dark-theme {
             --green-1: oklch(0 0.014 158.9);
@@ -253,7 +250,6 @@
 
 @supports (color: color(display-p3 1 1 1)) {
     @media (color-gamut: p3) {
-
         .dark,
         .dark-theme {
             --violet-1: oklch(0 0.022 291.6);
@@ -326,7 +322,6 @@
 
 @supports (color: color(display-p3 1 1 1)) {
     @media (color-gamut: p3) {
-
         .dark,
         .dark-theme {
             --red-1: oklch(0 0.017 18.51);
@@ -399,7 +394,6 @@
 
 @supports (color: color(display-p3 1 1 1)) {
     @media (color-gamut: p3) {
-
         .dark,
         .dark-theme {
             --lime-1: oklch(0.178 0.016 131.1);
@@ -436,7 +430,6 @@
     }
 }
 
-
 .dark,
 .dark-theme {
     --gray-1: #000;
@@ -465,7 +458,7 @@
     --gray-a11: #ffffffb3;
     --gray-a12: #ffffffed;
 
-    --gray-contrast: #FFFFFF;
+    --gray-contrast: #ffffff;
     --gray-surface: rgba(0, 0, 0, 0.05);
     --gray-indicator: #6d6d6d;
     --gray-track: #6d6d6d;
@@ -473,7 +466,6 @@
 
 @supports (color: color(display-p3 1 1 1)) {
     @media (color-gamut: p3) {
-
         .dark,
         .dark-theme {
             --gray-1: oklch(0 0 0);
@@ -502,7 +494,7 @@
             --gray-a11: color(display-p3 1 1 1 / 0.702);
             --gray-a12: color(display-p3 1 1 1 / 0.929);
 
-            --gray-contrast: #FFFFFF;
+            --gray-contrast: #ffffff;
             --gray-surface: color(display-p3 0 0 0 / 5%);
             --gray-indicator: oklch(0.535 0 0);
             --gray-track: oklch(0.535 0 0);
@@ -515,7 +507,6 @@
 :is(.dark, .dark-theme) :where(.radix-themes:not(.light, .light-theme)) {
     --color-background: #000;
 }
-
 
 .radix-themes {
     --default-font-family: "DM Sans";
@@ -530,7 +521,7 @@
     /* Your custom font for <Em> components */
     --quote-font-family: "DM Mono";
     /* Your custom font for <Quote> components */
-    --brand-font-family: 'Gasoek One';
+    --brand-font-family: "Gasoek One";
 }
 
 .radix-themes {
@@ -541,13 +532,19 @@
     --float-color: var(--lime-9);
     --bool-color: var(--amber-9);
     --int-color: var(--green-9);
-    --output-color: var(--blue-9);
-    --utility-color: var(--orange-9);
-    --math-color: var(--green-9);
-    --material-color: var(--violet-9);
-    --logic-color: var(--amber-9);
-    --builtins-color: var(--red-9);
 
+    --output-color: var(--blue-9);
+    --output-color-contrast: var(--blue-contrast);
+    --utility-color: var(--orange-9);
+    --utility-color-contrast: var(--orange-contrast);
+    --math-color: var(--green-9);
+    --math-color-contrast: var(--green-constrast);
+    --material-category-color: var(--violet-9);
+    --material-category-color-contrast: var(--violet-contrast);
+    --logic-color: var(--amber-9);
+    --logic-color-contrast: var(--amber-contrast);
+    --builtins-color: var(--red-9);
+    --builtins-color-contrast: var(--red-contrast);
 }
 
 .rt-DialogOverlay:has([data-node-menu="true"])::before {

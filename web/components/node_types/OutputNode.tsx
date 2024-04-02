@@ -8,7 +8,6 @@ import { areNodePropsEqual } from "../../hooks/use-wbbl-graph-store";
 
 function OutputNode(props: NodeProps) {
   const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
-  // const graphStore = useContext(WbblGraphStoreContext);
   useLayoutEffect(() => {
     if (canvasRef) {
       let offscreenCanvas = canvasRef.transferControlToOffscreen();
@@ -24,6 +23,9 @@ function OutputNode(props: NodeProps) {
 
   return (
     <WbblNode
+      deleteable={false}
+      copyable={false}
+      previewable={false}
       outputPortLabels={[]}
       inputPortLabels={[null]}
       w={315}

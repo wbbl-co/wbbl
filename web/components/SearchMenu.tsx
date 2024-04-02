@@ -5,7 +5,6 @@
 // import { MagnifyingGlassIcon, StarIcon, PhotoIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
 // import { ScrollArea } from "@radix-ui/themes/dist/cjs/index.js";
 
-
 // function useTooltipOpen() {
 //   const [tooltipMaybeOpen, setTooltipMaybeOpen] = useState(false);
 //   const [tooltipOpen, setTooltipOpen] = useState(false);
@@ -31,7 +30,6 @@
 //     <Text>{value.nodeMenuName ?? id}</Text>
 //   </DropdownMenu.Item></Tooltip></div>;
 // }
-
 
 // function PreviewNodeDropdownMenuItemImpl({ onSelect, onKeyEvent }: { onSelect: (key: string) => void, onKeyEvent?: (evt: ReactKeyboardEvent<HTMLDivElement>) => void }, forwardRef: ForwardedRef<HTMLDivElement>) {
 //   const whenSelected = useCallback(() => { onSelect('preview') }, [onSelect]);
@@ -62,8 +60,6 @@
 //   const sorted = useMemo(() => {
 //     return Object.entries(nodeMetaData).filter(([, v]) => !v.hiddenFromNodeMenu).sort(([k1, v1], [k2, v2]) => (v1.nodeMenuName ?? k1).localeCompare((v2.nodeMenuName ?? k2), undefined, { usage: 'search', collation: 'phonebk' }))
 //   }, [nodeMetaData]);
-
-
 
 //   const grouped = useMemo(() => {
 //     let groups = sorted.reduce((prev, curr) => {
@@ -104,8 +100,6 @@
 //     [props.addNode, props.position, props.onClose, setQuery, nodeMetaData],
 //   );
 
-
-
 //   const onSelectFirst = useCallback(
 //     () => {
 //       if (filteredItems == null) {
@@ -124,8 +118,6 @@
 //     },
 //     [props.addNode, props.position, props.onClose, filteredItems, grouped, setQuery],
 //   );
-
-
 
 //   const updateQuery = useCallback((evt: ChangeEvent<HTMLInputElement>) => {
 //     setQuery(evt.target.value)
@@ -147,7 +139,6 @@
 //       evt.preventDefault();
 //     }
 //   }, [searchBoxRef.current]);
-
 
 //   return (
 //     <DropdownMenu.Root open={props.open} onOpenChange={onClose}>

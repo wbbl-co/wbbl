@@ -344,13 +344,9 @@ impl WbblBox {
         self.vertlets[index].position
     }
 
-    fn compute_adjugate(m: &Mat3) -> Mat3 {
-        m.inverse()
-    }
-
     fn basis_to_points(v1: &Vec2, v2: &Vec2, v3: &Vec2, v4: &Vec2) -> Mat3 {
         let m = Mat3::from_cols(v1.extend(1.0), v2.extend(1.0), v3.extend(1.0));
-        let v = WbblBox::compute_adjugate(&m) * v4.extend(1.0);
+        let v = m.inverse() * v4.extend(1.0);
         m * Mat3::from_diagonal(v)
     }
 
@@ -372,7 +368,7 @@ impl WbblBox {
             &(top_right - top_left),
             &(bottom_right - top_left),
         );
-        let proj_matrix = destination * WbblBox::compute_adjugate(&source);
+        let proj_matrix = destination * source.inverse();
         let col_array = proj_matrix.to_cols_array();
 
         format!(

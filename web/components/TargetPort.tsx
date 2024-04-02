@@ -55,10 +55,10 @@ function TargetPort(props: TargetPortProps) {
           borderWidth: 2,
           left: PORT_SIZE,
           top: props.top,
-          background: 'transparent',
+          background: "transparent",
           position: "absolute",
           transitionDuration: "300ms",
-          transitionProperty: "stroke"
+          transitionProperty: "stroke",
         }}
         isConnectableStart={false}
         className={`${getStyleForType(portType)} ${isHandleConnectable ? "glow" : " "}`}
@@ -73,7 +73,11 @@ function TargetPort(props: TargetPortProps) {
           style={{
             top: `calc(${props.top}px - 0.8em)`,
             left: 1.8 * PORT_SIZE,
-            position: "absolute", textAlign: "left", fontSize: "0.8em", fontFamily: 'var(--code-font-family)', fontStyle: "italic"
+            position: "absolute",
+            textAlign: "left",
+            fontSize: "0.8em",
+            fontFamily: "var(--code-font-family)",
+            fontStyle: "italic",
           }}
         >
           {props.label}

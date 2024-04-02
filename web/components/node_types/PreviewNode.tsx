@@ -22,6 +22,9 @@ function PreviewNode(props: NodeProps) {
 
   return (
     <WbblNode
+      deleteable
+      copyable
+      previewable={false}
       outputPortLabels={[]}
       inputPortLabels={[null]}
       w={150}

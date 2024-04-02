@@ -77,6 +77,25 @@ path.react-flow__edge-path {
     fill: var(--type-color);
 }
 
+.dark,
+.dark-theme {
+    .react-flow__minimap-node {
+        --card-background-color-weight: 40%;
+    }
+}
+
+.react-flow__minimap-node {
+    color: var(--category-color);
+    --card-background-color-weight: 65%;
+    fill: color-mix(
+        in srgb,
+        currentColor,
+        var(--gray-contrast) var(--card-background-color-weight)
+    );
+    stroke: currentColor;
+    stroke-width: 2px;
+}
+
 .Any {
     --type-color: var(--any-color);
 }
@@ -180,4 +199,83 @@ path.react-flow__edge-path {
 
 .react-flow__connectionline {
     z-index: 10000;
+}
+
+.category-output {
+    --category-color: var(--output-color);
+    --category-contrast: var(--output-color-contrast);
+}
+
+.category-utility {
+    --category-color: var(--utility-color);
+    --category-contrast: var(--utility-color-contrast);
+}
+
+.category-math {
+    --category-color: var(--math-color);
+    --category-contrast: var(--math-color-contrast);
+}
+
+.category-material-category {
+    --category-color: var(--material-category-color);
+    --category-contrast: var(--material-category-color-contrast);
+}
+
+.category-logic {
+    --category-color: var(--logic-color);
+    --category-contrast: var(--logic-color-contrast);
+}
+
+.category-builtins {
+    --category-color: var(--builtins-color);
+    --category-contrast: var(--builtins-color-contrast);
+}
+
+.node-menu__category-label {
+    color: var(--category-color);
+}
+
+.AnyTexture {
+    --type-color: var(--field-color);
+}
+
+.Texture {
+    --type-color: var(--field-color);
+}
+
+.ProceduralField {
+    --type-color: var(--field-color);
+}
+
+.AnyNumber {
+    --type-color: var(--number-color);
+}
+
+.AnyFloat {
+    --type-color: var(--float-color);
+}
+
+.Float {
+    --type-color: var(--float-color);
+}
+
+.Int {
+    --type-color: var(--int-color);
+}
+
+.Bool {
+    --type-color: var(--bool-color);
+}
+
+.SlabMaterial {
+    --type-color: var(--material-color);
+}
+
+.Material {
+    --type-color: var(--material-color);
+}
+
+.node-context-menu-content {
+    --accent-contrast: var(--category-contrast);
+    --accent-9: var(--category-color);
 }

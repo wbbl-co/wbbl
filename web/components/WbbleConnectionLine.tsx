@@ -7,11 +7,7 @@ import {
 import { WbblRope } from "../../pkg/wbbl";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
-import {
-  EDGE_STROKE_WIDTH,
-  HALF_PORT_SIZE,
-  VECTOR_EDGE_STROKE_WIDTH,
-} from "../port-constants";
+import { HALF_PORT_SIZE } from "../port-constants";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import { createPortal } from "react-dom";
 import { setConnectionPath } from "../utils/set-connection-path";

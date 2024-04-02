@@ -37,7 +37,7 @@ export type NodeCategory =
   | "output"
   | "utility"
   | "math"
-  | "material"
+  | "material-category"
   | "logic"
   | "builtins";
 
@@ -51,7 +51,7 @@ export const nodeMetaData: {
   };
 } = {
   slab: {
-    category: "material",
+    category: "material-category",
     type: WbblWebappNodeType.Slab,
     description: "Primary PBR Shader Node. Can be mixed with other slabs",
   },

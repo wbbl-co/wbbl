@@ -12,10 +12,7 @@ import {
   MiniMap,
   ReactFlowProvider,
   useReactFlow,
-  useStoreApi,
 } from "@xyflow/react";
-import { addEdge } from "@xyflow/system";
-import { XYHandle } from "../hooks/use-edge-updater";
 import React, {
   useContext,
   useRef,
@@ -23,7 +20,6 @@ import React, {
   useState,
   useMemo,
   useEffect,
-  MouseEvent as ReactMouseEvent,
 } from "react";
 import {
   NewWbblWebappNode,
@@ -40,9 +36,10 @@ import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import WbblConnectionLine from "./WbbleConnectionLine";
 import WbbleEdge from "./WbbleEdge";
 import NodeMenu, { NODE_MENU_DIMENSIONS } from "./NodeMenu";
-import { nodeTypes } from "./node_types";
+import { nodeMetaData, nodeTypes } from "./node_types";
 import { graphWorker } from "../graph-worker-reference";
 import { useOnEdgeDragUpdater } from "../hooks/use-on-edge-drag-updater";
+import GraphCanvasContextMenu from "./GraphCanvasContextMenu";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -61,7 +58,6 @@ function Graph() {
   }>(null);
   const [nodeMenuOpen, setNodeMenuOpen] = useState<boolean>(false);
   const flow = useReactFlow();
-  const storeApi = useStoreApi();
   const [isConnecting, setIsConnecting] = useState(false);
 
   const onConnectStart = useCallback(() => {
@@ -160,7 +156,7 @@ function Graph() {
       for (let change of changes) {
         switch (change.type) {
           case "add":
-            graphStore.add_or_replace_edge(
+            graphStore.add_edge(
               change.item.source,
               change.item.target,
               BigInt(change.item.sourceHandle?.replace("s#", "") ?? "0"),
@@ -171,7 +167,7 @@ function Graph() {
             graphStore.remove_edge(change.id);
             break;
           case "replace":
-            graphStore.add_or_replace_edge(
+            graphStore.add_edge(
               change.item.source,
               change.item.target,
               BigInt(change.item.sourceHandle?.replace("s#", "") ?? "0"),
@@ -190,7 +186,7 @@ function Graph() {
   const onEdgesUpdate = useCallback(
     (_: Edge, newConnection: Connection) => {
       edgeUpdateSuccessful.current = true;
-      graphStore.add_or_replace_edge(
+      graphStore.add_edge(
         newConnection.source,
         newConnection.target,
         BigInt(newConnection.sourceHandle?.replace("s#", "") ?? "0"),
@@ -217,7 +213,7 @@ function Graph() {
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      graphStore.add_or_replace_edge(
+      graphStore.add_edge(
         connection.source,
         connection.target,
         BigInt(connection.sourceHandle?.replace("s#", "") ?? "0"),
@@ -256,67 +252,84 @@ function Graph() {
     };
   }, [edgeRendererRef, setBoundingRect]);
   const connectingHandlers = useOnEdgeDragUpdater(graphStore, onConnectEnd);
-
+  const getMinimapNodeClassnames = useCallback(
+    (node: Node) => {
+      const category =
+        nodeMetaData[node.type as keyof typeof nodeMetaData].category;
+      return `minimap-node category-${category}`;
+    },
+    [nodeMetaData],
+  );
   let width = boundingRect?.width ?? 1080;
   let height = boundingRect?.height ?? 1920;
 
   return (
     <WbblSnapshotContext.Provider value={snapshot}>
       <WbblEdgeEndContext.Provider value={edgeRendererRef}>
-        <ReactFlow
-          nodes={snapshot.nodes}
-          onNodesChange={onNodesChange}
-          edges={snapshot.edges}
-          edgeTypes={edgeTypes}
-          nodeTypes={nodeTypes}
-          onConnect={onConnect}
-          maxZoom={1.4}
-          minZoom={0.25}
-          snapToGrid={false}
-          onEdgeMouseMove={connectingHandlers.onPointerDown}
-          onPaneClick={onPaneClick}
-          onEdgeDoubleClick={removeEdge}
-          onConnectStart={onConnectStart}
-          onConnectEnd={onConnectEnd}
-          onEdgesChange={onEdgesChange}
-          onEdgeUpdate={onEdgesUpdate}
-          onEdgeUpdateEnd={onEdgeUpdateEnd}
-          onEdgeUpdateStart={onEdgeUpdateStart}
-          connectionLineComponent={WbblConnectionLine}
-          onPointerMove={
-            connectingHandlers ? connectingHandlers.onPointerMove : undefined
-          }
-          onPointerUp={
-            connectingHandlers ? connectingHandlers.onPointerMove : undefined
-          }
-          selectionMode={SelectionMode.Partial}
-          proOptions={{ hideAttribution: true }}
-          fitView
-        >
-          <Background variant={BackgroundVariant.Dots} />
-          <Controls />
-          <svg
-            id="edge-end-renderer"
-            viewBox={`0 0 ${width} ${height}`}
-            style={{
-              width: width,
-              height: height,
-              zIndex: 4,
-              pointerEvents: "none",
-              position: "absolute",
-              left: 0,
-              top: 0,
-            }}
-            ref={setEdgeRenderRef}
-          ></svg>
-          <MiniMap pannable zoomable />
-          <NodeMenu
-            open={nodeMenuOpen}
-            onClose={setNodeMenuOpen}
-            position={nodeMenuPosition}
-            addNode={addNode}
-          />
-        </ReactFlow>
+        <GraphCanvasContextMenu>
+          <ReactFlow
+            width={width}
+            height={height}
+            nodes={snapshot.nodes}
+            onNodesChange={onNodesChange}
+            edges={snapshot.edges}
+            edgeTypes={edgeTypes}
+            nodeTypes={nodeTypes}
+            onConnect={onConnect}
+            maxZoom={1.4}
+            minZoom={0.25}
+            snapToGrid={false}
+            onSelectionStart={connectingHandlers.onSelectStart}
+            onSelectionEnd={connectingHandlers.onSelectEnd}
+            onEdgeMouseMove={connectingHandlers.onPointerDown}
+            onPaneClick={onPaneClick}
+            onEdgeDoubleClick={removeEdge}
+            onConnectStart={onConnectStart}
+            onConnectEnd={onConnectEnd}
+            onEdgesChange={onEdgesChange}
+            onEdgeUpdate={onEdgesUpdate}
+            onEdgeUpdateEnd={onEdgeUpdateEnd}
+            onEdgeUpdateStart={onEdgeUpdateStart}
+            connectionLineComponent={WbblConnectionLine}
+            onPointerMove={
+              connectingHandlers ? connectingHandlers.onPointerMove : undefined
+            }
+            onPointerUp={
+              connectingHandlers ? connectingHandlers.onPointerMove : undefined
+            }
+            selectionMode={SelectionMode.Partial}
+            proOptions={{ hideAttribution: true }}
+            fitView
+          >
+            <Background variant={BackgroundVariant.Dots} />
+            <Controls />
+            <svg
+              id="edge-end-renderer"
+              viewBox={`0 0 ${width} ${height}`}
+              style={{
+                width: width,
+                height: height,
+                zIndex: 4,
+                pointerEvents: "none",
+                position: "absolute",
+                left: 0,
+                top: 0,
+              }}
+              ref={setEdgeRenderRef}
+            ></svg>
+            <MiniMap
+              pannable
+              zoomable
+              nodeClassName={getMinimapNodeClassnames}
+            />
+            <NodeMenu
+              open={nodeMenuOpen}
+              onClose={setNodeMenuOpen}
+              position={nodeMenuPosition}
+              addNode={addNode}
+            />
+          </ReactFlow>
+        </GraphCanvasContextMenu>
       </WbblEdgeEndContext.Provider>
     </WbblSnapshotContext.Provider>
   );

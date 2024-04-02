@@ -113,7 +113,7 @@ function PreviewNodeDropdownMenuItemImpl(
           onMouseLeave={setTooltipOpenFalse}
           ref={forwardRef}
           onKeyDown={onKeyEvent}
-          className="category-utility"
+          className="category-utility preview-node-menu-item"
           onSelect={whenSelected}
         >
           <PhotoIcon color="current" width={"1em"} height={"1em"} />
@@ -206,7 +206,7 @@ export default function NodeMenu(props: {
       >
         <PreviewNodeDropdownMenuItem onSelect={onSelect} />
         <DropdownMenu.Sub>
-          <DropdownMenu.SubTrigger>
+          <DropdownMenu.SubTrigger className="favourites-node-menu-item">
             <StarIcon color="current" width={"1em"} height={"1em"} />
             Favourites
           </DropdownMenu.SubTrigger>

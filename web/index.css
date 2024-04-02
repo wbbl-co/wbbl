@@ -15,6 +15,11 @@ body,
     -moz-osx-font-smoothing: grayscale;
 }
 
+.node-context-menu-content {
+    --accent-contrast: var(--category-contrast);
+    --accent-9: var(--category-color);
+}
+
 .react-flow {
     --xy-selection-background-color-default: var(--accent-a1);
     --xy-selection-border-default: 2px dotted var(--accent-9);
@@ -271,6 +276,34 @@ path.react-flow__edge-path {
     color: var(--category-color);
 }
 
+.preview-node-menu-item {
+    color: var(--category-color);
+    &:hover,
+    &:focus,
+    &[data-state="instant-open"],
+    &[data-state="open"] {
+        background: var(--category-color);
+        color: var(--category-contrast);
+    }
+}
+
+.favourites-node-menu-item {
+    color: var(--yellow-11);
+    &:hover,
+    &:focus,
+    &[data-state="instant-open"],
+    &[data-state="open"] {
+        background: var(--yellow-9);
+        color: var(--yellow-contrast);
+    }
+}
+
+.dark {
+    .favourites-node-menu-item {
+        color: var(--yellow-10);
+    }
+}
+
 .AnyTexture {
     --type-color: var(--field-color);
 }
@@ -309,9 +342,4 @@ path.react-flow__edge-path {
 
 .Material {
     --type-color: var(--material-color);
-}
-
-.node-context-menu-content {
-    --accent-contrast: var(--category-contrast);
-    --accent-9: var(--category-color);
 }

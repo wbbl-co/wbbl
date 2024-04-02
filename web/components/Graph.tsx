@@ -12,6 +12,10 @@ import {
   MiniMap,
   ReactFlowProvider,
   useReactFlow,
+  OnSelectionChangeFunc,
+  NodeMouseHandler,
+  internalsSymbol,
+  useUpdateNodeInternals,
 } from "@xyflow/react";
 import React, {
   useContext,
@@ -19,7 +23,6 @@ import React, {
   useCallback,
   useState,
   useMemo,
-  useEffect,
 } from "react";
 import {
   NewWbblWebappNode,
@@ -40,6 +43,8 @@ import { nodeMetaData, nodeTypes } from "./node_types";
 import { graphWorker } from "../graph-worker-reference";
 import { useOnEdgeDragUpdater } from "../hooks/use-on-edge-drag-updater";
 import GraphCanvasContextMenu from "./GraphCanvasContextMenu";
+import { useScreenDimensions } from "../hooks/use-screen-dimensions";
+import { andThen } from "../hooks/and-then";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -59,6 +64,25 @@ function Graph() {
   const [nodeMenuOpen, setNodeMenuOpen] = useState<boolean>(false);
   const flow = useReactFlow();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const setIsSelectingTrue = useCallback(
+    () => setIsSelecting(true),
+    [setIsSelecting],
+  );
+  const setIsSelectingFalse = useCallback(() => {
+    setTimeout(() => setIsSelecting(false), 4);
+  }, [setIsSelecting]);
+
+  const onSelectionChange = useCallback<OnSelectionChangeFunc>(
+    (selection) => {
+      if (selection.nodes.some((x) => x.selected)) {
+        setIsSelectingTrue();
+      } else {
+        setIsSelectingFalse();
+      }
+    },
+    [setIsSelectingTrue, setIsSelectingFalse],
+  );
 
   const onConnectStart = useCallback(() => {
     setIsConnecting(true);
@@ -73,7 +97,7 @@ function Graph() {
     (evt: React.MouseEvent<Element, MouseEvent>) => {
       let target = evt.target as HTMLElement;
       let rect = target.getBoundingClientRect();
-      if (nodeMenuOpen === false && !isConnecting) {
+      if (nodeMenuOpen === false && !isConnecting && !isSelecting) {
         let pos = flow.screenToFlowPosition(
           { x: evt.clientX, y: evt.clientY },
           { snapToGrid: false },
@@ -97,7 +121,14 @@ function Graph() {
         setNodeMenuOpen(false);
       }
     },
-    [nodeMenuOpen, setNodeMenuPosition, setNodeMenuOpen, flow, isConnecting],
+    [
+      nodeMenuOpen,
+      setNodeMenuPosition,
+      setNodeMenuOpen,
+      flow,
+      isConnecting,
+      isSelecting,
+    ],
   );
   const onNodesChange = useCallback(
     (changes: NodeChange<Node>[]) => {
@@ -240,17 +271,6 @@ function Graph() {
   const [edgeRendererRef, setEdgeRenderRef] = useState<SVGSVGElement | null>(
     null,
   );
-  let [boundingRect, setBoundingRect] = useState<DOMRect | null>();
-  useEffect(() => {
-    setBoundingRect(edgeRendererRef?.parentElement?.getBoundingClientRect());
-    const listener = () => {
-      setBoundingRect(edgeRendererRef?.parentElement?.getBoundingClientRect());
-    };
-    edgeRendererRef?.parentElement?.addEventListener("resize", listener);
-    return () => {
-      edgeRendererRef?.parentElement?.removeEventListener("resize", listener);
-    };
-  }, [edgeRendererRef, setBoundingRect]);
   const connectingHandlers = useOnEdgeDragUpdater(graphStore, onConnectEnd);
   const getMinimapNodeClassnames = useCallback(
     (node: Node) => {
@@ -260,9 +280,7 @@ function Graph() {
     },
     [nodeMetaData],
   );
-  let width = boundingRect?.width ?? 1080;
-  let height = boundingRect?.height ?? 1920;
-
+  const { width, height } = useScreenDimensions();
   return (
     <WbblSnapshotContext.Provider value={snapshot}>
       <WbblEdgeEndContext.Provider value={edgeRendererRef}>
@@ -279,14 +297,17 @@ function Graph() {
             maxZoom={1.4}
             minZoom={0.25}
             snapToGrid={false}
-            onSelectionStart={connectingHandlers.onSelectStart}
-            onSelectionEnd={connectingHandlers.onSelectEnd}
             onEdgeMouseMove={connectingHandlers.onPointerDown}
             onPaneClick={onPaneClick}
             onEdgeDoubleClick={removeEdge}
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
+            multiSelectionKeyCode={["Shift", "Alt"]}
+            onSelectionStart={connectingHandlers.onSelectStart}
+            onSelectionEnd={connectingHandlers.onSelectEnd}
+            onSelectionChange={onSelectionChange}
             onEdgesChange={onEdgesChange}
+            // onNodeDrag={} TODO: Add handler for this so that groups of nodes wobble when moved
             onEdgeUpdate={onEdgesUpdate}
             onEdgeUpdateEnd={onEdgeUpdateEnd}
             onEdgeUpdateStart={onEdgeUpdateStart}

@@ -30,6 +30,7 @@ function WbblNode({
   previewable,
   deleteable,
   copyable,
+  selected,
 }: Omit<NodeProps, "width" | "height"> & {
   inputPortLabels: (null | string)[];
   outputPortLabels: (null | string)[];
@@ -123,7 +124,8 @@ function WbblNode({
         <Card
           onDragStartCapture={onDrag}
           ref={contentsRef}
-          className={`node-contents category-${nodeMetaData[type as keyof typeof nodeMetaData].category}`}
+          aria-selected={selected}
+          className={`node-contents ${selected ? "selected" : ""} category-${nodeMetaData[type as keyof typeof nodeMetaData].category}`}
           style={{
             width: w,
             height: h,

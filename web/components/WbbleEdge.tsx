@@ -24,6 +24,7 @@ export default function WbbleEdge({
   sourceY,
   targetX,
   targetY,
+  selected,
 }: EdgeProps) {
   const flow = useReactFlow();
   const viewport = useViewport();
@@ -181,12 +182,12 @@ export default function WbbleEdge({
             <path
               ref={ropePath}
               style={{ fill: "none" }}
-              className={`rope-path ${edgeClassName}`}
+              className={`rope-path ${selected ? "selected" : ""} ${edgeClassName}`}
             />
             <circle
               ref={startMarker}
               key="start-marker"
-              className={`start-marker ${edgeClassName}`}
+              className={`start-marker ${selected ? "selected" : ""} ${edgeClassName}`}
               cx={HALF_PORT_SIZE * viewport.zoom}
               cy={HALF_PORT_SIZE * viewport.zoom}
               r={HALF_PORT_SIZE * viewport.zoom}
@@ -194,7 +195,7 @@ export default function WbbleEdge({
             <circle
               ref={endMarker}
               key="end-marker"
-              className={`end-marker ${edgeClassName}`}
+              className={`end-marker ${selected ? "selected" : ""} ${edgeClassName}`}
               cx={HALF_PORT_SIZE * viewport.zoom}
               cy={HALF_PORT_SIZE * viewport.zoom}
               r={HALF_PORT_SIZE * viewport.zoom}

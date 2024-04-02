@@ -15,6 +15,11 @@ body,
     -moz-osx-font-smoothing: grayscale;
 }
 
+.react-flow {
+    --xy-selection-background-color-default: var(--accent-a1);
+    --xy-selection-border-default: 2px dotted var(--accent-9);
+}
+
 .react-flow__node,
 .react-flow__node.selected {
     background-color: transparent !important;
@@ -40,7 +45,7 @@ body,
 }
 
 path.react-flow__edge-path {
-    stroke: none;
+    stroke: rgba(0, 0, 0, 0.01);
 }
 
 .port-label {
@@ -70,11 +75,17 @@ path.react-flow__edge-path {
     fill: none;
     filter: drop-shadow(3px 5px 2px rgb(0 0 0 / 0.2));
     stroke: var(--type-color);
+    &.selected {
+        filter: drop-shadow(0px 0px 7px var(--type-color));
+    }
 }
 
 .start-marker,
 .end-marker {
     fill: var(--type-color);
+    &.selected {
+        filter: drop-shadow(0px 0px 7px var(--type-color));
+    }
 }
 
 .dark,
@@ -169,6 +180,16 @@ path.react-flow__edge-path {
     font-family: var(--code-font-family);
 }
 
+@keyframes ping {
+    0% {
+        box-shadow: 0px 0px 7px currentColor;
+    }
+    75%,
+    100% {
+        box-shadow: 0px 0px 20px currentColor;
+    }
+}
+
 .node-contents {
     position: absolute;
     top: 0;
@@ -187,6 +208,21 @@ path.react-flow__edge-path {
         currentColor,
         var(--card-background-color) var(--card-background-color-weight)
     );
+
+    &.selected {
+        box-shadow: 0px 0px 7px currentColor;
+        animation: ping 2s ease-in-out alternate-reverse infinite;
+    }
+}
+
+.react-flow__nodesselection-rect,
+.react-flow__nodesselection {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.react-flow__edge-path {
+    visibility: hidden;
 }
 
 .node-contents::after {

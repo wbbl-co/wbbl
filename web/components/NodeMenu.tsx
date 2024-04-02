@@ -218,13 +218,13 @@ export default function NodeMenu(props: {
         {grouped.map(([key, values]) => (
           <DropdownMenu.Sub key={key}>
             <DropdownMenu.SubTrigger
-              textValue={key}
+              textValue={key.replace("-category", "")}
               style={{ textTransform: "capitalize" }}
             >
               <Text className={`node-menu__category-label category-${key}`}>
                 ⬤
               </Text>
-              {key}
+              {key.replace("-category", "")}
             </DropdownMenu.SubTrigger>
             <DropdownMenu.SubContent>
               {values.map(([key, value]) => (

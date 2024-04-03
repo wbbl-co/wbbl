@@ -298,12 +298,6 @@ path.react-flow__edge-path {
     }
 }
 
-.dark {
-    .favourites-node-menu-item {
-        color: var(--yellow-10);
-    }
-}
-
 .AnyTexture {
     --type-color: var(--field-color);
 }

@@ -1,5 +1,5 @@
 import { ContextMenu } from "@radix-ui/themes";
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, ClipboardEventHandler } from "react";
 
 export default function GraphCanvasContextMenu(props: PropsWithChildren<{}>) {
   return (
@@ -10,7 +10,6 @@ export default function GraphCanvasContextMenu(props: PropsWithChildren<{}>) {
         <ContextMenu.Item shortcut="⌘ D">Duplicate</ContextMenu.Item>
         <ContextMenu.Separator />
         <ContextMenu.Item shortcut="⌘ N">Archive</ContextMenu.Item>
-
         <ContextMenu.Sub>
           <ContextMenu.SubTrigger>More</ContextMenu.SubTrigger>
           <ContextMenu.SubContent>

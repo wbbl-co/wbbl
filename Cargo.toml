@@ -15,6 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen = { version = "0.2.91" }
+graphviz-rust = { git = "https://github.com/ncthbrt/graphviz-rust", default-features = false, package = "graphviz-rust" }
 uuid = { version = "1.7.0", features = ["v4", "js", "fast-rng"] }
 gltf = { version = "1", features = ["names"] }
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -36,6 +37,10 @@ web-sys = { version = "0.3", features = [
     "MessageEvent",
     "Worker",
     "DedicatedWorkerGlobalScope",
+    "Clipboard",
+    "ClipboardItem",
+    "HtmlDocument",
+    "Blob",
 ] }
 bytemuck = { version = "1.14.3", features = ["wasm_simd"] }
 wgpu = { version = "0.19.3", default-features = false, features = [
@@ -47,6 +52,7 @@ wasm-bindgen-futures = "0.4.42"
 console_error_panic_hook = "0.1.7"
 yrs = "0.18.0"
 serde-wasm-bindgen = "0.6.5"
+serde_json = "1.0.115"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.41"

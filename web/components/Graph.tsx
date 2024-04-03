@@ -13,9 +13,7 @@ import {
   ReactFlowProvider,
   useReactFlow,
   OnSelectionChangeFunc,
-  NodeMouseHandler,
-  internalsSymbol,
-  useUpdateNodeInternals,
+  OnBeforeDelete,
 } from "@xyflow/react";
 import React, {
   useContext,
@@ -23,6 +21,9 @@ import React, {
   useCallback,
   useState,
   useMemo,
+  ClipboardEvent as ReactClipboardEvent,
+  MouseEvent as ReactMouseEvent,
+  useEffect,
 } from "react";
 import {
   NewWbblWebappNode,
@@ -281,6 +282,49 @@ function Graph() {
     [nodeMetaData],
   );
   const { width, height } = useScreenDimensions();
+  const mousePos = useRef([0, 0] as [number, number]);
+  const onMouseMove = useCallback(
+    (evt: ReactMouseEvent<HTMLDivElement>) => {
+      mousePos.current = [evt.clientX, evt.clientY];
+    },
+    [mousePos],
+  );
+
+  useEffect(() => {
+    let onCopy = (evt: ClipboardEvent) => {
+      evt.preventDefault();
+      graphStore.copy().catch(console.error);
+    };
+    let onPaste = (evt: ClipboardEvent) => {
+      evt.preventDefault();
+      graphStore.paste(new Float32Array(mousePos.current)).catch(console.error);
+    };
+    let onCut = (evt: ClipboardEvent) => {
+      evt.preventDefault();
+      graphStore.cut().catch(console.error);
+    };
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("paste", onPaste);
+    document.addEventListener("cut", onCut);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("paste", onPaste);
+      document.removeEventListener("cut", onCut);
+    };
+  }, [graphStore, mousePos]);
+
+  const onBeforeDelete: OnBeforeDelete = useCallback(
+    async ({ nodes, edges }) => {
+      let selectedNodes = graphStore.get_locally_selected_nodes();
+      let selectedEdges = graphStore.get_locally_selected_edges();
+      return {
+        nodes: nodes.filter((x) => selectedNodes.includes(x.id)),
+        edges: edges.filter((x) => selectedEdges.includes(x.id)),
+      };
+    },
+    [graphStore],
+  );
+
   return (
     <WbblSnapshotContext.Provider value={snapshot}>
       <WbblEdgeEndContext.Provider value={edgeRendererRef}>
@@ -294,6 +338,7 @@ function Graph() {
             edgeTypes={edgeTypes}
             nodeTypes={nodeTypes}
             onConnect={onConnect}
+            deleteKeyCode={["Delete", "Backspace"]}
             maxZoom={1.4}
             minZoom={0.25}
             snapToGrid={false}
@@ -302,22 +347,21 @@ function Graph() {
             onEdgeDoubleClick={removeEdge}
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
+            onBeforeDelete={onBeforeDelete}
             multiSelectionKeyCode={["Shift", "Alt"]}
             onSelectionStart={connectingHandlers.onSelectStart}
             onSelectionEnd={connectingHandlers.onSelectEnd}
             onSelectionChange={onSelectionChange}
             onEdgesChange={onEdgesChange}
-            // onNodeDrag={} TODO: Add handler for this so that groups of nodes wobble when moved
             onEdgeUpdate={onEdgesUpdate}
             onEdgeUpdateEnd={onEdgeUpdateEnd}
             onEdgeUpdateStart={onEdgeUpdateStart}
             connectionLineComponent={WbblConnectionLine}
-            onPointerMove={
-              connectingHandlers ? connectingHandlers.onPointerMove : undefined
-            }
-            onPointerUp={
-              connectingHandlers ? connectingHandlers.onPointerMove : undefined
-            }
+            onPointerMove={andThen(
+              connectingHandlers.onPointerMove,
+              onMouseMove,
+            )}
+            onPointerUp={connectingHandlers.onPointerMove}
             selectionMode={SelectionMode.Partial}
             proOptions={{ hideAttribution: true }}
             fitView

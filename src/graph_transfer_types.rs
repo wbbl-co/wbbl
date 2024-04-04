@@ -14,6 +14,7 @@ use crate::{
     graph_types::{
         Edge, Graph, InputPort, InputPortId, Node, NodeType, OutputPort, OutputPortId, PortId,
     },
+    wbbl_webapp_graph_store::WbblWebappGraphStoreError,
 };
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
@@ -570,16 +571,18 @@ impl WbblWebappGraphSnapshot {
             n.id = new_id;
             new_node_ids.insert(old_id, new_id);
         }
+        self.edges = self
+            .edges
+            .iter()
+            .filter(|x| {
+                new_node_ids.contains_key(&x.source) && new_node_ids.contains_key(&x.target)
+            })
+            .map(|x| x.clone())
+            .collect();
         for e in self.edges.iter_mut() {
             e.id = uuid::Uuid::new_v4().as_u128();
-            e.source = new_node_ids
-                .get(&e.source)
-                .map(|s| *s)
-                .unwrap_or_else(|| uuid::Uuid::new_v4().as_u128());
-            e.target = new_node_ids
-                .get(&e.target)
-                .map(|t| *t)
-                .unwrap_or_else(|| uuid::Uuid::new_v4().as_u128());
+            e.source = new_node_ids.get(&e.source).map(|s| *s).unwrap();
+            e.target = new_node_ids.get(&e.target).map(|t| *t).unwrap();
         }
         self.id = uuid::Uuid::new_v4().as_u128();
     }

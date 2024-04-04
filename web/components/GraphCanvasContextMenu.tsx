@@ -1,10 +1,9 @@
 import { ContextMenu } from "@radix-ui/themes";
-import { PropsWithChildren, ClipboardEventHandler } from "react";
+import { PropsWithChildren, useMemo } from "react";
 
 export default function GraphCanvasContextMenu(props: PropsWithChildren<{}>) {
-  return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger>{props.children}</ContextMenu.Trigger>
+  const contextMenuContent = useMemo(() => {
+    return (
       <ContextMenu.Content>
         <ContextMenu.Item shortcut="⌘ E">Edit</ContextMenu.Item>
         <ContextMenu.Item shortcut="⌘ D">Duplicate</ContextMenu.Item>
@@ -27,6 +26,14 @@ export default function GraphCanvasContextMenu(props: PropsWithChildren<{}>) {
           Delete
         </ContextMenu.Item>
       </ContextMenu.Content>
+    );
+  }, []);
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger>{props.children}</ContextMenu.Trigger>
+      {contextMenuContent}
     </ContextMenu.Root>
   );
 }
+
+GraphCanvasContextMenu;

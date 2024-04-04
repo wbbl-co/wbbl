@@ -7,11 +7,17 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/solid";
 import { ContextMenu } from "@radix-ui/themes";
-import { PropsWithChildren, useCallback, useContext } from "react";
+import {
+  PropsWithChildren,
+  memo,
+  useCallback,
+  useContext,
+  useMemo,
+} from "react";
 import { WbblGraphStoreContext } from "../hooks/use-wbbl-graph-store";
 import { nodeMetaData } from "./node_types";
 
-export function NodeContextMenu(
+function NodeContextMenu(
   props: PropsWithChildren<{
     id: string;
     type: string;
@@ -27,9 +33,9 @@ export function NodeContextMenu(
   const deleteNode = useCallback(() => {
     graphStore.remove_node(props.id);
   }, [graphStore, props.id]);
-  return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger>{props.children}</ContextMenu.Trigger>
+
+  const contextMenuContent = useMemo(() => {
+    return (
       <ContextMenu.Content
         className={`node-context-menu-content category-${nodeMetaData[props.type as keyof typeof nodeMetaData].category}`}
       >
@@ -72,6 +78,27 @@ export function NodeContextMenu(
           </>
         )}
       </ContextMenu.Content>
-    </ContextMenu.Root>
+    );
+  }, [
+    deleteNode,
+    linkToPreview,
+    props.deleteable,
+    props.copyable,
+    props.previewable,
+    props.type,
+  ]);
+
+  const nodeMenu = useMemo(
+    () => (
+      <ContextMenu.Root>
+        <ContextMenu.Trigger>{props.children}</ContextMenu.Trigger>
+        {contextMenuContent}
+      </ContextMenu.Root>
+    ),
+    [props.children, contextMenuContent],
   );
+
+  return nodeMenu;
 }
+
+export default memo(NodeContextMenu);

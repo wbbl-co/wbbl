@@ -14,6 +14,7 @@ import {
   useReactFlow,
   OnSelectionChangeFunc,
   OnBeforeDelete,
+  useViewport,
 } from "@xyflow/react";
 import React, {
   useContext,
@@ -50,6 +51,12 @@ const edgeTypes = {
   default: WbbleEdge,
 };
 
+function getMinimapNodeClassnames(node: Node) {
+  const category =
+    nodeMetaData[node.type as keyof typeof nodeMetaData].category;
+  return `minimap-node category-${category}`;
+}
+
 function Graph() {
   const graphStore = useContext(WbblGraphStoreContext);
   const snapshot = useWbblGraphData(graphStore);
@@ -63,6 +70,7 @@ function Graph() {
   }>(null);
   const [nodeMenuOpen, setNodeMenuOpen] = useState<boolean>(false);
   const flow = useReactFlow();
+  const viewport = useViewport();
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -228,10 +236,13 @@ function Graph() {
     [graphStore],
   );
 
-  const onEdgeUpdateStart = useCallback((_: unknown, edge: Edge) => {
-    edgeUpdateSuccessful.current = false;
-    graphStore.remove_edge(edge.id);
-  }, []);
+  const onEdgeUpdateStart = useCallback(
+    (_: unknown, edge: Edge) => {
+      edgeUpdateSuccessful.current = false;
+      graphStore.remove_edge(edge.id);
+    },
+    [graphStore],
+  );
 
   const onEdgeUpdateEnd = useCallback(
     (_: unknown, edge: Edge) => {
@@ -272,15 +283,9 @@ function Graph() {
   const [edgeRendererRef, setEdgeRenderRef] = useState<SVGSVGElement | null>(
     null,
   );
+
   const connectingHandlers = useOnEdgeDragUpdater(graphStore, onConnectEnd);
-  const getMinimapNodeClassnames = useCallback(
-    (node: Node) => {
-      const category =
-        nodeMetaData[node.type as keyof typeof nodeMetaData].category;
-      return `minimap-node category-${category}`;
-    },
-    [nodeMetaData],
-  );
+
   const { width, height } = useScreenDimensions();
   const mousePos = useRef([0, 0] as [number, number]);
   const onMouseMove = useCallback(
@@ -331,6 +336,46 @@ function Graph() {
     [graphStore],
   );
 
+  const reactFlowContents = useMemo(() => {
+    return (
+      <>
+        <Background variant={BackgroundVariant.Dots} />
+        <Controls />
+        <svg
+          id="edge-end-renderer"
+          style={{
+            width: width,
+            overflow: "visible",
+            height: height,
+            zIndex: 4,
+            pointerEvents: "none",
+            position: "absolute",
+            left: 0,
+            top: 0,
+            transformOrigin: "0 0",
+            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+          }}
+          ref={setEdgeRenderRef}
+        ></svg>
+        <MiniMap pannable zoomable nodeClassName={getMinimapNodeClassnames} />
+        <NodeMenu
+          open={nodeMenuOpen}
+          onClose={setNodeMenuOpen}
+          position={nodeMenuPosition}
+          addNode={addNode}
+        />
+      </>
+    );
+  }, [
+    nodeMenuOpen,
+    setNodeMenuOpen,
+    addNode,
+    setEdgeRenderRef,
+    viewport.x,
+    viewport.y,
+    viewport.zoom,
+  ]);
+
   return (
     <WbblSnapshotContext.Provider value={snapshot}>
       <WbblEdgeEndContext.Provider value={edgeRendererRef}>
@@ -354,7 +399,7 @@ function Graph() {
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
             onBeforeDelete={onBeforeDelete}
-            multiSelectionKeyCode={["Shift", "Alt"]}
+            multiSelectionKeyCode={useMemo(() => ["Shift", "Alt"], [])}
             onSelectionStart={connectingHandlers.onSelectStart}
             onSelectionEnd={connectingHandlers.onSelectEnd}
             onSelectionChange={onSelectionChange}
@@ -369,36 +414,10 @@ function Graph() {
             )}
             onPointerUp={connectingHandlers.onPointerMove}
             selectionMode={SelectionMode.Partial}
-            proOptions={{ hideAttribution: true }}
+            proOptions={useMemo(() => ({ hideAttribution: true }), [])}
             fitView
           >
-            <Background variant={BackgroundVariant.Dots} />
-            <Controls />
-            <svg
-              id="edge-end-renderer"
-              viewBox={`0 0 ${width} ${height}`}
-              style={{
-                width: width,
-                height: height,
-                zIndex: 4,
-                pointerEvents: "none",
-                position: "absolute",
-                left: 0,
-                top: 0,
-              }}
-              ref={setEdgeRenderRef}
-            ></svg>
-            <MiniMap
-              pannable
-              zoomable
-              nodeClassName={getMinimapNodeClassnames}
-            />
-            <NodeMenu
-              open={nodeMenuOpen}
-              onClose={setNodeMenuOpen}
-              position={nodeMenuPosition}
-              addNode={addNode}
-            />
+            {reactFlowContents}
           </ReactFlow>
         </GraphCanvasContextMenu>
       </WbblEdgeEndContext.Provider>

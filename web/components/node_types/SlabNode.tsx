@@ -14,9 +14,7 @@ function SlabNode(props: NodeProps) {
       w={200}
       h={200}
       {...props}
-    >
-      <div></div>
-    </WbblNode>
+    />
   );
 }
 

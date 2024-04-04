@@ -40,49 +40,76 @@ function TargetPort(props: TargetPortProps) {
       !!portType &&
       WbblWebappGraphStore.are_port_types_compatible(portType, handlePortType);
     return result;
-  }, [connections, portType, handlePortType]);
+  }, [connections.length, portType, handlePortType]);
 
-  return (
-    <>
-      <Handle
-        type="target"
-        key="handle"
-        id={props.id}
-        position={Position.Left}
-        style={{
-          width: PORT_SIZE - 4,
-          height: PORT_SIZE - 4,
-          borderWidth: 2,
-          left: PORT_SIZE,
-          top: props.top,
-          background: "transparent",
-          position: "absolute",
-          transitionDuration: "300ms",
-          transitionProperty: "stroke",
-        }}
-        isConnectableStart={false}
-        className={`${getStyleForType(portType)} ${isHandleConnectable ? "glow" : " "}`}
-        isConnectable={isHandleConnectable}
-      />
-      {props.label && (
+  const handleClassName = useMemo(
+    () => `${getStyleForType(portType)} ${isHandleConnectable ? "glow" : " "}`,
+    [isHandleConnectable, portType],
+  );
+
+  const handleStyle = useMemo(
+    () => ({
+      width: PORT_SIZE - 4,
+      height: PORT_SIZE - 4,
+      borderWidth: 2,
+      left: PORT_SIZE,
+      top: props.top,
+      background: "transparent",
+      position: "absolute" as const,
+      transitionDuration: "300ms",
+      transitionProperty: "stroke",
+    }),
+    [props.top],
+  );
+
+  const textStyle = useMemo(
+    () => ({
+      top: `calc(${props.top}px - 0.8em)`,
+      left: 1.8 * PORT_SIZE,
+      position: "absolute" as "absolute",
+      textAlign: "left" as "left",
+      fontSize: "0.8em",
+      fontFamily: "var(--code-font-family)",
+      fontStyle: "italic",
+    }),
+    [props.top],
+  );
+
+  const text = useMemo(() => {
+    return (
+      props.label && (
         <Text
           className="port-label"
           key="label"
           as="label"
           htmlFor={props.id}
-          style={{
-            top: `calc(${props.top}px - 0.8em)`,
-            left: 1.8 * PORT_SIZE,
-            position: "absolute",
-            textAlign: "left",
-            fontSize: "0.8em",
-            fontFamily: "var(--code-font-family)",
-            fontStyle: "italic",
-          }}
+          style={textStyle}
         >
           {props.label}
         </Text>
-      )}
+      )
+    );
+  }, [textStyle, props.label]);
+
+  const handleElement = useMemo(() => {
+    return (
+      <Handle
+        type="target"
+        key="handle"
+        id={props.id}
+        position={Position.Left}
+        style={handleStyle}
+        isConnectableStart={false}
+        className={handleClassName}
+        isConnectable={isHandleConnectable}
+      />
+    );
+  }, [props.id, handleStyle, handleClassName, isHandleConnectable]);
+
+  return (
+    <>
+      {handleElement}
+      {text}
     </>
   );
 }

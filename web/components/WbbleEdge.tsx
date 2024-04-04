@@ -12,7 +12,11 @@ import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
 import { HALF_PORT_SIZE } from "../port-constants";
-import { setConnectionPath } from "../utils/set-connection-path";
+import {
+  defaultConnectionPathProvider,
+  setConnectionPath,
+} from "../utils/set-connection-path";
+import useIsWbblEffectEnabled from "../hooks/use-is-wbble-effect-enabled";
 
 export default function WbbleEdge({
   id,
@@ -27,7 +31,6 @@ export default function WbbleEdge({
   selected,
 }: EdgeProps) {
   const flow = useReactFlow();
-  const viewport = useViewport();
   const sourceType = usePortTypeWithNodeId(
     source,
     sourceHandleId as `${"s" | "t"}#${number}`,
@@ -64,12 +67,17 @@ export default function WbbleEdge({
     [],
   );
 
-  const [edgePath] = getStraightPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-  });
+  const isWbblEffectEnabled = useIsWbblEffectEnabled();
+
+  const pathElement = useMemo(() => {
+    const [path] = getStraightPath({
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+    });
+    return <BaseEdge path={path} interactionWidth={25} />;
+  }, [sourceX, sourceY, targetX, targetY]);
 
   const startMarker = useRef<SVGCircleElement>(null);
   const endMarker = useRef<SVGCircleElement>(null);
@@ -127,87 +135,102 @@ export default function WbbleEdge({
         };
 
         if (startMarker.current && endMarker.current) {
-          startMarker.current.style.transform = `translate(${rectStart.x}px,${rectStart.y}px)`;
-          endMarker.current.style.transform = `translate(${rectEnd.x}px,${rectEnd.y}px)`;
+          startMarker.current.style.transform = `translate(${startPos.x}px,${startPos.y}px)`;
+          endMarker.current.style.transform = `translate(${endPos.x}px,${endPos.y}px)`;
         }
-        rope.update(
-          new Float32Array([startPos.x, startPos.y]),
-          new Float32Array([endPos.x, endPos.y]),
-          delta,
-        );
-        if (ropePath.current) {
-          const angle = Math.atan2(
-            endPos.y - startPos.y,
-            endPos.x - startPos.x,
+        lastUpdate.current = time;
+        const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
+        const cosAngle = Math.cos(angle);
+        const sinAngle = Math.sin(angle);
+        const factorX = -sinAngle;
+        const factorY = cosAngle;
+        if (isWbblEffectEnabled) {
+          rope.update(
+            new Float32Array([startPos.x, startPos.y]),
+            new Float32Array([endPos.x, endPos.y]),
+            delta,
           );
-          const cosAngle = Math.cos(angle);
-          const sinAngle = Math.sin(angle);
-          const factorX = -sinAngle;
-          const factorY = cosAngle;
+          if (ropePath.current) {
+            setConnectionPath(
+              ropePath.current,
+              edgeClassName,
+              (...args) => rope.get_path(...args),
+              factorX,
+              factorY,
+            );
+          }
+          animationFrame = requestAnimationFrame(update);
+        } else if (ropePath.current) {
           setConnectionPath(
             ropePath.current,
-            viewport,
             edgeClassName,
-            rope,
+            defaultConnectionPathProvider(startPos, endPos),
             factorX,
             factorY,
           );
         }
       }
-      lastUpdate.current = time;
-      animationFrame = requestAnimationFrame(update);
     }
+
+    lastUpdate.current = Date.now();
     update(lastUpdate.current);
     return () => cancelAnimationFrame(animationFrame);
   }, [
+    flow,
     rope,
     ropePath,
     lastUpdate,
     handleStart,
     handleEnd,
-    flow,
     startMarker,
-    endMarker,
-    viewport.x,
-    viewport.y,
-    viewport.zoom,
     edgeClassName,
+    isWbblEffectEnabled,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
   ]);
+
+  const visibleEdges = useMemo(() => {
+    return (
+      edgeEnd != null &&
+      createPortal(
+        <>
+          <path
+            ref={ropePath}
+            style={{ fill: "none" }}
+            className={`rope-path ${selected ? "selected" : ""} ${edgeClassName}`}
+          />
+          <circle
+            ref={startMarker}
+            key="start-marker"
+            className={`start-marker ${selected ? "selected" : ""} ${edgeClassName}`}
+            cx={0}
+            cy={0}
+            r={HALF_PORT_SIZE}
+          />
+          <circle
+            ref={endMarker}
+            key="end-marker"
+            className={`end-marker ${selected ? "selected" : ""} ${edgeClassName}`}
+            cx={0}
+            cy={0}
+            r={HALF_PORT_SIZE}
+            style={{
+              filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+            }}
+          />
+        </>,
+        edgeEnd,
+        `edge-marker-${id}`,
+      )
+    );
+  }, [edgeEnd, selected, edgeClassName, id, ropePath, startMarker, endMarker]);
 
   return (
     <>
-      {edgeEnd != null &&
-        createPortal(
-          <>
-            <path
-              ref={ropePath}
-              style={{ fill: "none" }}
-              className={`rope-path ${selected ? "selected" : ""} ${edgeClassName}`}
-            />
-            <circle
-              ref={startMarker}
-              key="start-marker"
-              className={`start-marker ${selected ? "selected" : ""} ${edgeClassName}`}
-              cx={HALF_PORT_SIZE * viewport.zoom}
-              cy={HALF_PORT_SIZE * viewport.zoom}
-              r={HALF_PORT_SIZE * viewport.zoom}
-            />
-            <circle
-              ref={endMarker}
-              key="end-marker"
-              className={`end-marker ${selected ? "selected" : ""} ${edgeClassName}`}
-              cx={HALF_PORT_SIZE * viewport.zoom}
-              cy={HALF_PORT_SIZE * viewport.zoom}
-              r={HALF_PORT_SIZE * viewport.zoom}
-              style={{
-                filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
-              }}
-            />
-          </>,
-          edgeEnd,
-          `edge-marker-${id}`,
-        )}
-      <BaseEdge path={edgePath} interactionWidth={25}></BaseEdge>
+      {visibleEdges}
+      {pathElement}
     </>
   );
 }

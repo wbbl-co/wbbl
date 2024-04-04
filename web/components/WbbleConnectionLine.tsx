@@ -1,23 +1,21 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ConnectionLineComponentProps,
-  useReactFlow,
-  useViewport,
-} from "@xyflow/react";
+import { ConnectionLineComponentProps } from "@xyflow/react";
 import { WbblRope } from "../../pkg/wbbl";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
 import { HALF_PORT_SIZE } from "../port-constants";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import { createPortal } from "react-dom";
-import { setConnectionPath } from "../utils/set-connection-path";
+import {
+  defaultConnectionPathProvider,
+  setConnectionPath,
+} from "../utils/set-connection-path";
+import useIsWbblEffectEnabled from "../hooks/use-is-wbble-effect-enabled";
 
 export default function WbblConnectionLine(
   props: ConnectionLineComponentProps,
 ) {
   const edgeEnd = useContext(WbblEdgeEndContext);
-  const viewport = useViewport();
-  const flow = useReactFlow();
 
   const startMarker = useRef<SVGCircleElement>(null);
   const endMarker = useRef<SVGCircleElement>(null);
@@ -40,7 +38,7 @@ export default function WbblConnectionLine(
       new Float32Array([props.toX, props.toY]),
     ),
   );
-
+  const isWbblEffectEnabled = useIsWbblEffectEnabled();
   const lastUpdate = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -51,45 +49,53 @@ export default function WbblConnectionLine(
         Math.max(0.0, (time - lastUpdate.current) / 1000.0),
       );
       if (startMarker.current && endMarker.current) {
-        let startPos = flow.flowToScreenPosition({
-          x: props.fromX,
-          y: props.fromY,
-        });
-        let endPos = flow.flowToScreenPosition({ x: props.toX, y: props.toY });
-        startMarker.current.style.transform = `translate(${startPos.x}px,${startPos.y}px)`;
-        endMarker.current.style.transform = `translate(${endPos.x}px,${endPos.y}px)`;
+        startMarker.current.style.transform = `translate(${props.fromX}px,${props.fromY}px)`;
+        endMarker.current.style.transform = `translate(${props.toX}px,${props.toY}px)`;
       }
-
-      rope.update(
-        new Float32Array([props.fromX, props.fromY]),
-        new Float32Array([props.toX, props.toY]),
-        delta,
+      const angle = Math.atan2(
+        props.toY - props.fromY,
+        props.toX - props.fromX,
       );
+      const cosAngle = Math.cos(angle);
+      const sinAngle = Math.sin(angle);
+      const factorX = -sinAngle;
+      const factorY = cosAngle;
 
-      if (pathRef.current) {
-        const angle = Math.atan2(
-          props.toY - props.fromY,
-          props.toX - props.fromX,
+      if (isWbblEffectEnabled) {
+        rope.update(
+          new Float32Array([props.fromX, props.fromY]),
+          new Float32Array([props.toX, props.toY]),
+          delta,
         );
-        const cosAngle = Math.cos(angle);
-        const sinAngle = Math.sin(angle);
-        const factorX = -sinAngle;
-        const factorY = cosAngle;
+
+        if (pathRef.current) {
+          setConnectionPath(
+            pathRef.current,
+            connectionLineClassName,
+            (...args) => rope.get_path(...args),
+            factorX,
+            factorY,
+          );
+          lastUpdate.current = time;
+          animationFrame = requestAnimationFrame(update);
+        }
+      } else if (pathRef.current) {
         setConnectionPath(
           pathRef.current,
-          viewport,
           connectionLineClassName,
-          rope,
+          defaultConnectionPathProvider(
+            { x: props.fromX, y: props.fromY },
+            { x: props.toX, y: props.toY },
+          ),
           factorX,
           factorY,
         );
-        lastUpdate.current = time;
-        animationFrame = requestAnimationFrame(update);
       }
     }
     update(lastUpdate.current);
     return () => cancelAnimationFrame(animationFrame);
   }, [
+    isWbblEffectEnabled,
     rope,
     props.fromX,
     props.fromY,
@@ -98,8 +104,7 @@ export default function WbblConnectionLine(
     lastUpdate,
     pathRef,
     connectionLineClassName,
-    viewport,
-    flow,
+    isWbblEffectEnabled,
   ]);
 
   return (
@@ -121,7 +126,7 @@ export default function WbblConnectionLine(
             cx={0}
             cy={0}
             ref={startMarker}
-            r={HALF_PORT_SIZE * viewport.zoom}
+            r={HALF_PORT_SIZE}
           />
           <circle
             className={`connection end-marker ${connectionLineClassName}`}
@@ -131,7 +136,7 @@ export default function WbblConnectionLine(
             ref={endMarker}
             cx={0}
             cy={0}
-            r={HALF_PORT_SIZE * viewport.zoom}
+            r={HALF_PORT_SIZE}
           />
         </>,
         edgeEnd!,

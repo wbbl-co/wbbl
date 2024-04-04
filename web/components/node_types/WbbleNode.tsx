@@ -6,15 +6,17 @@ import {
   useEffect,
   useRef,
   useState,
+  useMemo,
 } from "react";
 import { WbblBox } from "../../../pkg/wbbl";
 import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
 import { nodeMetaData } from ".";
-import { NodeContextMenu } from "../NodeContextMenu";
+import NodeContextMenu from "../NodeContextMenu";
 import { Card, Heading, Flex } from "@radix-ui/themes";
 import { Box } from "@radix-ui/themes/dist/cjs/index.js";
+import useIsWbblEffectEnabled from "../../hooks/use-is-wbble-effect-enabled";
 
 function WbblNode({
   id,
@@ -36,11 +38,12 @@ function WbblNode({
   outputPortLabels: (null | string)[];
   w: number;
   h: number;
-  children: ReactElement;
+  children?: ReactElement;
   previewable: boolean;
   deleteable: boolean;
   copyable: boolean;
 }) {
+  const isWbblEffectEnabled = useIsWbblEffectEnabled();
   const [box] = useState(() =>
     WbblBox.new(
       new Float32Array([positionAbsoluteX + h / 2, positionAbsoluteY + h / 2]),
@@ -61,25 +64,28 @@ function WbblNode({
         0.25,
         Math.max(0.0, (time - lastUpdate.current) / 1000.0),
       );
-      box.update(
-        new Float32Array([positionAbsoluteX, positionAbsoluteY]),
-        new Float32Array([w, h]),
-        delta,
-        dragging
-          ? new Float32Array([
-              positionAbsoluteX + dragOrigin[0],
-              positionAbsoluteY + dragOrigin[1],
-            ])
-          : undefined,
-      );
+      if (isWbblEffectEnabled) {
+        box.update(
+          new Float32Array([positionAbsoluteX, positionAbsoluteY]),
+          new Float32Array([w, h]),
+          delta,
+          dragging
+            ? new Float32Array([
+                positionAbsoluteX + dragOrigin[0],
+                positionAbsoluteY + dragOrigin[1],
+              ])
+            : undefined,
+        );
+        if (contentsRef.current) {
+          let skew = box.get_skew(new Float32Array([w, h]));
+          contentsRef.current.style.transform = skew;
+        }
 
-      if (contentsRef.current) {
-        let skew = box.get_skew(new Float32Array([w, h]));
-        contentsRef.current.style.transform = skew;
+        lastUpdate.current = time;
+        animationFrame = requestAnimationFrame(update);
+      } else if (contentsRef.current) {
+        contentsRef.current.style.transform = "";
       }
-
-      lastUpdate.current = time;
-      animationFrame = requestAnimationFrame(update);
     }
     update(lastUpdate.current);
     return () => cancelAnimationFrame(animationFrame);
@@ -94,6 +100,7 @@ function WbblNode({
     h,
     type,
     dragOrigin,
+    isWbblEffectEnabled,
   ]);
 
   const onDrag = useCallback(
@@ -104,14 +111,34 @@ function WbblNode({
     [setDragOrigin],
   );
 
-  return (
-    <NodeContextMenu
-      previewable={previewable}
-      deleteable={deleteable}
-      copyable={copyable}
-      id={id}
-      type={type}
-    >
+  const outputPorts = useMemo(
+    () =>
+      outputPortLabels.map((x: string | null, idx: number) => (
+        <SourcePort
+          top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 35}
+          id={`s#${idx}`}
+          label={x ?? undefined}
+          key={idx}
+        />
+      )),
+    [outputPortLabels],
+  );
+
+  const inputPorts = useMemo(
+    () =>
+      inputPortLabels.map((x: string | null, idx: number) => (
+        <TargetPort
+          top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 35}
+          id={`t#${idx}`}
+          label={x ?? undefined}
+          key={idx}
+        />
+      )),
+    [inputPortLabels],
+  );
+
+  const contents = useMemo(
+    () => (
       <Box
         style={{
           width: w,
@@ -143,24 +170,23 @@ function WbblNode({
           <Flex justify={"center"} align={"center"}>
             {children}
           </Flex>
-          {inputPortLabels.map((x: string | null, idx: number) => (
-            <TargetPort
-              top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 35}
-              id={`t#${idx}`}
-              label={x ?? undefined}
-              key={idx}
-            />
-          ))}
-          {outputPortLabels.map((x: string | null, idx: number) => (
-            <SourcePort
-              top={idx * (PORT_SIZE + HALF_PORT_SIZE) + 35}
-              id={`s#${idx}`}
-              label={x ?? undefined}
-              key={idx}
-            />
-          ))}
+          {inputPorts}
+          {outputPorts}
         </Card>
       </Box>
+    ),
+    [onDrag, selected, outputPorts, inputPorts, children, type, contentsRef],
+  );
+
+  return (
+    <NodeContextMenu
+      previewable={previewable}
+      deleteable={deleteable}
+      copyable={copyable}
+      id={id}
+      type={type}
+    >
+      {contents}
     </NodeContextMenu>
   );
 }

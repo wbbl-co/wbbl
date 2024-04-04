@@ -14,9 +14,7 @@ function BuiltInNode(props: NodeProps) {
       w={150}
       h={100}
       {...props}
-    >
-      <div />
-    </WbblNode>
+    />
   );
 }
 

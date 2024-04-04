@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, str::FromStr, sync::Arc};
 
+use glam::Vec2;
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
 use yrs::{block::Prelim, types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut, Value};
@@ -47,24 +48,24 @@ pub struct NewWbblWebappNode {
     data: HashMap<String, Any>,
 }
 
-impl NewWbblWebappNode {
-    fn encode_data(
-        &self,
-        transaction: &mut TransactionMut,
-        node_ref: &mut yrs::MapRef,
-    ) -> Result<HashMap<String, Any>, WbblWebappGraphStoreError> {
-        let mut map: HashMap<String, yrs::Any> = HashMap::new();
-        for (key, value) in self.data.iter() {
-            // Probably not that fast, but whatever
-            let yrs_value = value.to_yrs();
-            map.insert(key.to_owned(), yrs_value);
-        }
-        let prelim_map = MapPrelim::from(map.clone());
-        node_ref.insert(transaction, "data", prelim_map);
-
-        Ok(map.iter().map(|(k, v)| (k.clone(), v.into())).collect())
+fn encode_data(
+    data: &HashMap<String, Any>,
+    transaction: &mut TransactionMut,
+    node_ref: &mut yrs::MapRef,
+) -> Result<HashMap<String, Any>, WbblWebappGraphStoreError> {
+    let mut map: HashMap<String, yrs::Any> = HashMap::new();
+    for (key, value) in data.iter() {
+        // Probably not that fast, but whatever
+        let yrs_value = value.to_yrs();
+        map.insert(key.to_owned(), yrs_value);
     }
+    let prelim_map = MapPrelim::from(map.clone());
+    node_ref.insert(transaction, "data", prelim_map);
 
+    Ok(map.iter().map(|(k, v)| (k.clone(), v.into())).collect())
+}
+
+impl NewWbblWebappNode {
     pub(crate) fn encode(
         &self,
         transaction: &mut TransactionMut,
@@ -86,7 +87,7 @@ impl NewWbblWebappNode {
             node_ref.insert(transaction, "in_edges", prelim_in_edges);
             let prelim_out_edges: MapPrelim<yrs::Any> = yrs::MapPrelim::new();
             node_ref.insert(transaction, "out_edges", prelim_out_edges);
-            self.encode_data(transaction, &mut node_ref)
+            encode_data(&self.data, transaction, &mut node_ref)
         }?;
 
         Ok(WbblWebappNode {
@@ -302,6 +303,30 @@ impl WbblWebappNode {
             deletable: node_type != WbblWebappNodeType::Output,
         })
     }
+
+    pub(crate) fn encode(
+        &self,
+        transaction: &mut TransactionMut,
+        nodes: &mut yrs::MapRef,
+    ) -> Result<(), WbblWebappGraphStoreError> {
+        let prelim_map: yrs::MapPrelim<yrs::Any> = yrs::MapPrelim::new();
+        let mut node_ref = nodes.insert(
+            transaction,
+            uuid::Uuid::from_u128(self.id).to_string(),
+            prelim_map,
+        );
+        node_ref.insert(transaction, "type", get_type_name(self.node_type));
+        node_ref.insert(transaction, "x", self.position.x);
+        node_ref.insert(transaction, "y", self.position.y);
+        node_ref.insert(transaction, "dragging", false);
+        node_ref.insert(transaction, "resizing", false);
+        let prelim_in_edges: MapPrelim<yrs::Any> = yrs::MapPrelim::new();
+        node_ref.insert(transaction, "in_edges", prelim_in_edges);
+        let prelim_out_edges: MapPrelim<yrs::Any> = yrs::MapPrelim::new();
+        node_ref.insert(transaction, "out_edges", prelim_out_edges);
+        encode_data(&self.data, transaction, &mut node_ref)?;
+        Ok(())
+    }
 }
 
 impl WbblWebappEdge {
@@ -407,6 +432,8 @@ pub enum WbblWebappGraphStoreError {
     NotFound,
     MalformedId,
     ClipboardFailure,
+    ClipboardNotFound,
+    ClipboardContentsFailure,
 }
 
 #[wasm_bindgen]
@@ -952,6 +979,29 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
+    fn integrate_snapshot(
+        &mut self,
+        position: Option<Vec2>,
+        snapshot: &mut WbblWebappGraphSnapshot,
+    ) -> Result<(), WbblWebappGraphStoreError> {
+        {
+            let mut mut_transaction = self.graph.transact_mut();
+            snapshot.reassign_ids();
+            snapshot.filter_out_output_ports();
+            if let Some(position) = position {
+                snapshot.recenter(&position);
+            }
+            for node in snapshot.nodes.iter() {
+                node.encode(&mut mut_transaction, &mut self.nodes)?;
+            }
+            for edge in snapshot.edges.iter() {
+                edge.encode(&mut mut_transaction, &mut self.edges, &mut self.nodes)?;
+            }
+        }
+        self.emit(true)?;
+        Ok(())
+    }
+
     #[cfg(web_sys_unstable_apis)]
     pub async fn paste(
         &mut self,
@@ -967,11 +1017,13 @@ impl WbblWebappGraphStore {
                 .await
                 .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
             let str: String = value.dyn_into::<JsString>().unwrap().into();
-            log!("{}", &str);
-            let result = from_dot(&str);
-            log!("{:?}", result);
+            let mut snapshot =
+                from_dot(&str).map_err(|_| WbblWebappGraphStoreError::ClipboardContentsFailure)?;
+            let position = Vec2::from_slice(cursor_position);
+            self.integrate_snapshot(Some(position), &mut snapshot)?;
+            return Ok(());
         };
-        Ok(())
+        Err(WbblWebappGraphStoreError::ClipboardNotFound)
     }
 
     pub fn set_edge_selection(

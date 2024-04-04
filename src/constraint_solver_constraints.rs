@@ -6,8 +6,10 @@ use crate::constraint_solver_constraints::ConstraintApplicationResult::{
 };
 use crate::data_types::{CompositeSize, Dimensionality};
 use crate::graph_types::PortId;
-use std::collections::{HashMap, HashSet, LinkedList};
+use im::HashMap;
+use std::collections::{HashSet, LinkedList};
 use std::hash::Hash;
+use std::rc::Rc;
 
 pub enum ConstraintApplicationResult {
     Dirty(LinkedList<PortId>),
@@ -32,7 +34,7 @@ pub trait PortConstraint {
     fn apply<Value: Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking>(
         &self,
         assignments: &mut HashMap<PortId, Value>,
-        domains: &mut HashMap<PortId, Vec<Value>>,
+        domains: &mut HashMap<PortId, Rc<Vec<Value>>>,
     ) -> ConstraintApplicationResult;
 }
 
@@ -47,7 +49,7 @@ impl Constraint {
     pub fn apply<Value: Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking>(
         &self,
         assignments: &mut HashMap<PortId, Value>,
-        domains: &mut HashMap<PortId, Vec<Value>>,
+        domains: &mut HashMap<PortId, Rc<Vec<Value>>>,
     ) -> ConstraintApplicationResult {
         match self {
             SameDimensionality(sd) => sd.apply(assignments, domains),
@@ -78,7 +80,7 @@ impl PortConstraint for SameTypesConstraint {
     fn apply<Value: Copy + Hash + Eq + HasRanking>(
         &self,
         assignments: &mut HashMap<PortId, Value>,
-        domains: &mut HashMap<PortId, Vec<Value>>,
+        domains: &mut HashMap<PortId, Rc<Vec<Value>>>,
     ) -> ConstraintApplicationResult {
         let this_assignments: Vec<Value> = self
             .get_affected_ports()
@@ -94,7 +96,7 @@ impl PortConstraint for SameTypesConstraint {
                     Contradiction
                 } else {
                     for p in self.get_affected_ports() {
-                        let empty_vec: Vec<Value> = Vec::new();
+                        let empty_vec: Rc<Vec<Value>> = Rc::new(Vec::new());
                         let domain = domains.get(&p).unwrap_or(&empty_vec);
                         if !(domain.contains(t)) {
                             return Contradiction;
@@ -102,7 +104,7 @@ impl PortConstraint for SameTypesConstraint {
                         if assignments.get(&p) != Some(t) {
                             changed.push_back(p.clone());
                             assignments.insert(p.clone(), *t);
-                            domains.insert(p.clone(), vec![*t]);
+                            domains.insert(p.clone(), Rc::new(vec![*t]));
                         }
                     }
                     if !changed.is_empty() {
@@ -126,6 +128,8 @@ impl PortConstraint for SameTypesConstraint {
                     .unwrap_or(empty_set)
                     .into_iter()
                     .collect();
+                common_domains.sort_by(|a, b| a.get_rank().cmp(&b.get_rank()));
+                let common_domains = Rc::new(common_domains);
                 if common_domains.is_empty() {
                     return Contradiction;
                 }
@@ -138,7 +142,6 @@ impl PortConstraint for SameTypesConstraint {
                         changed.push_back(p.clone());
                     }
                 } else {
-                    common_domains.sort_by(|a, b| a.get_rank().cmp(&b.get_rank()));
                     for p in self.get_affected_ports() {
                         if common_domain_count != domains.get(&p).unwrap().len() {
                             domains.insert(p.clone(), common_domains.clone());
@@ -168,7 +171,7 @@ impl PortConstraint for SameDimensionalityConstraint {
     fn apply<Value: Copy + Hash + Eq + HasDimensionality>(
         &self,
         assignments: &mut HashMap<PortId, Value>,
-        domains: &mut HashMap<PortId, Vec<Value>>,
+        domains: &mut HashMap<PortId, Rc<Vec<Value>>>,
     ) -> ConstraintApplicationResult {
         let assigned_dimensionalities: Vec<Dimensionality> = self
             .get_affected_ports()
@@ -176,7 +179,7 @@ impl PortConstraint for SameDimensionalityConstraint {
             .filter_map(|p| assignments.get(&p).and_then(|a| a.get_dimensionality()))
             .collect();
         let mut changed: LinkedList<PortId> = LinkedList::new();
-        let empty_vec: Vec<Value> = Vec::new();
+        let empty_vec: Rc<Vec<Value>> = Rc::new(Vec::new());
 
         match assigned_dimensionalities.iter().next() {
             Some(d) => {
@@ -185,11 +188,13 @@ impl PortConstraint for SameDimensionalityConstraint {
                 } else {
                     for p in self.get_affected_ports() {
                         let old_domains = domains.get(&p).unwrap_or(&empty_vec);
-                        let new_domains: Vec<Value> = old_domains
-                            .iter()
-                            .filter(|old| old.get_dimensionality() == Some(*d))
-                            .map(|d| *d)
-                            .collect();
+                        let new_domains: Rc<Vec<Value>> = Rc::new(
+                            old_domains
+                                .iter()
+                                .filter(|old| old.get_dimensionality() == Some(*d))
+                                .map(|d| *d)
+                                .collect(),
+                        );
                         let new_domains_count = new_domains.len();
 
                         if new_domains_count == 0 {
@@ -231,13 +236,15 @@ impl PortConstraint for SameDimensionalityConstraint {
                         .unwrap_or(empty_set);
                 for p in self.get_affected_ports() {
                     let old_domains = domains.get(&p).unwrap_or(&empty_vec);
-                    let new_domains: Vec<Value> = old_domains
-                        .iter()
-                        .filter(|old| {
-                            intersection_of_dimensionalities.contains(&old.get_dimensionality())
-                        })
-                        .map(|d| *d)
-                        .collect();
+                    let new_domains: Rc<Vec<Value>> = Rc::new(
+                        old_domains
+                            .iter()
+                            .filter(|old| {
+                                intersection_of_dimensionalities.contains(&old.get_dimensionality())
+                            })
+                            .map(|d| *d)
+                            .collect(),
+                    );
                     let new_domains_count = new_domains.iter().count();
 
                     if new_domains_count == 0 {
@@ -274,7 +281,7 @@ impl PortConstraint for SameCompositeSizeConstraint {
     fn apply<Value: Copy + Hash + Eq + HasCompositeSize>(
         &self,
         assignments: &mut HashMap<PortId, Value>,
-        domains: &mut HashMap<PortId, Vec<Value>>,
+        domains: &mut HashMap<PortId, Rc<Vec<Value>>>,
     ) -> ConstraintApplicationResult {
         let assigned_composite_sizes: Vec<CompositeSize> = self
             .get_affected_ports()
@@ -282,7 +289,7 @@ impl PortConstraint for SameCompositeSizeConstraint {
             .filter_map(|p| assignments.get(&p).and_then(|a| a.get_composite_size()))
             .collect();
         let mut changed: LinkedList<PortId> = LinkedList::new();
-        let empty_vec: Vec<Value> = Vec::new();
+        let empty_vec: Rc<Vec<Value>> = Rc::new(Vec::new());
 
         match assigned_composite_sizes.iter().next() {
             Some(d) => {
@@ -291,11 +298,13 @@ impl PortConstraint for SameCompositeSizeConstraint {
                 } else {
                     for p in self.get_affected_ports() {
                         let old_domains = domains.get(&p).unwrap_or(&empty_vec);
-                        let new_domains: Vec<Value> = old_domains
-                            .iter()
-                            .filter(|old| old.get_composite_size() == Some(*d))
-                            .map(|d| *d)
-                            .collect();
+                        let new_domains: Rc<Vec<Value>> = Rc::new(
+                            old_domains
+                                .iter()
+                                .filter(|old| old.get_composite_size() == Some(*d))
+                                .map(|d| *d)
+                                .collect(),
+                        );
                         let new_domains_count = new_domains.iter().count();
 
                         if new_domains_count == 0 {
@@ -337,13 +346,15 @@ impl PortConstraint for SameCompositeSizeConstraint {
                         .unwrap_or(empty_set);
                 for p in self.get_affected_ports() {
                     let old_domains = domains.get(&p).unwrap_or(&empty_vec);
-                    let new_domains: Vec<Value> = old_domains
-                        .iter()
-                        .filter(|old| {
-                            intersection_of_compoosite_sizes.contains(&old.get_composite_size())
-                        })
-                        .map(|d| *d)
-                        .collect();
+                    let new_domains: Rc<Vec<Value>> = Rc::new(
+                        old_domains
+                            .iter()
+                            .filter(|old| {
+                                intersection_of_compoosite_sizes.contains(&old.get_composite_size())
+                            })
+                            .map(|d| *d)
+                            .collect(),
+                    );
                     let new_domains_count = new_domains.len();
 
                     if new_domains_count == 0 {

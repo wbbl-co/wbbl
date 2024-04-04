@@ -21,8 +21,8 @@ async function run_in_worker() {
     } else {
       try {
         web_worker_main.handle_message(msg.data);
-      } catch {
-        console.error("error");
+      } catch (e) {
+        console.error("error", e);
       }
     }
   };

@@ -1,5 +1,11 @@
+use glam::Vec2;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-use std::{collections::HashMap, fmt::Display, str::FromStr, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    str::FromStr,
+    sync::Arc,
+};
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -551,6 +557,61 @@ impl From<WbblWebappGraphSnapshot> for Graph {
             input_ports,
             output_ports,
             constraints,
+        }
+    }
+}
+
+impl WbblWebappGraphSnapshot {
+    pub(crate) fn reassign_ids(&mut self) {
+        let mut new_node_ids: HashMap<u128, u128> = HashMap::new();
+        for n in self.nodes.iter_mut() {
+            let old_id = n.id;
+            let new_id = uuid::Uuid::new_v4().as_u128();
+            n.id = new_id;
+            new_node_ids.insert(old_id, new_id);
+        }
+        for e in self.edges.iter_mut() {
+            e.id = uuid::Uuid::new_v4().as_u128();
+            e.source = new_node_ids
+                .get(&e.source)
+                .map(|s| *s)
+                .unwrap_or_else(|| uuid::Uuid::new_v4().as_u128());
+            e.target = new_node_ids
+                .get(&e.target)
+                .map(|t| *t)
+                .unwrap_or_else(|| uuid::Uuid::new_v4().as_u128());
+        }
+        self.id = uuid::Uuid::new_v4().as_u128();
+    }
+
+    pub(crate) fn filter_out_output_ports(&mut self) {
+        let mut output_node_ids: HashSet<u128> = HashSet::new();
+        self.nodes.retain_mut(|n| {
+            if n.node_type == WbblWebappNodeType::Output {
+                output_node_ids.insert(n.id);
+                return false;
+            }
+            return true;
+        });
+        self.edges
+            .retain_mut(|e| !output_node_ids.contains(&e.target));
+    }
+
+    pub(crate) fn recenter(&mut self, position: &Vec2) {
+        let mut accumulated_position = Vec2::ZERO;
+        for node in self.nodes.iter() {
+            accumulated_position =
+                accumulated_position + Vec2::new(node.position.x as f32, node.position.y as f32);
+        }
+        let average_position = accumulated_position / (self.nodes.len() as f32);
+        let delta_position = position.clone() - average_position;
+        for node in self.nodes.iter_mut() {
+            let final_position =
+                Vec2::new(node.position.x as f32, node.position.y as f32) + delta_position;
+            node.position = WbblePosition {
+                x: final_position.x as f64,
+                y: final_position.y as f64,
+            };
         }
     }
 }

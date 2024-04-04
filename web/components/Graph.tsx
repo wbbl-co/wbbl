@@ -21,7 +21,6 @@ import React, {
   useCallback,
   useState,
   useMemo,
-  ClipboardEvent as ReactClipboardEvent,
   MouseEvent as ReactMouseEvent,
   useEffect,
 } from "react";
@@ -64,6 +63,7 @@ function Graph() {
   }>(null);
   const [nodeMenuOpen, setNodeMenuOpen] = useState<boolean>(false);
   const flow = useReactFlow();
+
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
   const setIsSelectingTrue = useCallback(
@@ -297,7 +297,13 @@ function Graph() {
     };
     let onPaste = (evt: ClipboardEvent) => {
       evt.preventDefault();
-      graphStore.paste(new Float32Array(mousePos.current)).catch(console.error);
+      const screenPos = flow.screenToFlowPosition(
+        { x: mousePos.current[0], y: mousePos.current[1] },
+        { snapToGrid: false },
+      );
+      graphStore
+        .paste(new Float32Array([screenPos.x, screenPos.y]))
+        .catch(console.error);
     };
     let onCut = (evt: ClipboardEvent) => {
       evt.preventDefault();
@@ -311,7 +317,7 @@ function Graph() {
       document.removeEventListener("paste", onPaste);
       document.removeEventListener("cut", onCut);
     };
-  }, [graphStore, mousePos]);
+  }, [graphStore, mousePos, flow]);
 
   const onBeforeDelete: OnBeforeDelete = useCallback(
     async ({ nodes, edges }) => {

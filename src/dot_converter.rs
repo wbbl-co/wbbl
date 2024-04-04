@@ -1,11 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
-use crate::{
-    graph_transfer_types::{
-        from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
-        WbblWebappNode, WbblWebappNodeType, WbblePosition,
-    },
-    log,
+use crate::graph_transfer_types::{
+    from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot, WbblWebappNode,
+    WbblWebappNodeType, WbblePosition,
 };
 
 use graphviz_rust::{

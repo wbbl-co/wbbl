@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::rc::Rc;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ConstraintSolverError {
@@ -16,8 +17,8 @@ pub enum ConstraintSolverError {
 
 fn propagate_constraints<Value>(
     start_port: PortId,
-    assignments: &mut HashMap<PortId, Value>,
-    domains: &mut HashMap<PortId, Vec<Value>>,
+    assignments: &mut im::HashMap<PortId, Value>,
+    domains: &mut im::HashMap<PortId, Rc<Vec<Value>>>,
     constraints: &HashMap<PortId, Vec<Constraint>>,
 ) -> Result<(), ConstraintSolverError>
 where
@@ -46,62 +47,65 @@ where
 }
 
 fn assign_types<Value: Debug>(
-    i: usize,
     topologically_ordered_ports: &Vec<PortId>,
-    assignments: &mut HashMap<PortId, Value>,
-    domains: &mut HashMap<PortId, Vec<Value>>,
+    domains: im::HashMap<PortId, Rc<Vec<Value>>>,
     constraints: &HashMap<PortId, Vec<Constraint>>,
-) -> Result<HashMap<PortId, Value>, ConstraintSolverError>
+) -> Result<im::HashMap<PortId, Value>, ConstraintSolverError>
 where
     Value: Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking,
 {
-    if i >= topologically_ordered_ports.len() {
-        return Ok(assignments.clone());
-    }
-    let current_port = topologically_ordered_ports[i].clone();
+    let mut assignments_stack: VecDeque<im::HashMap<PortId, Value>> =
+        VecDeque::from([im::HashMap::<PortId, Value>::new()]);
+    let mut domains_stack: VecDeque<im::HashMap<PortId, Rc<Vec<Value>>>> =
+        VecDeque::from([domains]);
 
-    let maybe_assignment = assignments.get(&current_port);
-    if maybe_assignment.is_some() {
-        return assign_types(
-            i + 1,
-            topologically_ordered_ports,
-            assignments,
-            domains,
-            constraints,
-        );
-    }
+    let mut i = 0;
+    'outer: loop {
+        if i >= topologically_ordered_ports.len() {
+            return Ok(assignments_stack.pop_front().unwrap());
+        }
+        let assignments = assignments_stack.front().unwrap();
+        let current_port = topologically_ordered_ports[i].clone();
+        let maybe_assignment = assignments.get(&current_port);
+        if maybe_assignment.is_some() {
+            i = i + 1;
+            continue 'outer;
+        }
+        let domains = domains_stack.front().unwrap();
+        let maybe_domain = domains.get(&current_port);
+        if maybe_domain.is_none() {
+            return Err(ContradictionFound);
+        }
+        let domain = maybe_domain.unwrap();
+        'inner: for t in domain.iter() {
+            let mut next_assignments = assignments.clone();
+            let mut next_domains = domains.clone();
+            next_assignments.insert(current_port.clone(), *t);
+            next_domains.insert(current_port.clone(), Rc::new(vec![*t]));
+            let propagation_result = propagate_constraints(
+                current_port.clone(),
+                &mut next_assignments,
+                &mut next_domains,
+                constraints,
+            );
+            if let Err(ContradictionFound) = propagation_result {
+                continue 'inner;
+            }
 
-    let maybe_domain = domains.get(&current_port);
-    if maybe_domain.is_none() {
-        return Err(ContradictionFound);
-    }
-    let domain = maybe_domain.unwrap();
-    for t in domain {
-        let mut next_assignments = assignments.clone();
-        let mut next_domains = domains.clone();
-        next_assignments.insert(current_port.clone(), *t);
-        next_domains.insert(current_port.clone(), vec![*t]);
-        let propagation_result = propagate_constraints(
-            current_port.clone(),
-            &mut next_assignments,
-            &mut next_domains,
-            constraints,
-        );
-        if let Err(ContradictionFound) = propagation_result {
-            continue;
+            // We have a candidate type. Go to the next port
+            i = i + 1;
+            assignments_stack.push_front(next_assignments);
+            domains_stack.push_front(next_domains);
+            continue 'outer;
         }
-        let recursive_result = assign_types(
-            i + 1,
-            topologically_ordered_ports,
-            &mut next_assignments,
-            &mut next_domains,
-            constraints,
-        );
-        if let Ok(ass) = recursive_result {
-            return Ok(ass);
+        if i == 0 {
+            return Err(ContradictionFound);
+        } else {
+            i = i - 1;
+            assignments_stack.pop_front();
+            domains_stack.pop_front();
         }
     }
-    Err(ContradictionFound)
 }
 
 pub fn assign_concrete_types(
@@ -109,18 +113,16 @@ pub fn assign_concrete_types(
     port_types: &HashMap<PortId, AbstractDataType>,
     constraints: &HashMap<PortId, Vec<Constraint>>,
 ) -> Result<HashMap<PortId, ConcreteDataType>, ConstraintSolverError> {
-    let mut domains: HashMap<PortId, Vec<ConcreteDataType>> = port_types
+    let domains: im::HashMap<PortId, Rc<Vec<ConcreteDataType>>> = port_types
         .iter()
-        .map(|t| (t.0.clone(), t.1.get_concrete_domain()))
+        .map(|t| (t.0.clone(), Rc::new(t.1.get_concrete_domain())))
         .collect();
-    let mut assignments: HashMap<PortId, ConcreteDataType> = HashMap::new();
-    assign_types(
-        0,
-        topologically_ordered_ports,
-        &mut assignments,
-        &mut domains,
-        constraints,
-    )
+    let result: HashMap<PortId, ConcreteDataType> =
+        assign_types(topologically_ordered_ports, domains, constraints)?
+            .into_iter()
+            .collect();
+
+    Ok(result)
 }
 
 pub fn narrow_abstract_types(
@@ -128,16 +130,13 @@ pub fn narrow_abstract_types(
     port_types: &HashMap<PortId, AbstractDataType>,
     constraints: &HashMap<PortId, Vec<Constraint>>,
 ) -> Result<HashMap<PortId, AbstractDataType>, ConstraintSolverError> {
-    let mut domains: HashMap<PortId, Vec<AbstractDataType>> = port_types
+    let domains: im::HashMap<PortId, Rc<Vec<AbstractDataType>>> = port_types
         .iter()
-        .map(|t| (t.0.clone(), t.1.get_abstract_domain()))
+        .map(|t| (t.0.clone(), Rc::new(t.1.get_abstract_domain())))
         .collect();
-    let mut assignments: HashMap<PortId, AbstractDataType> = HashMap::new();
-    assign_types(
-        0,
-        topologically_ordered_ports,
-        &mut assignments,
-        &mut domains,
-        constraints,
-    )
+    let result = assign_types(topologically_ordered_ports, domains, constraints)?
+        .into_iter()
+        .collect();
+
+    Ok(result)
 }

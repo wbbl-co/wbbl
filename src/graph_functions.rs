@@ -6,6 +6,7 @@ use crate::graph_types::{
     BranchedMultiGraph, BranchedSubgraph, Graph, InputPort, InputPortId, MultiGraph, PortId,
     Subgraph,
 };
+
 use std::collections::{HashMap, HashSet, VecDeque};
 
 fn has_no_dependencies(node: u128, graph: &Graph, visited_nodes: &HashSet<u128>) -> bool {
@@ -349,5 +350,5 @@ pub fn narrow_abstract_types(
     let constraints = map_constraints_to_ports(graph);
     let result =
         constraint_solver::narrow_abstract_types(&ordered_ports, &port_types, &constraints);
-    result
+    result.into()
 }

@@ -46,6 +46,7 @@ import { useOnEdgeDragUpdater } from "../hooks/use-on-edge-drag-updater";
 import GraphCanvasContextMenu from "./GraphCanvasContextMenu";
 import { useScreenDimensions } from "../hooks/use-screen-dimensions";
 import { andThen } from "../hooks/and-then";
+import { PortRefStore, PortRefStoreContext } from "../hooks/use-port-location";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -375,51 +376,55 @@ function Graph() {
     viewport.y,
     viewport.zoom,
   ]);
+  const portRefStore = useMemo(() => new PortRefStore(), []);
 
   return (
     <WbblSnapshotContext.Provider value={snapshot}>
       <WbblEdgeEndContext.Provider value={edgeRendererRef}>
-        <GraphCanvasContextMenu>
-          <ReactFlow
-            width={width}
-            height={height}
-            nodes={snapshot.nodes}
-            onNodesChange={onNodesChange}
-            edges={snapshot.edges}
-            edgeTypes={edgeTypes}
-            nodeTypes={nodeTypes}
-            onConnect={onConnect}
-            deleteKeyCode={["Delete", "Backspace"]}
-            maxZoom={1.4}
-            minZoom={0.25}
-            snapToGrid={false}
-            onEdgeMouseMove={connectingHandlers.onPointerDown}
-            onPaneClick={onPaneClick}
-            onEdgeDoubleClick={removeEdge}
-            onConnectStart={onConnectStart}
-            onConnectEnd={onConnectEnd}
-            onBeforeDelete={onBeforeDelete}
-            multiSelectionKeyCode={useMemo(() => ["Shift", "Alt"], [])}
-            onSelectionStart={connectingHandlers.onSelectStart}
-            onSelectionEnd={connectingHandlers.onSelectEnd}
-            onSelectionChange={onSelectionChange}
-            onEdgesChange={onEdgesChange}
-            onEdgeUpdate={onEdgesUpdate}
-            onEdgeUpdateEnd={onEdgeUpdateEnd}
-            onEdgeUpdateStart={onEdgeUpdateStart}
-            connectionLineComponent={WbblConnectionLine}
-            onPointerMove={andThen(
-              connectingHandlers.onPointerMove,
-              onMouseMove,
-            )}
-            onPointerUp={connectingHandlers.onPointerMove}
-            selectionMode={SelectionMode.Partial}
-            proOptions={useMemo(() => ({ hideAttribution: true }), [])}
-            fitView
-          >
-            {reactFlowContents}
-          </ReactFlow>
-        </GraphCanvasContextMenu>
+        <PortRefStoreContext.Provider value={portRefStore}>
+          <GraphCanvasContextMenu>
+            <ReactFlow
+              width={width}
+              height={height}
+              nodes={snapshot.nodes}
+              onNodesChange={onNodesChange}
+              edges={snapshot.edges}
+              edgeTypes={edgeTypes}
+              nodeTypes={nodeTypes}
+              onConnect={onConnect}
+              deleteKeyCode={["Delete", "Backspace"]}
+              maxZoom={1.4}
+              minZoom={0.25}
+              snapToGrid={false}
+              onEdgeMouseMove={connectingHandlers.onPointerDown}
+              onPaneClick={onPaneClick}
+              onEdgeDoubleClick={removeEdge}
+              onConnectStart={onConnectStart}
+              onConnectEnd={onConnectEnd}
+              onBeforeDelete={onBeforeDelete}
+              multiSelectionKeyCode={useMemo(() => ["Shift", "Alt"], [])}
+              onSelectionStart={connectingHandlers.onSelectStart}
+              onSelectionEnd={connectingHandlers.onSelectEnd}
+              onSelectionChange={onSelectionChange}
+              onEdgesChange={onEdgesChange}
+              onEdgeUpdate={onEdgesUpdate}
+              onEdgeUpdateEnd={onEdgeUpdateEnd}
+              onEdgeUpdateStart={onEdgeUpdateStart}
+              connectionLineComponent={WbblConnectionLine}
+              onPointerMove={andThen(
+                connectingHandlers.onPointerMove,
+                onMouseMove,
+              )}
+              onPointerUp={connectingHandlers.onPointerMove}
+              selectionMode={SelectionMode.Partial}
+              proOptions={useMemo(() => ({ hideAttribution: true }), [])}
+              fitView
+              onlyRenderVisibleElements
+            >
+              {reactFlowContents}
+            </ReactFlow>
+          </GraphCanvasContextMenu>
+        </PortRefStoreContext.Provider>
       </WbblEdgeEndContext.Provider>
     </WbblSnapshotContext.Provider>
   );

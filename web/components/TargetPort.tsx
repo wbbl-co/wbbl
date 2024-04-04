@@ -3,14 +3,16 @@ import {
   Position,
   ReactFlowState,
   useHandleConnections,
+  useNodeId,
   useStore,
 } from "@xyflow/react";
-import { memo, useMemo } from "react";
+import { memo, useContext, useEffect, useMemo, useRef, useState } from "react";
 import usePortType, { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { WbblWebappGraphStore } from "../../pkg/wbbl";
 import { getStyleForType } from "../port-type-styling";
 import { PORT_SIZE } from "../port-constants";
 import { Text } from "@radix-ui/themes";
+import { PortRefStoreContext } from "../hooks/use-port-location";
 
 const selector = (s: ReactFlowState) => ({
   nodeInternals: s.nodes,
@@ -20,6 +22,18 @@ const selector = (s: ReactFlowState) => ({
 
 type TargetPortProps = { id: `t#${number}`; label?: string; top: number };
 function TargetPort(props: TargetPortProps) {
+  const nodeId = useNodeId();
+  const [portRef, setPortRef] = useState<HTMLDivElement | null>(null);
+  const portRefStore = useContext(PortRefStoreContext);
+  useEffect(() => {
+    if (portRef) {
+      const id = `${nodeId}#${props.id}`;
+      portRefStore.add(id, portRef);
+      return () => {
+        portRefStore.remove(id);
+      };
+    }
+  }, [portRef, portRefStore, props.id, nodeId]);
   const { handle } = useStore(selector);
   const portType = usePortType(props.id);
 
@@ -96,6 +110,7 @@ function TargetPort(props: TargetPortProps) {
       <Handle
         type="target"
         key="handle"
+        ref={setPortRef}
         id={props.id}
         position={Position.Left}
         style={handleStyle}
@@ -104,7 +119,7 @@ function TargetPort(props: TargetPortProps) {
         isConnectable={isHandleConnectable}
       />
     );
-  }, [props.id, handleStyle, handleClassName, isHandleConnectable]);
+  }, [props.id, handleStyle, handleClassName, isHandleConnectable, portRef]);
 
   return (
     <>

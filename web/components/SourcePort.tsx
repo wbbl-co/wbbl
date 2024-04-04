@@ -1,15 +1,27 @@
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Position, useNodeId } from "@xyflow/react";
 import usePortType from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
-import { memo } from "react";
+import { memo, useContext, useEffect, useState } from "react";
 import { PORT_SIZE } from "../port-constants";
 import { Text } from "@radix-ui/themes";
+import { PortRefStoreContext } from "../hooks/use-port-location";
 
 type SourcePortProps = { id: `s#${number}`; label?: string; top: number };
 
 function SourcePort(props: SourcePortProps) {
   const portType = usePortType(props.id);
-
+  const nodeId = useNodeId();
+  const [portRef, setPortRef] = useState<HTMLDivElement | null>(null);
+  const portRefStore = useContext(PortRefStoreContext);
+  useEffect(() => {
+    if (portRef) {
+      const id = `${nodeId}#${props.id}`;
+      portRefStore.add(id, portRef);
+      return () => {
+        portRefStore.remove(id);
+      };
+    }
+  }, [portRef, portRefStore, props.id, nodeId]);
   return (
     <>
       {props.label && (
@@ -31,6 +43,7 @@ function SourcePort(props: SourcePortProps) {
         type="source"
         key="handle"
         id={props.id}
+        ref={setPortRef}
         position={Position.Right}
         style={{
           right: PORT_SIZE,

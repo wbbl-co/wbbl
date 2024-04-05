@@ -329,6 +329,91 @@ impl WbblWebappNode {
     }
 }
 
+fn delete_edge(
+    transaction: &mut TransactionMut,
+    edge_id: &str,
+    edges: &mut MapRef,
+    nodes: &mut MapRef,
+) -> Result<(), WbblWebappGraphStoreError> {
+    let edge = match get_map(edge_id, transaction, edges) {
+        Ok(edge) => Ok(Some(edge)),
+        Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
+        Err(err) => Err(err),
+    }?;
+    if edge.is_none() {
+        return Ok(());
+    }
+    let edge = edge.unwrap();
+    let source = get_atomic_string("source", transaction, &edge)?;
+    let target = get_atomic_string("target", transaction, &edge)?;
+    edges.remove(transaction, edge_id);
+    match get_map(&source, transaction, nodes) {
+        Ok(in_node) => {
+            let in_edges = get_map("in_edges", transaction, &in_node)?;
+            in_edges.remove(transaction, edge_id);
+            Ok(())
+        }
+        Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+        Err(err) => Err(err),
+    }?;
+    match get_map(&target, transaction, nodes) {
+        Ok(out_node) => {
+            let out_edges = get_map("out_edges", transaction, &out_node)?;
+            out_edges.remove(transaction, edge_id);
+            Ok(())
+        }
+        Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+        Err(err) => Err(err),
+    }?;
+
+    Ok(())
+}
+
+fn delete_associated_edges(
+    transaction: &mut TransactionMut,
+    node: &MapRef,
+    nodes: &mut MapRef,
+    edges: &mut MapRef,
+) -> Result<(), WbblWebappGraphStoreError> {
+    let in_edges = get_map("in_edges", transaction, &node)?;
+    let out_edges = get_map("out_edges", transaction, &node)?;
+    {
+        let in_edges: Vec<String> = in_edges.iter(transaction).map(|x| x.0.to_owned()).collect();
+        let out_edges: Vec<String> = out_edges
+            .iter(transaction)
+            .map(|x| x.0.to_owned())
+            .collect();
+        for edge in in_edges.iter() {
+            delete_edge(transaction, edge, edges, nodes)?;
+        }
+        for edge in out_edges.iter() {
+            delete_edge(transaction, edge, edges, nodes)?;
+        }
+        Ok(())
+    }
+}
+
+fn delete_node(
+    transaction: &mut TransactionMut,
+    node_id: &str,
+    nodes: &mut MapRef,
+    edges: &mut MapRef,
+) -> Result<(), WbblWebappGraphStoreError> {
+    let node = match get_map(node_id, transaction, &nodes) {
+        Ok(node) => Ok(Some(node)),
+        Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
+        Err(err) => Err(err),
+    }?;
+    if node.is_none() {
+        return Ok(());
+    }
+    let node = node.unwrap();
+
+    delete_associated_edges(transaction, &node, nodes, edges)?;
+    nodes.remove(transaction, node_id);
+    Ok(())
+}
+
 impl WbblWebappEdge {
     pub(crate) fn decode<Txn: yrs::ReadTxn>(
         key: u128,
@@ -361,10 +446,10 @@ impl WbblWebappEdge {
     fn set_node_edge_ids(
         &self,
         txn: &mut TransactionMut,
-        node_map: &yrs::MapRef,
+        nodes: &yrs::MapRef,
     ) -> Result<(), WbblWebappGraphStoreError> {
-        let source_node = node_map.get(txn, &uuid::Uuid::from_u128(self.source).to_string());
-        let target_node = node_map.get(txn, &uuid::Uuid::from_u128(self.target).to_string());
+        let source_node = nodes.get(txn, &uuid::Uuid::from_u128(self.source).to_string());
+        let target_node = nodes.get(txn, &uuid::Uuid::from_u128(self.target).to_string());
         match (source_node, target_node) {
             (Some(Value::YMap(source_node)), Some(Value::YMap(target_node))) => {
                 let edge_id_str = uuid::Uuid::from_u128(self.id).to_string();
@@ -386,11 +471,11 @@ impl WbblWebappEdge {
     pub(crate) fn encode(
         &self,
         txn: &mut TransactionMut,
-        map: &mut yrs::MapRef,
-        node_map: &yrs::MapRef,
+        edges: &mut yrs::MapRef,
+        nodes: &yrs::MapRef,
     ) -> Result<(), WbblWebappGraphStoreError> {
         let prelim_map: HashMap<String, yrs::Any> = HashMap::new();
-        let edge_ref = map.insert(
+        let edge_ref = edges.insert(
             txn,
             uuid::Uuid::from_u128(self.id).to_string(),
             MapPrelim::from(prelim_map),
@@ -416,7 +501,7 @@ impl WbblWebappEdge {
             "target_handle".to_owned(),
             yrs::Any::BigInt(self.target_handle),
         );
-        self.set_node_edge_ids(txn, node_map)?;
+        self.set_node_edge_ids(txn, nodes)?;
         Ok(())
     }
 }
@@ -595,34 +680,12 @@ impl WbblWebappGraphStore {
     pub fn remove_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut();
-            let node = match get_map(node_id, &mut_transaction, &self.nodes) {
-                Ok(node) => Ok(Some(node)),
-                Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
-                Err(err) => Err(err),
-            }?;
-            if node.is_none() {
-                return Ok(());
-            }
-            let node = node.unwrap();
-            let in_edges = get_map("in_edges", &mut_transaction, &node)?;
-            let out_edges = get_map("out_edges", &mut_transaction, &node)?;
-            {
-                let in_edges: Vec<String> = in_edges
-                    .iter(&mut_transaction)
-                    .map(|x| x.0.to_owned())
-                    .collect();
-                let out_edges: Vec<String> = out_edges
-                    .iter(&mut_transaction)
-                    .map(|x| x.0.to_owned())
-                    .collect();
-                for edge in in_edges.iter() {
-                    self.edges.remove(&mut mut_transaction, &edge);
-                }
-                for edge in out_edges.iter() {
-                    self.edges.remove(&mut mut_transaction, &edge);
-                }
-            }
-            self.nodes.remove(&mut mut_transaction, node_id);
+            delete_node(
+                &mut mut_transaction,
+                node_id,
+                &mut self.nodes,
+                &mut self.edges,
+            )?;
         }
 
         // Important that emit is called here. Rather than before the drop
@@ -635,54 +698,12 @@ impl WbblWebappGraphStore {
     pub fn remove_edge(&mut self, edge_id: &str) -> Result<(), WbblWebappGraphStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut();
-            let parsed_edge_id = uuid::Uuid::from_str(edge_id)
-                .map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
-            let edge = match get_map(edge_id, &mut_transaction, &self.edges) {
-                Ok(edge) => Ok(Some(edge)),
-                Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
-                Err(err) => Err(err),
-            }?;
-            if edge.is_none() {
-                return Ok(());
-            }
-            let edge = edge.unwrap();
-            let decoded_edge = match WbblWebappEdge::decode(
-                parsed_edge_id.as_u128(),
-                &mut_transaction,
-                &edge,
-                &self.edge_selections,
-            ) {
-                Ok(edge) => Ok(Some(edge)),
-                Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
-                Err(err) => Err(err),
-            }?;
-
-            if decoded_edge.is_none() {
-                return Ok(());
-            }
-
-            let decoded_edge = decoded_edge.unwrap();
-            let out_node_id = uuid::Uuid::from_u128(decoded_edge.source).to_string();
-            let in_node_id = uuid::Uuid::from_u128(decoded_edge.target).to_string();
-            match get_map(&in_node_id, &mut_transaction, &self.nodes) {
-                Ok(in_node) => {
-                    let in_edges = get_map("in_edges", &mut_transaction, &in_node)?;
-                    in_edges.remove(&mut mut_transaction, edge_id);
-                    Ok(())
-                }
-                Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
-                Err(err) => Err(err),
-            }?;
-            match get_map(&out_node_id, &mut_transaction, &self.nodes) {
-                Ok(out_node) => {
-                    let out_edges = get_map("out_edges", &mut_transaction, &out_node)?;
-                    out_edges.remove(&mut mut_transaction, edge_id);
-                    Ok(())
-                }
-                Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
-                Err(err) => Err(err),
-            }?;
-            self.edges.remove(&mut mut_transaction, edge_id);
+            delete_edge(
+                &mut mut_transaction,
+                &edge_id,
+                &mut self.edges,
+                &mut self.nodes,
+            )?;
         }
 
         // Important that emit is called here. Rather than before the drop
@@ -938,6 +959,8 @@ impl WbblWebappGraphStore {
     #[cfg(web_sys_unstable_apis)]
     pub async fn cut(&self) -> Result<(), WbblWebappGraphStoreError> {
         self.copy().await?;
+        let local_edges = self.get_locally_selected_edges();
+        let local_nodes = self.get_locally_selected_nodes();
         Ok(())
     }
 

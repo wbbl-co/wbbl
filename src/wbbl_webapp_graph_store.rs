@@ -602,6 +602,8 @@ impl WbblWebappGraphStore {
         );
         undo_manager.include_origin(graph.client_id()); // only track changes originating from local peer
         undo_manager.expand_scope(&edges);
+        undo_manager.expand_scope(&node_selections);
+        undo_manager.expand_scope(&edge_selections);
         let computed_types = Arc::new(RefCell::new(HashMap::new()));
 
         let listeners = Arc::new(RefCell::new(Vec::<(u32, js_sys::Function)>::new()));

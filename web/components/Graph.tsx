@@ -341,7 +341,6 @@ function Graph() {
     return (
       <>
         <Background variant={BackgroundVariant.Dots} />
-        <Controls />
         <svg
           id="edge-end-renderer"
           style={{

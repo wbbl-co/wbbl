@@ -4,7 +4,6 @@ import {
   EdgeProps,
   getStraightPath,
   useReactFlow,
-  useViewport,
 } from "@xyflow/react";
 import { WbblRope, WbblWebappGraphStore } from "../../pkg/wbbl";
 import { createPortal } from "react-dom";

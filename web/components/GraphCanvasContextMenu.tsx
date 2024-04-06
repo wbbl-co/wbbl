@@ -1,33 +1,34 @@
+import { LifebuoyIcon } from "@heroicons/react/24/solid";
 import { ContextMenu } from "@radix-ui/themes";
-import { PropsWithChildren, useMemo } from "react";
+import { PropsWithChildren, useContext, useMemo } from "react";
+import { WbblGraphStoreContext } from "../hooks/use-wbbl-graph-store";
 
 export default function GraphCanvasContextMenu(props: PropsWithChildren<{}>) {
+  const graphStore = useContext(WbblGraphStoreContext);
   const contextMenuContent = useMemo(() => {
     return (
       <ContextMenu.Content>
-        <ContextMenu.Item shortcut="⌘ E">Edit</ContextMenu.Item>
-        <ContextMenu.Item shortcut="⌘ D">Duplicate</ContextMenu.Item>
+        <ContextMenu.Item
+          disabled={!graphStore.can_undo()}
+          onClick={() => graphStore.undo()}
+          shortcut="⌘ Z"
+        >
+          Undo
+        </ContextMenu.Item>
+        <ContextMenu.Item
+          disabled={!graphStore.can_redo()}
+          onClick={() => graphStore.redo()}
+          shortcut="⇧⌘Z"
+        >
+          Redo
+        </ContextMenu.Item>
         <ContextMenu.Separator />
-        <ContextMenu.Item shortcut="⌘ N">Archive</ContextMenu.Item>
-        <ContextMenu.Sub>
-          <ContextMenu.SubTrigger>More</ContextMenu.SubTrigger>
-          <ContextMenu.SubContent>
-            <ContextMenu.Item>Move to project…</ContextMenu.Item>
-            <ContextMenu.Item>Move to folder…</ContextMenu.Item>
-            <ContextMenu.Separator />
-            <ContextMenu.Item>Advanced options…</ContextMenu.Item>
-          </ContextMenu.SubContent>
-        </ContextMenu.Sub>
-        <ContextMenu.Separator />
-        <ContextMenu.Item>Share</ContextMenu.Item>
-        <ContextMenu.Item>Add to favorites</ContextMenu.Item>
-        <ContextMenu.Separator />
-        <ContextMenu.Item shortcut="⌘ ⌫" color="red">
-          Delete
+        <ContextMenu.Item>
+          <LifebuoyIcon width={"1em"} /> Help
         </ContextMenu.Item>
       </ContextMenu.Content>
     );
-  }, []);
+  }, [graphStore, graphStore.can_redo(), graphStore.can_undo()]);
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger>{props.children}</ContextMenu.Trigger>

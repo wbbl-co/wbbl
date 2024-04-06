@@ -600,6 +600,17 @@ impl WbblWebappGraphSnapshot {
             .retain_mut(|e| !output_node_ids.contains(&e.target));
     }
 
+    pub(crate) fn offset(&mut self, offset: &Vec2) {
+        for node in self.nodes.iter_mut() {
+            let new_position =
+                Vec2::new(node.position.x as f32, node.position.y as f32) + offset.clone();
+            node.position = WbblePosition {
+                x: new_position.x as f64,
+                y: new_position.y as f64,
+            }
+        }
+    }
+
     pub(crate) fn recenter(&mut self, position: &Vec2) {
         let mut accumulated_position = Vec2::ZERO;
         for node in self.nodes.iter() {

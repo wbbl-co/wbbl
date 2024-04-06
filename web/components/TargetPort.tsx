@@ -6,7 +6,7 @@ import {
   useNodeId,
   useStore,
 } from "@xyflow/react";
-import { memo, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useContext, useEffect, useMemo, useState } from "react";
 import usePortType, { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { WbblWebappGraphStore } from "../../pkg/wbbl";
 import { getStyleForType } from "../port-type-styling";

@@ -4,6 +4,7 @@ function getPrefersReducedMotion() {
   const mediaQueryList = window.matchMedia(
     "(prefers-reduced-motion: no-preference)",
   );
+
   const prefersReducedMotion = !mediaQueryList.matches;
   return prefersReducedMotion;
 }

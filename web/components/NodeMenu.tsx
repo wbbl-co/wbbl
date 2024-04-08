@@ -6,11 +6,16 @@ import {
   forwardRef,
   ForwardedRef,
   useEffect,
+  useContext,
 } from "react";
 import { WbblWebappNodeType } from "../../pkg/wbbl";
 import { NodeCategory, nodeMetaData } from "./node_types";
 import { Text, DropdownMenu, Tooltip } from "@radix-ui/themes";
 import { StarIcon, PhotoIcon } from "@heroicons/react/24/solid";
+import {
+  WbblPreferencesStoreContext,
+  useFavouritesPreferences,
+} from "../hooks/use-preferences-store";
 
 function useTooltipOpen() {
   const [tooltipMaybeOpen, setTooltipMaybeOpen] = useState(false);
@@ -58,6 +63,7 @@ function NodeDropdownMenuItemImpl(
   }, [id, onSelect, value]);
   const [tooltipOpen, setTooltipMaybeOpenTrue, setTooltipOpenFalse] =
     useTooltipOpen();
+
   return (
     <div>
       <Tooltip open={tooltipOpen} content={value.description}>
@@ -194,6 +200,23 @@ export default function NodeMenu(props: {
     },
     [props.addNode, props.position, props.onClose, nodeMetaData],
   );
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
+  const favourites = useFavouritesPreferences(preferencesStore);
+  const mappedFavourites = useMemo(() => {
+    return favourites.map((type) => {
+      let value = Object.entries(nodeMetaData).filter(
+        ([, v]) => v.type === type,
+      )[0]!;
+      return (
+        <NodeDropdownMenuItem
+          key={type}
+          id={value[0]}
+          value={value[1]}
+          onSelect={onSelect}
+        />
+      );
+    });
+  }, [favourites, onSelect]);
 
   return (
     <DropdownMenu.Root open={props.open} onOpenChange={props.onClose}>
@@ -211,7 +234,13 @@ export default function NodeMenu(props: {
             Favourites
           </DropdownMenu.SubTrigger>
           <DropdownMenu.SubContent>
-            <DropdownMenu.Item disabled={true}>No Favourites</DropdownMenu.Item>
+            {favourites.length === 0 ? (
+              <DropdownMenu.Item disabled={true}>
+                No Favourites
+              </DropdownMenu.Item>
+            ) : (
+              mappedFavourites
+            )}
           </DropdownMenu.SubContent>
         </DropdownMenu.Sub>
         <DropdownMenu.Separator />

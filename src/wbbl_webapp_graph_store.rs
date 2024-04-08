@@ -391,6 +391,7 @@ fn delete_edge(
     edge_id: &str,
     edges: &mut MapRef,
     nodes: &mut MapRef,
+    edge_selections: &mut MapRef,
 ) -> Result<(), WbblWebappGraphStoreError> {
     let edge = match get_map(edge_id, transaction, edges) {
         Ok(edge) => Ok(Some(edge)),
@@ -422,6 +423,20 @@ fn delete_edge(
         Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
         Err(err) => Err(err),
     }?;
+    {
+        let keys: Vec<String> = edge_selections
+            .keys(transaction)
+            .map(|x| x.to_owned())
+            .collect();
+        for k in keys {
+            match edge_selections.get(transaction, &k) {
+                Some(yrs::Value::YMap(map)) => {
+                    map.remove(transaction, edge_id);
+                }
+                _ => {}
+            };
+        }
+    }
 
     Ok(())
 }
@@ -431,6 +446,7 @@ fn delete_associated_edges(
     node: &MapRef,
     nodes: &mut MapRef,
     edges: &mut MapRef,
+    edge_selections: &mut MapRef,
 ) -> Result<(), WbblWebappGraphStoreError> {
     let in_edges = get_map("in_edges", transaction, &node)?;
     let out_edges = get_map("out_edges", transaction, &node)?;
@@ -441,10 +457,10 @@ fn delete_associated_edges(
             .map(|x| x.0.to_owned())
             .collect();
         for edge in in_edges.iter() {
-            delete_edge(transaction, edge, edges, nodes)?;
+            delete_edge(transaction, edge, edges, nodes, edge_selections)?;
         }
         for edge in out_edges.iter() {
-            delete_edge(transaction, edge, edges, nodes)?;
+            delete_edge(transaction, edge, edges, nodes, edge_selections)?;
         }
         Ok(())
     }
@@ -455,6 +471,8 @@ fn delete_node(
     node_id: &str,
     nodes: &mut MapRef,
     edges: &mut MapRef,
+    node_selections: &mut MapRef,
+    edge_selections: &mut MapRef,
 ) -> Result<(), WbblWebappGraphStoreError> {
     let node = match get_map(node_id, transaction, &nodes) {
         Ok(node) => Ok(Some(node)),
@@ -466,8 +484,22 @@ fn delete_node(
     }
     let node = node.unwrap();
 
-    delete_associated_edges(transaction, &node, nodes, edges)?;
+    delete_associated_edges(transaction, &node, nodes, edges, edge_selections)?;
     nodes.remove(transaction, node_id);
+    {
+        let keys: Vec<String> = node_selections
+            .keys(transaction)
+            .map(|x| x.to_owned())
+            .collect();
+        for k in keys {
+            match node_selections.get(transaction, &k) {
+                Some(yrs::Value::YMap(map)) => {
+                    map.remove(transaction, node_id);
+                }
+                _ => {}
+            };
+        }
+    }
     Ok(())
 }
 
@@ -751,6 +783,8 @@ impl WbblWebappGraphStore {
                 node_id,
                 &mut self.nodes,
                 &mut self.edges,
+                &mut self.node_selections,
+                &mut self.edge_selections,
             )?;
         }
 
@@ -769,6 +803,7 @@ impl WbblWebappGraphStore {
                 &edge_id,
                 &mut self.edges,
                 &mut self.nodes,
+                &mut self.edge_selections,
             )?;
         }
 

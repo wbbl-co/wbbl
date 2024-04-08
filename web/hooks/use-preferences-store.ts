@@ -6,7 +6,12 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { BaseTheme, WbblWebappPreferencesStore } from "../../pkg/wbbl";
+import {
+  BaseTheme,
+  KeyboardShortcut,
+  WbblWebappNodeType,
+  WbblWebappPreferencesStore,
+} from "../../pkg/wbbl";
 
 export const WbblPreferencesStoreContext =
   createContext<WbblWebappPreferencesStore>(WbblWebappPreferencesStore.empty());
@@ -16,6 +21,7 @@ export type ThemePreferences = {
   currentTheme: BaseTheme;
   variables: { [key: string]: string };
 };
+
 export function useThemePreferences(
   store: WbblWebappPreferencesStore,
 ): ThemePreferences {
@@ -56,7 +62,9 @@ export function useThemePreferences(
   const [enrichedWithSystemThemeSnapshot, setEnrichedWithSystemThemeSnapshot] =
     useState({
       baseTheme: BaseTheme.System,
-      currentTheme: BaseTheme.Light,
+      currentTheme: window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? BaseTheme.Dark
+        : BaseTheme.Light,
       variables: {},
     });
 
@@ -88,4 +96,142 @@ export function useThemePreferences(
   }, [snapshot, setEnrichedWithSystemThemeSnapshot]);
 
   return enrichedWithSystemThemeSnapshot;
+}
+
+export type KeyboardPreferences = {
+  keys: Map<KeyboardShortcut, string | null | undefined>;
+  node_keys: Map<string, string | null | undefined>;
+};
+
+export function useKeyboardPreferences(
+  store: WbblWebappPreferencesStore,
+): KeyboardPreferences {
+  let data = useRef<KeyboardPreferences>();
+  let count = useRef<number>(0);
+  let cacheHandle = useRef<number>(0);
+
+  let subscribe = useCallback(
+    (subscriber: () => void) => {
+      if (count.current == 0) {
+        cacheHandle.current = store.subscribe(() => {
+          data.current = undefined;
+        });
+      }
+      count.current = count.current + 1;
+      let handle = store.subscribe(subscriber);
+      return () => {
+        count.current = count.current - 1;
+        if (count.current === 0) {
+          store.unsubscribe(cacheHandle.current);
+        }
+        store.unsubscribe(handle);
+      };
+    },
+    [store],
+  );
+
+  let getSnapshot = useCallback(() => {
+    if (data.current === undefined) {
+      let keys = store.get_keybindings() as Map<
+        KeyboardShortcut,
+        string | null | undefined
+      >;
+      let node_keys = store.get_node_keybindings() as Map<
+        string,
+        string | null | undefined
+      >;
+      data.current = { keys, node_keys };
+    }
+    return data.current;
+  }, [store]);
+
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  return snapshot;
+}
+
+export function useFavouritesPreferences(
+  store: WbblWebappPreferencesStore,
+): WbblWebappNodeType[] {
+  let data = useRef<WbblWebappNodeType[]>();
+  let count = useRef<number>(0);
+  let cacheHandle = useRef<number>(0);
+
+  let subscribe = useCallback(
+    (subscriber: () => void) => {
+      if (count.current == 0) {
+        cacheHandle.current = store.subscribe(() => {
+          data.current = undefined;
+        });
+      }
+      count.current = count.current + 1;
+      let handle = store.subscribe(subscriber);
+      return () => {
+        count.current = count.current - 1;
+        if (count.current === 0) {
+          store.unsubscribe(cacheHandle.current);
+        }
+        store.unsubscribe(handle);
+      };
+    },
+    [store],
+  );
+
+  let getSnapshot = useCallback(() => {
+    if (data.current === undefined) {
+      let favourites = store.get_favourites();
+      data.current = favourites;
+    }
+    return data.current;
+  }, [store]);
+
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  return snapshot;
+}
+
+export function useIsFavouritePreference(
+  store: WbblWebappPreferencesStore,
+  type: WbblWebappNodeType,
+  isOpen: boolean,
+): boolean {
+  let data = useRef<boolean | undefined>(undefined);
+  let count = useRef<number>(0);
+  let cacheHandle = useRef<number>(0);
+
+  let subscribe = useCallback(
+    (subscriber: () => void) => {
+      if (count.current == 0) {
+        cacheHandle.current = store.subscribe(() => {
+          data.current = undefined;
+        });
+      }
+      count.current = count.current + 1;
+      let handle = store.subscribe(subscriber);
+      return () => {
+        count.current = count.current - 1;
+        if (count.current === 0) {
+          store.unsubscribe(cacheHandle.current);
+        }
+        store.unsubscribe(handle);
+      };
+    },
+    [store],
+  );
+
+  useEffect(() => {
+    data.current = store.is_favourite(type);
+  }, [type, isOpen]);
+
+  let getSnapshot = useCallback(() => {
+    if (data.current === undefined) {
+      let favourite = store.is_favourite(type);
+      data.current = favourite;
+    }
+    return data.current;
+  }, [store, type]);
+
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  return snapshot;
 }

@@ -52,7 +52,11 @@ function App() {
           </div>
         </Theme>
       ) : (
-        <Theme accentColor="lime" grayColor="gray">
+        <Theme
+          appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
+          accentColor="lime"
+          grayColor="gray"
+        >
           <LoadingScreen />
         </Theme>
       )}

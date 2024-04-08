@@ -8,7 +8,6 @@ import {
   SelectionMode,
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   ReactFlowProvider,
   useReactFlow,

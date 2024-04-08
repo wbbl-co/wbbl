@@ -6,18 +6,25 @@ import {
   StarIcon,
   TrashIcon,
 } from "@heroicons/react/24/solid";
-import { ContextMenu, Text } from "@radix-ui/themes";
+import { ContextMenu } from "@radix-ui/themes";
 import {
   PropsWithChildren,
   memo,
   useCallback,
   useContext,
+  useDeferredValue,
+  useEffect,
   useMemo,
   useState,
 } from "react";
 import { WbblGraphStoreContext } from "../hooks/use-wbbl-graph-store";
 import { nodeMetaData } from "./node_types";
 import { RectangleGroupIcon } from "@heroicons/react/16/solid";
+import {
+  WbblPreferencesStoreContext,
+  useFavouritesPreferences,
+  useIsFavouritePreference,
+} from "../hooks/use-preferences-store";
 
 function getSelectionCountLabel(edges: number, nodes: number) {
   if (nodes > 0 && edges > 0) {
@@ -39,6 +46,7 @@ function NodeContextMenu(
   }>,
 ) {
   const graphStore = useContext(WbblGraphStoreContext);
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
 
   const linkToPreview = useCallback(() => {
     graphStore.link_to_preview(props.id);
@@ -47,6 +55,25 @@ function NodeContextMenu(
     graphStore.remove_node(props.id);
   }, [graphStore, props.id]);
   const [isOpen, setIsOpen] = useState(false);
+  const isFavourite = useIsFavouritePreference(
+    preferencesStore,
+    nodeMetaData[props.type as keyof typeof nodeMetaData].type,
+    isOpen,
+  );
+  const [isFavouriteDeferred, setIsFavouriteDeferred] = useState(isFavourite);
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setIsFavouriteDeferred(isFavourite);
+    }, 100);
+    return () => clearTimeout(handle);
+  }, [isFavourite, setIsFavouriteDeferred]);
+  const toggleFavourites = useCallback(() => {
+    preferencesStore.set_favourite(
+      nodeMetaData[props.type as keyof typeof nodeMetaData].type,
+      !isFavourite,
+    );
+  }, [preferencesStore, props.type, isFavourite]);
+
   const [
     selectedEdgesCount,
     selectedNodesCount,
@@ -75,6 +102,7 @@ function NodeContextMenu(
               <RectangleGroupIcon width={"1em"} />
               {getSelectionCountLabel(selectedEdgesCount, selectedNodesCount)}
             </ContextMenu.Item>
+            <ContextMenu.Separator />
           </>
         )}
         {props.previewable && currentNodeExclusivelySelected && (
@@ -82,11 +110,11 @@ function NodeContextMenu(
             <ContextMenu.Item onClick={linkToPreview}>
               <EyeIcon width={"1em"} /> Link to Preview
             </ContextMenu.Item>
+            <ContextMenu.Separator />
           </>
         )}
         {(!currentNodeExclusivelySelected || props.copyable) && (
           <>
-            <ContextMenu.Separator />
             <ContextMenu.Item shortcut="⌘ D">
               <DocumentDuplicateIcon width={"1em"} /> Duplicate
             </ContextMenu.Item>
@@ -100,8 +128,9 @@ function NodeContextMenu(
             .hiddenFromNodeMenu && (
             <>
               <ContextMenu.Separator />
-              <ContextMenu.Item color="yellow">
-                <StarIcon width={"1em"} /> Add to favorites
+              <ContextMenu.Item onClick={toggleFavourites} color="yellow">
+                <StarIcon width={"1em"} />
+                {!isFavouriteDeferred ? "Favourite" : "Unfavourite"}
               </ContextMenu.Item>
             </>
           )}
@@ -125,10 +154,12 @@ function NodeContextMenu(
     deleteNode,
     selectedNodesCount,
     linkToPreview,
+    toggleFavourites,
     props.deleteable,
     props.copyable,
     props.previewable,
     props.type,
+    isFavouriteDeferred,
   ]);
 
   const nodeMenu = useMemo(

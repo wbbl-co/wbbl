@@ -35,7 +35,6 @@ export default function ApplicationMenu() {
   const preferencesStore = useContext(WbblPreferencesStoreContext);
   const setMode = useCallback(
     (mode: string) => {
-      console.log("Setting Mode", mode);
       try {
         if (mode === "light") {
           preferencesStore.set_base_theme(BaseTheme.Light);
@@ -111,9 +110,9 @@ export default function ApplicationMenu() {
           </DropdownMenu.Sub>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
-      <Dialog.Content title={(currentDialog ?? undefined) && currentDialog![0]}>
-        {currentDialog && React.createElement(currentDialog[1], {})}
-      </Dialog.Content>
+      {(currentDialog && React.createElement(currentDialog[1], {})) ?? (
+        <Dialog.Content />
+      )}
     </Dialog.Root>
   );
 }

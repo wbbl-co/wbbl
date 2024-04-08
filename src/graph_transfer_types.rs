@@ -14,7 +14,6 @@ use crate::{
     graph_types::{
         Edge, Graph, InputPort, InputPortId, Node, NodeType, OutputPort, OutputPortId, PortId,
     },
-    wbbl_webapp_graph_store::WbblWebappGraphStoreError,
 };
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]

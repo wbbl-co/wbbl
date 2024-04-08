@@ -22,3 +22,4 @@ pub mod vertex_shader;
 pub mod wbbl_graph_web_worker;
 pub mod wbbl_physics;
 pub mod wbbl_webapp_graph_store;
+pub mod wbbl_webapp_user_preferences_store;

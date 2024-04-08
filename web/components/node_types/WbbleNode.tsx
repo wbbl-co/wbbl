@@ -156,7 +156,6 @@ function WbblNode({
           style={{
             width: w,
             height: h,
-            color: `var(--${nodeMetaData[type as keyof typeof nodeMetaData].category}-color)`,
           }}
         >
           <Heading

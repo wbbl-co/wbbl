@@ -9,10 +9,7 @@ use std::{
 use glam::Vec2;
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
-use yrs::{
-    block::Prelim, types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut, UndoManager,
-    Value,
-};
+use yrs::{block::Prelim, types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut, Value};
 
 use crate::{
     data_types::AbstractDataType,
@@ -185,7 +182,6 @@ impl WbblWebappGraphSnapshot {
     pub(crate) fn get_snapshot<Transaction: yrs::ReadTxn>(
         read_txn: &Transaction,
         graph_id: u128,
-        graph: &yrs::Doc,
         nodes_map_ref: &yrs::MapRef,
         edges_map_ref: &yrs::MapRef,
         node_selections_map: &yrs::MapRef,
@@ -198,7 +194,7 @@ impl WbblWebappGraphSnapshot {
             let node_values = node.1;
             let key =
                 uuid::Uuid::from_str(&key).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
-            let mut node: WbblWebappNode = match node_values {
+            let node: WbblWebappNode = match node_values {
                 yrs::Value::YMap(map) => {
                     WbblWebappNode::decode(&key.as_u128(), read_txn, &map, node_selections_map)
                 }
@@ -801,7 +797,6 @@ impl WbblWebappGraphStore {
         let mut snapshot = WbblWebappGraphSnapshot::get_snapshot(
             &read_txn,
             self.id,
-            &self.graph,
             &self.nodes,
             &self.edges,
             &self.node_selections,

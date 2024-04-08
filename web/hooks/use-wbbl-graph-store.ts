@@ -23,17 +23,22 @@ export function useWbblGraphData(
   store: WbblWebappGraphStore,
 ): WbblWebappGraphSnapshot {
   let data = useRef<WbblWebappGraphSnapshot>();
-  let setup = useRef<boolean>(false);
+  let count = useRef<number>(0);
+  let cacheHandle = useRef<number>(0);
   let subscribe = useCallback(
     (subscriber: () => void) => {
-      if (!setup.current) {
-        setup.current = true;
-        store.subscribe(() => {
+      if (count.current == 0) {
+        cacheHandle.current = store.subscribe(() => {
           data.current = undefined;
         });
       }
+      count.current = count.current + 1;
       let handle = store.subscribe(subscriber);
       return () => {
+        count.current = count.current - 1;
+        if (count.current === 0) {
+          store.unsubscribe(cacheHandle.current);
+        }
         store.unsubscribe(handle);
       };
     },

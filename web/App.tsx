@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Graph from "./components/Graph";
 import { graphWorker } from "./graph-worker-reference";
 import LoadingScreen from "./components/LoadingScreen";
+import ApplicationMenu from "./components/ApplicationMenu";
+import { Theme } from "@radix-ui/themes";
+import { BaseTheme, WbblWebappPreferencesStore } from "../pkg/wbbl";
+import {
+  WbblPreferencesStoreContext,
+  useThemePreferences,
+} from "./hooks/use-preferences-store";
 
 function App() {
   let [ready, setReady] = useState<boolean>(false);
@@ -24,13 +31,32 @@ function App() {
       clearInterval(timeout_handle);
     };
   }, [setReady]);
+  const preferencesStore = useMemo(
+    () => WbblWebappPreferencesStore.empty(),
+    [],
+  );
 
-  return ready ? (
-    <div style={{ height: "100vh" }}>
-      <Graph />
-    </div>
-  ) : (
-    <LoadingScreen />
+  const { currentTheme } = useThemePreferences(preferencesStore);
+
+  return (
+    <WbblPreferencesStoreContext.Provider value={preferencesStore}>
+      {ready ? (
+        <Theme
+          appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
+          accentColor="lime"
+          grayColor="gray"
+        >
+          <div style={{ height: "100vh" }}>
+            <ApplicationMenu />
+            <Graph />
+          </div>
+        </Theme>
+      ) : (
+        <Theme accentColor="lime" grayColor="gray">
+          <LoadingScreen />
+        </Theme>
+      )}
+    </WbblPreferencesStoreContext.Provider>
   );
 }
 

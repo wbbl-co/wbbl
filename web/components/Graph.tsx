@@ -22,9 +22,9 @@ import React, {
   useState,
   useMemo,
   MouseEvent as ReactMouseEvent,
-  useEffect,
 } from "react";
 import {
+  KeyboardShortcut,
   NewWbblWebappNode,
   WbblWebappGraphStore,
   WbblWebappNodeType,
@@ -46,6 +46,7 @@ import GraphCanvasContextMenu from "./GraphCanvasContextMenu";
 import { useScreenDimensions } from "../hooks/use-screen-dimensions";
 import { andThen } from "../hooks/and-then";
 import { PortRefStore, PortRefStoreContext } from "../hooks/use-port-location";
+import { ShortcutScope, useScopedShortcut } from "../hooks/use-shortcut";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -295,35 +296,6 @@ function Graph() {
     [mousePos],
   );
 
-  useEffect(() => {
-    let onCopy = (evt: ClipboardEvent) => {
-      evt.preventDefault();
-      graphStore.copy().catch(console.error);
-    };
-    let onPaste = (evt: ClipboardEvent) => {
-      evt.preventDefault();
-      const screenPos = flow.screenToFlowPosition(
-        { x: mousePos.current[0], y: mousePos.current[1] },
-        { snapToGrid: false },
-      );
-      graphStore
-        .paste(new Float32Array([screenPos.x, screenPos.y]))
-        .catch(console.error);
-    };
-    let onCut = (evt: ClipboardEvent) => {
-      evt.preventDefault();
-      graphStore.cut().catch(console.error);
-    };
-    document.addEventListener("copy", onCopy);
-    document.addEventListener("paste", onPaste);
-    document.addEventListener("cut", onCut);
-    return () => {
-      document.removeEventListener("copy", onCopy);
-      document.removeEventListener("paste", onPaste);
-      document.removeEventListener("cut", onCut);
-    };
-  }, [graphStore, mousePos, flow]);
-
   const onBeforeDelete: OnBeforeDelete = useCallback(
     async ({ nodes, edges }) => {
       let selectedNodes = graphStore.get_locally_selected_nodes();
@@ -332,6 +304,71 @@ function Graph() {
         nodes: nodes.filter((x) => selectedNodes.includes(x.id)),
         edges: edges.filter((x) => selectedEdges.includes(x.id)),
       };
+    },
+    [graphStore],
+  );
+
+  useScopedShortcut(
+    KeyboardShortcut.Paste,
+    () => {
+      const screenPos = flow.screenToFlowPosition(
+        { x: mousePos.current[0], y: mousePos.current[1] },
+        { snapToGrid: false },
+      );
+      graphStore
+        .paste(new Float32Array([screenPos.x, screenPos.y]))
+        .catch(console.error);
+    },
+    [flow, graphStore, mousePos.current],
+  );
+  useScopedShortcut(
+    KeyboardShortcut.Copy,
+    () => {
+      graphStore.copy();
+    },
+    [graphStore],
+  );
+
+  useScopedShortcut(
+    KeyboardShortcut.Duplicate,
+    () => {
+      graphStore.duplicate();
+    },
+    [graphStore],
+  );
+
+  useScopedShortcut(
+    KeyboardShortcut.Cut,
+    () => {
+      graphStore.cut();
+    },
+    [graphStore],
+    { preventDefault: true },
+  );
+  useScopedShortcut(
+    KeyboardShortcut.Undo,
+    () => {
+      if (graphStore.can_undo()) {
+        graphStore.undo();
+      }
+    },
+    [graphStore],
+  );
+
+  useScopedShortcut(
+    KeyboardShortcut.Redo,
+    () => {
+      if (graphStore.can_redo()) {
+        graphStore.redo();
+      }
+    },
+    [graphStore],
+  );
+
+  useScopedShortcut(
+    KeyboardShortcut.Delete,
+    () => {
+      graphStore.remove_selected_nodes_and_edges();
     },
     [graphStore],
   );
@@ -390,7 +427,7 @@ function Graph() {
               edgeTypes={edgeTypes}
               nodeTypes={nodeTypes}
               onConnect={onConnect}
-              deleteKeyCode={["Delete", "Backspace"]}
+              deleteKeyCode={[]}
               maxZoom={1.4}
               minZoom={0.25}
               snapToGrid={false}
@@ -432,10 +469,16 @@ export default function GraphRoot() {
   const graphStore = useMemo(() => WbblWebappGraphStore.empty(graphWorker), []);
 
   return (
-    <WbblGraphStoreContext.Provider value={graphStore}>
-      <ReactFlowProvider>
-        <Graph />
-      </ReactFlowProvider>
-    </WbblGraphStoreContext.Provider>
+    <ShortcutScope
+      style={{ width: "100dvw", height: "100dvh" }}
+      scope="graph"
+      mode="hover"
+    >
+      <WbblGraphStoreContext.Provider value={graphStore}>
+        <ReactFlowProvider>
+          <Graph />
+        </ReactFlowProvider>
+      </WbblGraphStoreContext.Provider>
+    </ShortcutScope>
   );
 }

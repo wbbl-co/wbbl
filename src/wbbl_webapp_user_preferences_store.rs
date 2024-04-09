@@ -55,6 +55,8 @@ pub enum KeyboardShortcut {
     Duplicate,
     OpenKeybindings,
     Home,
+    Help,
+    LinkToPreview,
 }
 
 impl KeyboardShortcut {
@@ -70,6 +72,8 @@ impl KeyboardShortcut {
             KeyboardShortcut::Duplicate => "duplicate",
             KeyboardShortcut::OpenKeybindings => "open_keybindings",
             KeyboardShortcut::Home => "home",
+            KeyboardShortcut::Help => "help",
+            KeyboardShortcut::LinkToPreview => "link_to_preview",
         }
         .to_owned()
     }
@@ -86,6 +90,8 @@ impl KeyboardShortcut {
             "duplicate" => Some(Self::Duplicate),
             "open_keybindings" => Some(Self::OpenKeybindings),
             "home" => Some(Self::Home),
+            "help" => Some(Self::Help),
+            "link_to_preview" => Some(Self::LinkToPreview),
             _ => None,
         }
     }
@@ -95,7 +101,7 @@ fn get_default_keybindings() -> HashMap<KeyboardShortcut, Option<String>> {
     HashMap::from([
         (KeyboardShortcut::Copy, Some("mod+c".to_owned())),
         (KeyboardShortcut::Cut, Some("mod+x".to_owned())),
-        (KeyboardShortcut::Paste, Some("mod+p".to_owned())),
+        (KeyboardShortcut::Paste, Some("mod+v".to_owned())),
         (KeyboardShortcut::Undo, Some("mod+z".to_owned())),
         (KeyboardShortcut::Redo, Some("mod+shift+z".to_owned())),
         (KeyboardShortcut::QuickActions, Some("space".to_owned())),
@@ -106,6 +112,7 @@ fn get_default_keybindings() -> HashMap<KeyboardShortcut, Option<String>> {
             KeyboardShortcut::OpenKeybindings,
             Some("mod+shift+k".to_owned()),
         ),
+        (KeyboardShortcut::Help, Some("f1".to_owned())),
     ])
 }
 
@@ -307,6 +314,26 @@ impl WbblWebappPreferencesStore {
         }
         serde_wasm_bindgen::to_value(&bindings)
             .map_err(|_| WbblWebappPreferencesStoreError::SerializationFailure)
+    }
+
+    pub fn get_keybinding(
+        &self,
+        shortcut: KeyboardShortcut,
+    ) -> Result<Option<String>, WbblWebappPreferencesStoreError> {
+        let bindings = get_default_keybindings();
+        let txn = self.preferences.transact();
+
+        match self
+            .keyboard_shortcuts
+            .get(&txn, &shortcut.get_string_representation())
+        {
+            Some(yrs::Value::Any(yrs::Any::String(shortcut))) => Ok(Some(shortcut.to_string())),
+            None => match bindings.get(&shortcut) {
+                Some(Some(shortcut)) => Ok(Some(shortcut.to_owned())),
+                _ => Ok(None),
+            },
+            _ => Ok(None),
+        }
     }
 
     pub fn get_node_keybindings(&self) -> Result<JsValue, WbblWebappPreferencesStoreError> {

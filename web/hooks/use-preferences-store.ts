@@ -235,3 +235,47 @@ export function useIsFavouritePreference(
 
   return snapshot;
 }
+
+export function useKeyBinding(
+  store: WbblWebappPreferencesStore,
+  shortcut: KeyboardShortcut,
+): string | undefined | null {
+  let data = useRef<string | undefined | null>(undefined);
+  let count = useRef<number>(0);
+  let cacheHandle = useRef<number>(0);
+
+  let subscribe = useCallback(
+    (subscriber: () => void) => {
+      if (count.current == 0) {
+        cacheHandle.current = store.subscribe(() => {
+          data.current = undefined;
+        });
+      }
+      count.current = count.current + 1;
+      let handle = store.subscribe(subscriber);
+      return () => {
+        count.current = count.current - 1;
+        if (count.current === 0) {
+          store.unsubscribe(cacheHandle.current);
+        }
+        store.unsubscribe(handle);
+      };
+    },
+    [store],
+  );
+
+  useEffect(() => {
+    data.current = store.get_keybinding(shortcut);
+  }, [shortcut]);
+
+  let getSnapshot = useCallback(() => {
+    if (data.current === undefined) {
+      data.current = store.get_keybinding(shortcut);
+    }
+    return data.current;
+  }, [store, shortcut]);
+
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  return snapshot;
+}

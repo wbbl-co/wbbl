@@ -11,6 +11,8 @@ const keybindingDescriptors: { [K in KeyboardShortcut]: string } = {
   [KeyboardShortcut.Home]: "Home",
   [KeyboardShortcut.Delete]: "Delete",
   [KeyboardShortcut.Duplicate]: "Duplicate",
+  [KeyboardShortcut.Help]: "Help",
+  [KeyboardShortcut.LinkToPreview]: "Link to Preview",
 };
 
 export default keybindingDescriptors;

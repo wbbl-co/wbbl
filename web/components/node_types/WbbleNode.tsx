@@ -17,6 +17,7 @@ import NodeContextMenu from "../NodeContextMenu";
 import { Card, Heading, Flex } from "@radix-ui/themes";
 import { Box } from "@radix-ui/themes/dist/cjs/index.js";
 import useIsWbblEffectEnabled from "../../hooks/use-is-wbble-effect-enabled";
+import { ShortcutScope } from "../../hooks/use-shortcut";
 
 function WbblNode({
   id,
@@ -178,15 +179,18 @@ function WbblNode({
   );
 
   return (
-    <NodeContextMenu
-      previewable={previewable}
-      deleteable={deleteable}
-      copyable={copyable}
-      id={id}
-      type={type}
-    >
-      {contents}
-    </NodeContextMenu>
+    <ShortcutScope scope={`node-${id}`} mode="hover">
+      <NodeContextMenu
+        selected={selected ?? false}
+        previewable={previewable}
+        deleteable={deleteable}
+        copyable={copyable}
+        id={id}
+        type={type}
+      >
+        {contents}
+      </NodeContextMenu>
+    </ShortcutScope>
   );
 }
 

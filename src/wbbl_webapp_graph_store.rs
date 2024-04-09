@@ -42,7 +42,7 @@ pub struct WbblWebappGraphStore {
     graph_worker: Worker,
     worker_responder: Closure<dyn FnMut(MessageEvent) -> ()>,
     computed_types: Arc<RefCell<HashMap<PortId, AbstractDataType>>>,
-    should_emit: bool,
+    initialized: bool,
 }
 
 #[wasm_bindgen]
@@ -628,10 +628,7 @@ impl WbblWebappGraphStore {
                 timestamp: Rc::new(|| js_sys::Date::now() as u64),
             },
         );
-        undo_manager.include_origin(graph.client_id()); // only track changes originating from local peer
-        undo_manager.expand_scope(&edges);
-        undo_manager.expand_scope(&node_selections);
-        undo_manager.expand_scope(&edge_selections);
+
         let computed_types = Arc::new(RefCell::new(HashMap::new()));
 
         let listeners = Arc::new(RefCell::new(Vec::<(u32, js_sys::Function)>::new()));
@@ -680,7 +677,7 @@ impl WbblWebappGraphStore {
             computed_types: computed_types.clone(),
             graph_worker: graph_worker.clone(),
             worker_responder,
-            should_emit: false,
+            initialized: false,
         };
 
         let output_node = NewWbblWebappNode::new(600.0, 500.0, WbblWebappNodeType::Output);
@@ -697,7 +694,12 @@ impl WbblWebappGraphStore {
                 0,
             )
             .unwrap();
-        store.should_emit = true;
+
+        store.undo_manager.include_origin(store.graph.client_id()); // only track changes originating from local peer
+        store.undo_manager.expand_scope(&store.edges);
+        store.undo_manager.expand_scope(&store.node_selections);
+        store.undo_manager.expand_scope(&store.edge_selections);
+        store.initialized = true;
         store.emit(true).unwrap();
         store
     }
@@ -708,7 +710,7 @@ impl WbblWebappGraphStore {
                 .call0(&JsValue::UNDEFINED)
                 .map_err(|_| WbblWebappGraphStoreError::FailedToEmit)?;
         }
-        if should_publish_to_worker && self.should_emit {
+        if should_publish_to_worker && self.initialized {
             let snapshot = self.get_snapshot_raw()?;
             let snapshot_js_value = serde_wasm_bindgen::to_value(
                 &WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot),
@@ -792,6 +794,47 @@ impl WbblWebappGraphStore {
         // as this could trigger a panic as the store value may be read
         self.emit(true)?;
 
+        Ok(())
+    }
+
+    pub fn remove_selected_nodes_and_edges(&mut self) -> Result<(), WbblWebappGraphStoreError> {
+        {
+            let selected_nodes = self.get_locally_selected_nodes()?;
+            let selected_edges = self.get_locally_selected_edges()?;
+            let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
+            for node_id in selected_nodes {
+                match get_map(&node_id, &mut_transaction, &self.nodes) {
+                    Ok(node) => {
+                        let type_name: String = get_atomic_string("type", &mut_transaction, &node)?;
+                        if let Some(WbblWebappNodeType::Output) = from_type_name(&type_name) {
+                            Ok(())
+                        } else {
+                            delete_node(
+                                &mut mut_transaction,
+                                &node_id,
+                                &mut self.nodes,
+                                &mut self.edges,
+                                &mut self.node_selections,
+                                &mut self.edge_selections,
+                            )?;
+                            Ok(())
+                        }
+                    }
+                    Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+                    Err(err) => Err(err),
+                }?;
+            }
+            for edge_id in selected_edges {
+                delete_edge(
+                    &mut mut_transaction,
+                    &edge_id,
+                    &mut self.edges,
+                    &mut self.nodes,
+                    &mut self.edge_selections,
+                )?;
+            }
+        }
+        self.emit(true)?;
         Ok(())
     }
 
@@ -1046,10 +1089,69 @@ impl WbblWebappGraphStore {
         Ok(snapshot)
     }
 
+    fn get_node_snapshot(
+        &self,
+        node_id: &str,
+    ) -> Result<WbblWebappGraphSnapshot, WbblWebappGraphStoreError> {
+        let node_id = uuid::Uuid::parse_str(node_id)
+            .map_err(|_| WbblWebappGraphStoreError::MalformedId)?
+            .as_u128();
+
+        let mut snapshot = self.get_snapshot_raw()?;
+        snapshot.edges = vec![];
+
+        snapshot.nodes = snapshot
+            .nodes
+            .into_iter()
+            .filter(|n| n.id == node_id)
+            .collect();
+        Ok(snapshot)
+    }
+
     pub fn duplicate(&mut self) -> Result<(), WbblWebappGraphStoreError> {
         let mut snapshot = self.get_selection_snapshot()?;
         snapshot.offset(&Vec2::new(200.0, 200.0));
         self.integrate_snapshot(None, &mut snapshot)?;
+        Ok(())
+    }
+
+    pub fn duplicate_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
+        let mut snapshot = self.get_node_snapshot(node_id)?;
+        snapshot.offset(&Vec2::new(200.0, 200.0));
+        self.integrate_snapshot(None, &mut snapshot)?;
+        Ok(())
+    }
+
+    #[cfg(web_sys_unstable_apis)]
+    pub async fn copy_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
+        use crate::dot_converter::to_dot;
+        let snapshot = self.get_node_snapshot(node_id)?;
+        let clipboard_contents = to_dot(&snapshot);
+        let window = web_sys::window().expect("Missing Window");
+        if let Some(clipboard) = window.navigator().clipboard() {
+            wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&clipboard_contents))
+                .await
+                .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
+        };
+
+        Ok(())
+    }
+
+    #[cfg(web_sys_unstable_apis)]
+    pub async fn cut_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
+        use crate::dot_converter::to_dot;
+        let mut snapshot = self.get_node_snapshot(node_id)?;
+        let clipboard_contents = to_dot(&snapshot);
+        let window = web_sys::window().expect("Missing Window");
+        if let Some(clipboard) = window.navigator().clipboard() {
+            wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&clipboard_contents))
+                .await
+                .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
+        };
+        snapshot.filter_out_output_ports();
+        {
+            self.remove_node(node_id)?;
+        }
         Ok(())
     }
 
@@ -1065,11 +1167,11 @@ impl WbblWebappGraphStore {
                 .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
         };
         snapshot.filter_out_output_ports();
-        for node in snapshot.nodes {
-            self.remove_node(&uuid::Uuid::from_u128(node.id).to_string())?;
-        }
         for edge in snapshot.edges {
             self.remove_edge(&uuid::Uuid::from_u128(edge.id).to_string())?;
+        }
+        for node in snapshot.nodes {
+            self.remove_node(&uuid::Uuid::from_u128(node.id).to_string())?;
         }
         Ok(())
     }

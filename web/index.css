@@ -15,6 +15,18 @@ body,
     -moz-osx-font-smoothing: grayscale;
 }
 
+.wrapper-div {
+    width: max-content;
+    height: max-content;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    &:focus {
+        border: none;
+        outline: none;
+    }
+}
+
 .node-context-menu-content {
     --accent-contrast: var(--category-contrast);
     --accent-9: var(--category-color);

@@ -9,6 +9,12 @@ import {
   WbblPreferencesStoreContext,
   useThemePreferences,
 } from "./hooks/use-preferences-store";
+import { HotkeysProvider } from "react-hotkeys-hook";
+import {
+  AvailableActions,
+  AvailableActionsContext,
+} from "./hooks/use-actions-menu";
+import { ShortcutScope } from "./hooks/use-shortcut";
 
 function App() {
   let [ready, setReady] = useState<boolean>(false);
@@ -37,30 +43,40 @@ function App() {
   );
 
   const { currentTheme } = useThemePreferences(preferencesStore);
+  const availableActionsContext: AvailableActions = useMemo(
+    () => ({ actions: new Map(), allowAddNodes: false }),
+    [],
+  );
 
   return (
-    <WbblPreferencesStoreContext.Provider value={preferencesStore}>
-      {ready ? (
-        <Theme
-          appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
-          accentColor="lime"
-          grayColor="gray"
-        >
-          <div style={{ height: "100vh" }}>
-            <ApplicationMenu />
-            <Graph />
-          </div>
-        </Theme>
-      ) : (
-        <Theme
-          appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
-          accentColor="lime"
-          grayColor="gray"
-        >
-          <LoadingScreen />
-        </Theme>
-      )}
-    </WbblPreferencesStoreContext.Provider>
+    <AvailableActionsContext.Provider value={availableActionsContext}>
+      <ShortcutScope scope="root">
+        <HotkeysProvider initiallyActiveScopes={["root"]}>
+          <WbblPreferencesStoreContext.Provider value={preferencesStore}>
+            {ready ? (
+              <Theme
+                appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
+                accentColor="lime"
+                grayColor="gray"
+              >
+                <div style={{ height: "100dvh", width: "100dvw" }}>
+                  <ApplicationMenu />
+                  <Graph />
+                </div>
+              </Theme>
+            ) : (
+              <Theme
+                appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
+                accentColor="lime"
+                grayColor="gray"
+              >
+                <LoadingScreen />
+              </Theme>
+            )}
+          </WbblPreferencesStoreContext.Provider>
+        </HotkeysProvider>
+      </ShortcutScope>
+    </AvailableActionsContext.Provider>
   );
 }
 

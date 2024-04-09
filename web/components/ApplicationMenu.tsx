@@ -14,23 +14,22 @@ import KeybindingDialogContents from "./KeybindingDialogContents";
 import React from "react";
 import {
   WbblPreferencesStoreContext,
+  useKeyBinding,
   useThemePreferences,
 } from "../hooks/use-preferences-store";
-import { BaseTheme } from "../../pkg/wbbl";
+import { BaseTheme, KeyboardShortcut } from "../../pkg/wbbl";
+import { useScopedShortcut } from "../hooks/use-shortcut";
+import formatKeybinding from "../utils/format-keybinding";
 
 export default function ApplicationMenu() {
   const goHome = useCallback(() => {
     window.location.assign("/");
   }, []);
 
-  const [currentDialog, setCurrentDialog] = useState<
-    [string, FunctionComponent<{}>] | null
-  >(null);
+  const [currentDialog, setCurrentDialog] =
+    useState<FunctionComponent<{}> | null>(null);
   const setKeybindingDialog = useCallback(() => {
-    setCurrentDialog(() => [
-      "Key Bindings",
-      () => <KeybindingDialogContents />,
-    ]);
+    setCurrentDialog(() => () => <KeybindingDialogContents />);
   }, [setCurrentDialog]);
   const preferencesStore = useContext(WbblPreferencesStoreContext);
   const setMode = useCallback(
@@ -61,8 +60,26 @@ export default function ApplicationMenu() {
     }
   }, [baseTheme]);
 
+  const onOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open && !!currentDialog) {
+        setCurrentDialog(null);
+      }
+    },
+    [setCurrentDialog, currentDialog],
+  );
+
+  useScopedShortcut(KeyboardShortcut.OpenKeybindings, setKeybindingDialog, []);
+  useScopedShortcut(KeyboardShortcut.Home, goHome, []);
+  const homeShortcut = useKeyBinding(preferencesStore, KeyboardShortcut.Home);
+
+  const keybindingMenuShortcut = useKeyBinding(
+    preferencesStore,
+    KeyboardShortcut.OpenKeybindings,
+  );
+
   return (
-    <Dialog.Root>
+    <Dialog.Root open={currentDialog !== null} onOpenChange={onOpenChange}>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger className="application-menu-trigger">
           <Button
@@ -74,7 +91,10 @@ export default function ApplicationMenu() {
           </Button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content>
-          <DropdownMenu.Item onClick={goHome}>
+          <DropdownMenu.Item
+            shortcut={homeShortcut ? formatKeybinding(homeShortcut) : undefined}
+            onClick={goHome}
+          >
             <HomeIcon width={"1em"} /> Home
           </DropdownMenu.Item>
           <DropdownMenu.Item shortcut="␣">
@@ -87,7 +107,14 @@ export default function ApplicationMenu() {
             </DropdownMenu.SubTrigger>
             <DropdownMenu.SubContent>
               <Dialog.Trigger>
-                <DropdownMenu.Item onClick={setKeybindingDialog} shortcut="⌘ P">
+                <DropdownMenu.Item
+                  onClick={setKeybindingDialog}
+                  shortcut={
+                    keybindingMenuShortcut
+                      ? formatKeybinding(keybindingMenuShortcut)
+                      : undefined
+                  }
+                >
                   Keyboard Shortcuts
                 </DropdownMenu.Item>
               </Dialog.Trigger>
@@ -110,7 +137,7 @@ export default function ApplicationMenu() {
           </DropdownMenu.Sub>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
-      {(currentDialog && React.createElement(currentDialog[1], {})) ?? (
+      {(currentDialog && React.createElement(currentDialog, {})) ?? (
         <Dialog.Content />
       )}
     </Dialog.Root>

@@ -9,6 +9,7 @@ import {
 } from "@heroicons/react/24/solid";
 import { ContextMenu } from "@radix-ui/themes";
 import {
+  MouseEventHandler,
   PropsWithChildren,
   memo,
   useCallback,
@@ -120,23 +121,28 @@ function NodeContextMenu(
     [props.id, graphStore, currentNodeExclusivelySelected],
   );
 
+  const copyNodeOrSelection = useCallback(
+    currentNodeExclusivelySelected
+      ? () => {
+          graphStore.copy_node(props.id).catch(console.error);
+        }
+      : () => {
+          graphStore.copy().catch(console.error);
+        },
+    [props.id, graphStore, currentNodeExclusivelySelected],
+  );
+
   const cutNodeOrSelection = useCallback(
     currentNodeExclusivelySelected
       ? () => {
-          graphStore
-            .copy_node(props.id)
-            .then(() => {
-              graphStore.remove_node(props.id);
-            })
-            .catch(console.error);
+          graphStore.copy_node(props.id).then(() => {
+            graphStore.remove_node(props.id);
+          });
         }
       : () => {
-          graphStore
-            .copy()
-            .then(() => {
-              graphStore.remove_selected_nodes_and_edges();
-            })
-            .catch(console.error);
+          graphStore.copy().then(() => {
+            graphStore.remove_selected_nodes_and_edges();
+          });
         },
     [props.id, graphStore, currentNodeExclusivelySelected],
   );
@@ -185,10 +191,16 @@ function NodeContextMenu(
     preferencesStore,
     KeyboardShortcut.Delete,
   );
+  const blockNestedContextMenu = useCallback<MouseEventHandler>((evt) => {
+    evt.preventDefault();
+    evt.stopPropagation();
+  }, []);
 
   const contextMenuContent = useMemo(() => {
     return (
       <ContextMenu.Content
+        onContextMenu={blockNestedContextMenu}
+        onClick={blockNestedContextMenu}
         className={`node-context-menu-content category-${nodeMetaData[props.type as keyof typeof nodeMetaData].category}`}
       >
         {!currentNodeExclusivelySelected && (
@@ -228,6 +240,7 @@ function NodeContextMenu(
               <DocumentDuplicateIcon width={"1em"} /> Duplicate
             </ContextMenu.Item>
             <ContextMenu.Item
+              onClick={copyNodeOrSelection}
               shortcut={
                 copyShortcut ? formatKeybinding(copyShortcut) : undefined
               }
@@ -286,6 +299,7 @@ function NodeContextMenu(
     props.copyable,
     props.previewable,
     props.type,
+    blockNestedContextMenu,
     isFavouriteDeferred,
   ]);
 

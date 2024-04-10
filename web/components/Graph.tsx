@@ -49,6 +49,8 @@ import { andThen } from "../hooks/and-then";
 import { PortRefStore, PortRefStoreContext } from "../hooks/use-port-location";
 import { ShortcutScope, useScopedShortcut } from "../hooks/use-shortcut";
 import { AvailableActionsContext } from "../hooks/use-actions-menu";
+import { WbblPreferencesStoreContext } from "../hooks/use-preferences-store";
+import { isHotkeyPressed, useHotkeysContext } from "react-hotkeys-hook";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -61,6 +63,7 @@ function getMinimapNodeClassnames(node: Node) {
 }
 
 function Graph() {
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
   const graphStore = useContext(WbblGraphStoreContext);
   const snapshot = useWbblGraphData(graphStore);
   const [nodeMenuPosition, setNodeMenuPosition] = useState<null | {
@@ -95,7 +98,6 @@ function Graph() {
     },
     [setIsSelectingTrue, setIsSelectingFalse],
   );
-
   const onConnectStart = useCallback(() => {
     setIsConnecting(true);
   }, [setIsConnecting]);
@@ -105,41 +107,78 @@ function Graph() {
       setIsConnecting(false);
     }, 4);
   }, [setIsConnecting]);
+
+  const mousePos = useRef([0, 0] as [number, number]);
+  const onMouseMove = useCallback(
+    (evt: ReactMouseEvent<HTMLDivElement>) => {
+      mousePos.current = [evt.clientX, evt.clientY];
+    },
+    [mousePos],
+  );
+
   const onPaneClick = useCallback(
     (evt: React.MouseEvent<Element, MouseEvent>) => {
       let target = evt.target as HTMLElement;
       let rect = target.getBoundingClientRect();
-      if (nodeMenuOpen === false && !isConnecting && !isSelecting) {
-        let pos = flow.screenToFlowPosition(
-          { x: evt.clientX, y: evt.clientY },
-          { snapToGrid: false },
-        );
-        setNodeMenuOpen(true);
-        setNodeMenuPosition({
-          x: pos.x,
-          y: pos.y,
-          top:
-            evt.clientY < rect.height - NODE_MENU_DIMENSIONS.height
-              ? evt.clientY
-              : rect.height - NODE_MENU_DIMENSIONS.height,
-          left:
-            evt.clientX < rect.width - NODE_MENU_DIMENSIONS.width
-              ? evt.clientX
-              : rect.width - NODE_MENU_DIMENSIONS.width,
-          right: undefined,
-          bottom: undefined,
-        });
+      if (!isConnecting && !isSelecting) {
+        let nodeAdded = false;
+        let nodeKeybindings = preferencesStore.get_node_keybindings() as Map<
+          string,
+          string | null | undefined
+        >;
+        for (let keybinding of nodeKeybindings.entries()) {
+          if (!!keybinding[1] && isHotkeyPressed(keybinding[1])) {
+            nodeAdded = true;
+            const pos = flow.screenToFlowPosition(
+              { x: mousePos.current[0], y: mousePos.current[1] },
+              { snapToGrid: false },
+            );
+            graphStore.add_node(
+              NewWbblWebappNode.new(
+                pos.x,
+                pos.y,
+                nodeMetaData[keybinding[0] as keyof typeof nodeMetaData].type,
+              ),
+            );
+            break;
+          }
+        }
+
+        if (nodeMenuOpen === false && !nodeAdded) {
+          let pos = flow.screenToFlowPosition(
+            { x: evt.clientX, y: evt.clientY },
+            { snapToGrid: false },
+          );
+          setNodeMenuOpen(true);
+          setNodeMenuPosition({
+            x: pos.x,
+            y: pos.y,
+            top:
+              evt.clientY < rect.height - NODE_MENU_DIMENSIONS.height
+                ? evt.clientY
+                : rect.height - NODE_MENU_DIMENSIONS.height,
+            left:
+              evt.clientX < rect.width - NODE_MENU_DIMENSIONS.width
+                ? evt.clientX
+                : rect.width - NODE_MENU_DIMENSIONS.width,
+            right: undefined,
+            bottom: undefined,
+          });
+        }
       } else {
         setNodeMenuOpen(false);
       }
     },
     [
+      preferencesStore,
+      graphStore,
       nodeMenuOpen,
       setNodeMenuPosition,
       setNodeMenuOpen,
       flow,
       isConnecting,
       isSelecting,
+      mousePos,
     ],
   );
   const onNodesChange = useCallback(
@@ -305,13 +344,6 @@ function Graph() {
   const connectingHandlers = useOnEdgeDragUpdater(graphStore, onConnectEnd);
 
   const { width, height } = useScreenDimensions();
-  const mousePos = useRef([0, 0] as [number, number]);
-  const onMouseMove = useCallback(
-    (evt: ReactMouseEvent<HTMLDivElement>) => {
-      mousePos.current = [evt.clientX, evt.clientY];
-    },
-    [mousePos],
-  );
 
   const onBeforeDelete: OnBeforeDelete = useCallback(
     async ({ nodes, edges }) => {
@@ -439,7 +471,7 @@ function Graph() {
     <WbblSnapshotContext.Provider value={snapshot}>
       <WbblEdgeEndContext.Provider value={edgeRendererRef}>
         <PortRefStoreContext.Provider value={portRefStore}>
-          <GraphCanvasContextMenu>
+          <GraphCanvasContextMenu mousePosition={mousePos}>
             <ReactFlow
               width={width}
               height={height}

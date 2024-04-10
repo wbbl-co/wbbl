@@ -55,7 +55,10 @@ function App() {
     () => ({ actions: new Map() }),
     [],
   );
-  const mousePosition = useRef({ x: 0, y: 0 });
+  const mousePosition = useRef({
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2,
+  });
   const setMousePositionCallback = useCallback(
     (evt: ReactMouseEvent<HTMLDivElement>) => {
       mousePosition.current = { x: evt.clientX, y: evt.clientY };

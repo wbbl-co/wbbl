@@ -1,6 +1,12 @@
-import { LifebuoyIcon } from "@heroicons/react/24/solid";
+import { ArrowUturnRightIcon, LifebuoyIcon } from "@heroicons/react/24/solid";
 import { ContextMenu } from "@radix-ui/themes";
-import { PropsWithChildren, useContext, useMemo } from "react";
+import {
+  MouseEventHandler,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useMemo,
+} from "react";
 import { WbblGraphStoreContext } from "../hooks/use-wbbl-graph-store";
 import {
   WbblPreferencesStoreContext,
@@ -8,21 +14,36 @@ import {
 } from "../hooks/use-preferences-store";
 import { KeyboardShortcut } from "../../pkg/wbbl";
 import formatKeybinding from "../utils/format-keybinding";
+import {
+  ArrowUturnLeftIcon,
+  ClipboardDocumentIcon,
+} from "@heroicons/react/24/solid";
+import { useReactFlow } from "@xyflow/react";
 
-export default function GraphCanvasContextMenu(props: PropsWithChildren<{}>) {
+export default function GraphCanvasContextMenu(
+  props: PropsWithChildren<{
+    mousePosition: { current: [number, number] };
+  }>,
+) {
+  const flow = useReactFlow();
   const graphStore = useContext(WbblGraphStoreContext);
   const preferencesStore = useContext(WbblPreferencesStoreContext);
   const undoBinding = useKeyBinding(preferencesStore, KeyboardShortcut.Undo);
   const redoBinding = useKeyBinding(preferencesStore, KeyboardShortcut.Redo);
+  const pasteBinding = useKeyBinding(preferencesStore, KeyboardShortcut.Paste);
   const helpBinding = useKeyBinding(preferencesStore, KeyboardShortcut.Help);
+  const blockNestedContextMenu = useCallback<MouseEventHandler>((evt) => {
+    evt.preventDefault();
+  }, []);
   const contextMenuContent = useMemo(() => {
     return (
-      <ContextMenu.Content>
+      <ContextMenu.Content onContextMenu={blockNestedContextMenu}>
         <ContextMenu.Item
           disabled={!graphStore.can_undo()}
           onClick={() => graphStore.undo()}
           shortcut={undoBinding ? formatKeybinding(undoBinding) : undefined}
         >
+          <ArrowUturnLeftIcon width={"1em"} />
           Undo
         </ContextMenu.Item>
         <ContextMenu.Item
@@ -30,7 +51,22 @@ export default function GraphCanvasContextMenu(props: PropsWithChildren<{}>) {
           onClick={() => graphStore.redo()}
           shortcut={redoBinding ? formatKeybinding(redoBinding) : undefined}
         >
+          <ArrowUturnRightIcon width={"1em"} />
           Redo
+        </ContextMenu.Item>
+        <ContextMenu.Separator />
+        <ContextMenu.Item
+          onClick={() => {
+            const pos = flow.screenToFlowPosition({
+              x: props.mousePosition.current[0],
+              y: props.mousePosition.current[1],
+            });
+            graphStore.paste(new Float32Array([pos.x, pos.y]));
+          }}
+          shortcut={pasteBinding ? formatKeybinding(pasteBinding) : undefined}
+        >
+          <ClipboardDocumentIcon width={"1em"} />
+          Paste
         </ContextMenu.Item>
         <ContextMenu.Separator />
         <ContextMenu.Item
@@ -40,7 +76,14 @@ export default function GraphCanvasContextMenu(props: PropsWithChildren<{}>) {
         </ContextMenu.Item>
       </ContextMenu.Content>
     );
-  }, [graphStore, graphStore.can_redo(), graphStore.can_undo()]);
+  }, [
+    graphStore,
+    graphStore.can_redo(),
+    graphStore.can_undo(),
+    blockNestedContextMenu,
+    props.mousePosition,
+    flow,
+  ]);
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger>{props.children}</ContextMenu.Trigger>

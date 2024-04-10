@@ -1099,7 +1099,6 @@ impl WbblWebappGraphStore {
 
         let mut snapshot = self.get_snapshot_raw()?;
         snapshot.edges = vec![];
-
         snapshot.nodes = snapshot
             .nodes
             .into_iter()
@@ -1123,33 +1122,34 @@ impl WbblWebappGraphStore {
     }
 
     #[cfg(web_sys_unstable_apis)]
-    pub async fn copy_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn copy_node(
+        &mut self,
+        node_id: &str,
+    ) -> Result<js_sys::Promise, WbblWebappGraphStoreError> {
         use crate::dot_converter::to_dot;
-        let snapshot = self.get_node_snapshot(node_id)?;
-        let clipboard_contents = to_dot(&snapshot);
+        let clipboard_contents: String = {
+            let snapshot = self.get_node_snapshot(node_id)?;
+            to_dot(&snapshot)
+        };
         let window = web_sys::window().expect("Missing Window");
         if let Some(clipboard) = window.navigator().clipboard() {
-            wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&clipboard_contents))
-                .await
-                .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
-        };
-
-        Ok(())
+            Ok(clipboard.write_text(&clipboard_contents))
+        } else {
+            Err(WbblWebappGraphStoreError::ClipboardFailure)
+        }
     }
 
     #[cfg(web_sys_unstable_apis)]
-    pub async fn copy(&self) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn copy(&self) -> Result<js_sys::Promise, WbblWebappGraphStoreError> {
         use crate::dot_converter::to_dot;
         let snapshot = self.get_selection_snapshot()?;
         let clipboard_contents = to_dot(&snapshot);
         let window = web_sys::window().expect("Missing Window");
         if let Some(clipboard) = window.navigator().clipboard() {
-            wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&clipboard_contents))
-                .await
-                .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
-        };
-
-        Ok(())
+            Ok(clipboard.write_text(&clipboard_contents))
+        } else {
+            Err(WbblWebappGraphStoreError::ClipboardFailure)
+        }
     }
 
     fn integrate_snapshot(

@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import Graph from "./components/Graph";
 import { graphWorker } from "./graph-worker-reference";
 import LoadingScreen from "./components/LoadingScreen";
@@ -15,6 +22,7 @@ import {
   AvailableActionsContext,
 } from "./hooks/use-actions-menu";
 import { ShortcutScope } from "./hooks/use-shortcut";
+import { ActionMenu } from "./components/SearchMenu";
 
 function App() {
   let [ready, setReady] = useState<boolean>(false);
@@ -44,35 +52,50 @@ function App() {
 
   const { currentTheme } = useThemePreferences(preferencesStore);
   const availableActionsContext: AvailableActions = useMemo(
-    () => ({ actions: new Map(), allowAddNodes: false }),
+    () => ({ actions: new Map() }),
     [],
   );
+  const mousePosition = useRef({ x: 0, y: 0 });
+  const setMousePositionCallback = useCallback(
+    (evt: ReactMouseEvent<HTMLDivElement>) => {
+      mousePosition.current = { x: evt.clientX, y: evt.clientY };
+    },
+    [mousePosition],
+  );
+  const [actionMenuSettings, setActionMenuSettings] = useState({
+    open: false,
+    useMousePosition: false,
+  });
 
   return (
     <AvailableActionsContext.Provider value={availableActionsContext}>
       <ShortcutScope scope="root">
         <HotkeysProvider initiallyActiveScopes={["root"]}>
           <WbblPreferencesStoreContext.Provider value={preferencesStore}>
-            {ready ? (
-              <Theme
-                appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
-                accentColor="lime"
-                grayColor="gray"
-              >
+            <Theme
+              appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
+              accentColor="lime"
+              grayColor="gray"
+              onMouseMove={setMousePositionCallback}
+            >
+              {ready ? (
                 <div style={{ height: "100dvh", width: "100dvw" }}>
-                  <ApplicationMenu />
+                  <ApplicationMenu
+                    showNodesInActionMenu={!!availableActionsContext.addNode}
+                    setActionMenuSettings={setActionMenuSettings}
+                  />
+                  <ActionMenu
+                    useMousePosition={actionMenuSettings.useMousePosition}
+                    mousePosition={mousePosition}
+                    open={actionMenuSettings.open}
+                    setActionMenuSettings={setActionMenuSettings}
+                  />
                   <Graph />
                 </div>
-              </Theme>
-            ) : (
-              <Theme
-                appearance={currentTheme == BaseTheme.Dark ? "dark" : "light"}
-                accentColor="lime"
-                grayColor="gray"
-              >
+              ) : (
                 <LoadingScreen />
-              </Theme>
-            )}
+              )}
+            </Theme>
           </WbblPreferencesStoreContext.Provider>
         </HotkeysProvider>
       </ShortcutScope>

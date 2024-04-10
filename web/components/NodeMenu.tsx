@@ -15,7 +15,9 @@ import { StarIcon, PhotoIcon } from "@heroicons/react/24/solid";
 import {
   WbblPreferencesStoreContext,
   useFavouritesPreferences,
+  useNodeKeyBinding,
 } from "../hooks/use-preferences-store";
+import formatKeybinding from "../utils/format-keybinding";
 
 function useTooltipOpen() {
   const [tooltipMaybeOpen, setTooltipMaybeOpen] = useState(false);
@@ -58,6 +60,8 @@ function NodeDropdownMenuItemImpl(
   },
   forwardRef: ForwardedRef<HTMLDivElement>,
 ) {
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
+  const shortcut = useNodeKeyBinding(preferencesStore, value.type);
   const whenSelected = useCallback(() => {
     onSelect(id);
   }, [id, onSelect, value]);
@@ -68,6 +72,7 @@ function NodeDropdownMenuItemImpl(
     <div>
       <Tooltip open={tooltipOpen} content={value.description}>
         <DropdownMenu.Item
+          shortcut={shortcut ? formatKeybinding(shortcut) : undefined}
           onBlur={setTooltipOpenFalse}
           onFocus={setTooltipMaybeOpenTrue}
           onMouseOver={setTooltipMaybeOpenTrue}

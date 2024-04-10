@@ -336,6 +336,24 @@ impl WbblWebappPreferencesStore {
         }
     }
 
+    pub fn get_node_keybinding(
+        &self,
+        node_type: WbblWebappNodeType,
+    ) -> Result<Option<String>, WbblWebappPreferencesStoreError> {
+        let bindings = get_default_node_keybindings();
+        let txn = self.preferences.transact();
+
+        let type_name = get_type_name(node_type);
+        match self.node_keyboard_shortcuts.get(&txn, &type_name) {
+            Some(yrs::Value::Any(yrs::Any::String(shortcut))) => Ok(Some(shortcut.to_string())),
+            None => match bindings.get(&type_name) {
+                Some(Some(shortcut)) => Ok(Some(shortcut.to_owned())),
+                _ => Ok(None),
+            },
+            _ => Ok(None),
+        }
+    }
+
     pub fn get_node_keybindings(&self) -> Result<JsValue, WbblWebappPreferencesStoreError> {
         let mut bindings = get_default_node_keybindings();
         let txn = self.preferences.transact();

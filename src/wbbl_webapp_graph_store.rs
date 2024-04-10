@@ -618,7 +618,7 @@ impl WbblWebappGraphStore {
         let edge_selections = graph.get_or_insert_map(GRAPH_YRS_EDGE_SELECTIONS_MAP_KEY.to_owned());
         let nodes = graph.get_or_insert_map(GRAPH_YRS_NODES_MAP_KEY.to_owned());
         let edges = graph.get_or_insert_map(GRAPH_YRS_EDGES_MAP_KEY.to_owned());
-        let mut undo_manager = yrs::UndoManager::with_options(
+        let undo_manager = yrs::UndoManager::with_options(
             &graph,
             &nodes,
             yrs::undo::Options {
@@ -1134,45 +1134,6 @@ impl WbblWebappGraphStore {
                 .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
         };
 
-        Ok(())
-    }
-
-    #[cfg(web_sys_unstable_apis)]
-    pub async fn cut_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
-        use crate::dot_converter::to_dot;
-        let mut snapshot = self.get_node_snapshot(node_id)?;
-        let clipboard_contents = to_dot(&snapshot);
-        let window = web_sys::window().expect("Missing Window");
-        if let Some(clipboard) = window.navigator().clipboard() {
-            wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&clipboard_contents))
-                .await
-                .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
-        };
-        snapshot.filter_out_output_ports();
-        {
-            self.remove_node(node_id)?;
-        }
-        Ok(())
-    }
-
-    #[cfg(web_sys_unstable_apis)]
-    pub async fn cut(&mut self) -> Result<(), WbblWebappGraphStoreError> {
-        use crate::dot_converter::to_dot;
-        let mut snapshot = self.get_selection_snapshot()?;
-        let clipboard_contents = to_dot(&snapshot);
-        let window = web_sys::window().expect("Missing Window");
-        if let Some(clipboard) = window.navigator().clipboard() {
-            wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&clipboard_contents))
-                .await
-                .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
-        };
-        snapshot.filter_out_output_ports();
-        for edge in snapshot.edges {
-            self.remove_edge(&uuid::Uuid::from_u128(edge.id).to_string())?;
-        }
-        for node in snapshot.nodes {
-            self.remove_node(&uuid::Uuid::from_u128(node.id).to_string())?;
-        }
         Ok(())
     }
 

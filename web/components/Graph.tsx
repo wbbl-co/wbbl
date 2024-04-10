@@ -22,6 +22,7 @@ import React, {
   useState,
   useMemo,
   MouseEvent as ReactMouseEvent,
+  useEffect,
 } from "react";
 import {
   KeyboardShortcut,
@@ -47,6 +48,7 @@ import { useScreenDimensions } from "../hooks/use-screen-dimensions";
 import { andThen } from "../hooks/and-then";
 import { PortRefStore, PortRefStoreContext } from "../hooks/use-port-location";
 import { ShortcutScope, useScopedShortcut } from "../hooks/use-shortcut";
+import { AvailableActionsContext } from "../hooks/use-actions-menu";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -274,6 +276,21 @@ function Graph() {
     [graphStore],
   );
 
+  const availableActionsContext = useContext(AvailableActionsContext);
+  useEffect(() => {
+    availableActionsContext.addNode = (
+      type: WbblWebappNodeType,
+      x: number,
+      y: number,
+    ) => {
+      let pos = flow.screenToFlowPosition({ x, y }, { snapToGrid: false });
+      graphStore.add_node(NewWbblWebappNode.new(pos.x, pos.y, type));
+    };
+    return () => {
+      availableActionsContext.addNode = undefined;
+    };
+  }, [availableActionsContext, flow, graphStore]);
+
   const removeEdge = useCallback(
     (_: any, edge: Edge) => {
       graphStore.remove_edge(edge.id);
@@ -340,7 +357,12 @@ function Graph() {
   useScopedShortcut(
     KeyboardShortcut.Cut,
     () => {
-      graphStore.cut();
+      graphStore
+        .copy()
+        .then(() => {
+          graphStore.remove_selected_nodes_and_edges();
+        })
+        .catch(console.error);
     },
     [graphStore],
     { preventDefault: true },

@@ -123,10 +123,20 @@ function NodeContextMenu(
   const cutNodeOrSelection = useCallback(
     currentNodeExclusivelySelected
       ? () => {
-          graphStore.cut_node(props.id).catch(console.error);
+          graphStore
+            .copy_node(props.id)
+            .then(() => {
+              graphStore.remove_node(props.id);
+            })
+            .catch(console.error);
         }
       : () => {
-          graphStore.cut().catch(console.error);
+          graphStore
+            .copy()
+            .then(() => {
+              graphStore.remove_selected_nodes_and_edges();
+            })
+            .catch(console.error);
         },
     [props.id, graphStore, currentNodeExclusivelySelected],
   );
@@ -152,7 +162,9 @@ function NodeContextMenu(
   useScopedShortcut(
     KeyboardShortcut.Cut,
     () => {
-      graphStore.cut_node(props.id);
+      graphStore.copy_node(props.id).then(() => {
+        graphStore.remove_node(props.id);
+      });
     },
     [graphStore, props.id],
     { disabled: !currentNodeExclusivelySelected || !props.deleteable },

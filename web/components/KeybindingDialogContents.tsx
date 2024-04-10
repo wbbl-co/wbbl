@@ -255,9 +255,14 @@ export default function KeybindingDialogContents() {
 
   return (
     <Dialog.Content
-      onEscapeKeyDown={useCallback((evt: KeyboardEvent) => {
-        evt.preventDefault();
-      }, [])}
+      onEscapeKeyDown={useCallback(
+        (evt: KeyboardEvent) => {
+          if (isRecording) {
+            evt.preventDefault();
+          }
+        },
+        [isRecording],
+      )}
       title={"Key Bindings"}
     >
       <Flex justify={"between"}>

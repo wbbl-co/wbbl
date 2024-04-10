@@ -1,192 +1,277 @@
-// import { ChangeEvent, useCallback, useState, useMemo, useRef, KeyboardEvent as ReactKeyboardEvent, forwardRef, ForwardedRef, useEffect } from "react";
-// import { WbblWebappNodeType } from "../../pkg/wbbl";
-// import { NodeCategory, nodeMetaData } from "./node_types";
-// import { TextField, Text, DropdownMenu, Box, Callout, Tooltip } from "@radix-ui/themes";
-// import { MagnifyingGlassIcon, StarIcon, PhotoIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
-// import { ScrollArea } from "@radix-ui/themes/dist/cjs/index.js";
+import { UseComboboxProps, useCombobox } from "downshift";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AvailableActionsContext } from "../hooks/use-actions-menu";
+import Fuse from "fuse.js";
+import keybindingDescriptors from "../keybind-descriptors";
+import { KeyboardShortcut, WbblWebappNodeType } from "../../pkg/wbbl";
+import { nodeMetaData } from "./node_types";
+import { WbblPreferencesStoreContext } from "../hooks/use-preferences-store";
+import { Dialog, Text, Flex, TextField, ScrollArea } from "@radix-ui/themes";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/solid";
+import formatKeybinding from "../utils/format-keybinding";
+import { Callout } from "@radix-ui/themes/dist/cjs/index.js";
+import { useScopedShortcut } from "../hooks/use-shortcut";
+import { ExclamationCircleIcon } from "@heroicons/react/24/solid";
 
-// function useTooltipOpen() {
-//   const [tooltipMaybeOpen, setTooltipMaybeOpen] = useState(false);
-//   const [tooltipOpen, setTooltipOpen] = useState(false);
+type ComboBoxItem =
+  | {
+      type: "shortcut";
+      key: KeyboardShortcut;
+      f: () => void;
+      description: string;
+      binding: string | null | undefined;
+      tooltip?: string;
+    }
+  | {
+      type: "add-node";
+      key: WbblWebappNodeType;
+      description: string;
+      binding: string | null | undefined;
+      tooltip: string;
+    };
 
-//   const setTooltipMaybeOpenTrue = useCallback(() => { setTooltipMaybeOpen(true) }, [setTooltipMaybeOpen]);
-//   const setTooltipOpenFalse = useCallback(() => { setTooltipMaybeOpen(false); setTooltipOpen(false); }, [setTooltipMaybeOpen, setTooltipOpen]);
-//   useEffect(() => {
-//     if (tooltipMaybeOpen) {
-//       const handle = setTimeout(() => {
-//         setTooltipOpen(true);
-//       }, 250);
-//       return () => { clearTimeout(handle); }
-//     }
-//   }, [tooltipMaybeOpen, setTooltipOpen]);
+function ActionMenuCombobox(props: {
+  close: () => void;
+  mousePosition: { current: { x: number; y: number } };
+}) {
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
+  const availableActions = useContext(AvailableActionsContext);
+  const data = useMemo<ComboBoxItem[]>(() => {
+    let nodeItems: ComboBoxItem[] = [];
+    if (!!availableActions.addNode) {
+      const nodeBindings = preferencesStore.get_node_keybindings() as Map<
+        string,
+        string | null | undefined
+      >;
+      nodeItems = Object.entries(nodeMetaData)
+        .filter(
+          ([k]) =>
+            !nodeMetaData[k as keyof typeof nodeMetaData].hiddenFromNodeMenu,
+        )
+        .map(([k, v]) => ({
+          type: "add-node" as "add-node",
+          key: v.type,
+          description: `Insert ${nodeMetaData[k as keyof typeof nodeMetaData].nodeMenuName ?? k} Node`,
+          tooltip: nodeMetaData[k as keyof typeof nodeMetaData].description,
+          binding: nodeBindings.get(k),
+        }));
+    }
+    const bindings = preferencesStore.get_keybindings() as Map<
+      KeyboardShortcut,
+      string | null | undefined
+    >;
+    return [...availableActions.actions.entries()]
+      .filter(([, values]) => {
+        return values[values.length - 1] !== undefined;
+      })
+      .map<ComboBoxItem>(([key, values]) => ({
+        type: "shortcut" as "shortcut",
+        key,
+        f: values[values.length - 1].f,
+        description: keybindingDescriptors[key],
+        binding: bindings.get(
+          KeyboardShortcut[key] as unknown as KeyboardShortcut,
+        ),
+      }))
+      .concat(nodeItems)
+      .sort((a, b) => a.description.localeCompare(b.description));
+  }, [availableActions, preferencesStore]);
 
-//   return [tooltipOpen, setTooltipMaybeOpenTrue, setTooltipOpenFalse] as const;
-// }
+  const index = useMemo(() => {
+    return new Fuse(data, { keys: ["description", "tooltip"] });
+  }, [data]);
 
-// function NodeDropdownMenuItemImpl({ id, onSelect, value, color, onKeyEvent }: { color?: boolean, id: string, onSelect: (key: string) => void, value: (typeof nodeMetaData)[keyof typeof nodeMetaData], onKeyEvent?: (evt: ReactKeyboardEvent<HTMLDivElement>) => void }, forwardRef: ForwardedRef<HTMLDivElement>) {
-//   const whenSelected = useCallback(() => { onSelect(id) }, [id, onSelect, value]);
-//   const [tooltipOpen, setTooltipMaybeOpenTrue, setTooltipOpenFalse] = useTooltipOpen();
-//   return <div><Tooltip open={tooltipOpen} content={value.description}><DropdownMenu.Item onBlur={setTooltipOpenFalse} onFocus={setTooltipMaybeOpenTrue} onMouseOver={setTooltipMaybeOpenTrue} onMouseLeave={setTooltipOpenFalse} ref={forwardRef} onKeyDown={onKeyEvent} textValue={id} onSelect={whenSelected} style={{ textTransform: 'capitalize', minWidth: 200, ...(color ? { color: `var(--${value.category}-color)` } : {}) }} key={id}>
-//     <Text>{value.nodeMenuName ?? id}</Text>
-//   </DropdownMenu.Item></Tooltip></div>;
-// }
+  const [query, setQuery] = useState("");
+  const items = useMemo<ComboBoxItem[]>(() => {
+    if (query.length === 0) {
+      return data;
+    }
+    return index.search(query).map((x) => ({ ...x.item }));
+  }, [query]);
+  let closing = useRef(false);
 
-// function PreviewNodeDropdownMenuItemImpl({ onSelect, onKeyEvent }: { onSelect: (key: string) => void, onKeyEvent?: (evt: ReactKeyboardEvent<HTMLDivElement>) => void }, forwardRef: ForwardedRef<HTMLDivElement>) {
-//   const whenSelected = useCallback(() => { onSelect('preview') }, [onSelect]);
-//   const [tooltipOpen, setTooltipMaybeOpenTrue, setTooltipOpenFalse] = useTooltipOpen();
-//   return <div autoFocus={false}><Tooltip open={tooltipOpen} content={nodeMetaData.preview.description} autoFocus={false}>
-//     <DropdownMenu.Item onBlur={setTooltipOpenFalse} onFocus={setTooltipMaybeOpenTrue} onMouseOver={setTooltipMaybeOpenTrue} onMouseLeave={setTooltipOpenFalse} ref={forwardRef} onKeyDown={onKeyEvent} style={{ color: `var(--utility-color)` }} onSelect={whenSelected}><PhotoIcon color="current" width={'1em'} height={'1em'} />Preview</DropdownMenu.Item>
-//   </Tooltip>
-//   </div>;
-// }
+  const comboBoxProps: UseComboboxProps<ComboBoxItem> = useMemo(
+    () => ({
+      onInputValueChange({ inputValue }) {
+        if (!closing.current) {
+          setQuery(inputValue);
+        }
+      },
+      onSelectedItemChange({ selectedItem }) {
+        if (selectedItem.type === "shortcut") {
+          selectedItem.f();
+        } else if (availableActions.addNode) {
+          availableActions.addNode(
+            selectedItem.key,
+            props.mousePosition.current.x,
+            props.mousePosition.current.y,
+          );
+        }
+        closing.current = true;
+        props.close();
+      },
+      items,
+      itemToString(item) {
+        return item ? item.description : "";
+      },
+      isOpen: true,
+    }),
+    [
+      data,
+      index,
+      items,
+      props.close,
+      availableActions,
+      props.mousePosition,
+      closing,
+    ],
+  );
 
-// const NodeDropdownMenuItem = forwardRef(NodeDropdownMenuItemImpl);
-// const PreviewNodeDropdownMenuItem = forwardRef(PreviewNodeDropdownMenuItemImpl);
+  const { getMenuProps, getInputProps, highlightedIndex, getItemProps } =
+    useCombobox(comboBoxProps);
 
-// export const NODE_MENU_DIMENSIONS = { width: 350, height: 400 } as const;
-// export default function NodeMenu(props: {
-//   open: boolean;
-//   onClose: (open: boolean) => void;
-//   position: null | {
-//     x: number;
-//     y: number;
-//     top?: number;
-//     left?: number;
-//     bottom?: number;
-//     right?: number;
-//   };
-//   addNode: (type: WbblWebappNodeType, x: number, y: number) => void;
-// }) {
-//   const sorted = useMemo(() => {
-//     return Object.entries(nodeMetaData).filter(([, v]) => !v.hiddenFromNodeMenu).sort(([k1, v1], [k2, v2]) => (v1.nodeMenuName ?? k1).localeCompare((v2.nodeMenuName ?? k2), undefined, { usage: 'search', collation: 'phonebk' }))
-//   }, [nodeMetaData]);
+  return (
+    <>
+      <TextField.Root
+        size={"2"}
+        className="action-menu-search"
+        placeholder={"Search Actions"}
+        {...getInputProps()}
+        value={query}
+      >
+        <TextField.Slot>
+          <MagnifyingGlassIcon width={"1em"} />
+        </TextField.Slot>
+      </TextField.Root>
+      {items.length > 0 ? (
+        <ScrollArea className="action-menu-list-container" {...getMenuProps()}>
+          <ul className="action-menu-list">
+            {items.map((item, index) => (
+              <li
+                data-highlighted={highlightedIndex === index}
+                className={["action-menu-item rt-DropdownMenuItem"]
+                  .filter((x) => !!x)
+                  .join(" ")}
+                key={`${item.type}-${item.key}`}
+                {...getItemProps({ item, index })}
+              >
+                <Flex justify={"between"}>
+                  <Text size={"2"} className="action-menu-title">
+                    {item.description}
+                  </Text>
+                  {item.binding ? (
+                    <Text className="action-menu-shortcut rt-BaseMenuShortcut">
+                      {formatKeybinding(item.binding)}
+                    </Text>
+                  ) : undefined}
+                </Flex>
+              </li>
+            ))}
+          </ul>
+        </ScrollArea>
+      ) : (
+        <Callout.Root
+          className="action-menu-callout"
+          color="lime"
+          {...getMenuProps()}
+        >
+          <Callout.Icon>
+            <ExclamationCircleIcon width={"1em"} />
+          </Callout.Icon>
+          <Callout.Text>No actions were found for this query</Callout.Text>
+        </Callout.Root>
+      )}
+    </>
+  );
+}
 
-//   const grouped = useMemo(() => {
-//     let groups = sorted.reduce((prev, curr) => {
-//       let category = curr[1].category;
-//       let categoryItems = prev[category] ?? [];
-//       prev[category] = categoryItems;
-//       categoryItems.push(curr as [keyof typeof nodeMetaData, (typeof nodeMetaData)[keyof typeof nodeMetaData]]);
-//       return prev;
-//     }, {} as { [K in NodeCategory]: [keyof typeof nodeMetaData, (typeof nodeMetaData)[keyof typeof nodeMetaData]][] });
+export function ActionMenu(props: {
+  open: boolean;
+  useMousePosition: boolean;
+  mousePosition: { current: { x: number; y: number } };
+  setActionMenuSettings: (settings: {
+    open: boolean;
+    useMousePosition: boolean;
+  }) => void;
+}) {
+  useScopedShortcut(
+    KeyboardShortcut.QuickActions,
+    () => {
+      props.setActionMenuSettings({
+        open: !props.open,
+        useMousePosition: true,
+      });
+    },
+    [props.mousePosition, props.setActionMenuSettings, props.open],
+  );
+  const onOpenChange = useCallback(
+    (open: boolean) => {
+      props.setActionMenuSettings({
+        open: open,
+        useMousePosition: true,
+      });
+    },
+    [props.mousePosition, props.setActionMenuSettings],
+  );
 
-//     return Object.entries(groups).sort(([k1,], [k2,]) => k1.localeCompare(k2, undefined, { usage: 'search', collation: 'phonebk' }))
-//   }, [sorted]);
+  const close = useCallback(() => {
+    props.setActionMenuSettings({
+      open: false,
+      useMousePosition: props.useMousePosition,
+    });
+  }, [props.useMousePosition, props.setActionMenuSettings]);
 
-//   const [query, setQuery] = useState("");
+  const [position, setPosition] = useState<{
+    left?: string | number;
+    right?: string | number;
+    top?: string | number;
+    bottom?: string | number;
+  }>({});
 
-//   const onClose = useCallback((b: boolean) => {
-//     setQuery("");
-//     props.onClose(b);
-//   }, [props.onClose]);
+  useEffect(() => {
+    if (props.open) {
+      let result: typeof position = {};
+      if (props.mousePosition.current.x > window.innerWidth - 400) {
+        result.right = "1em";
+      } else {
+        result.left = props.mousePosition.current.x;
+      }
 
-//   const filteredItems = useMemo(() =>
-//     query === ""
-//       ? null
-//       : sorted.filter(([key, item]) => {
-//         return (
-//           (item.nodeMenuName ?? key).toLowerCase().includes(query.toLowerCase()) ||
-//           item.description.toLowerCase().includes(query.toLowerCase())
-//         );
-//       }),
-//     [query, sorted]);
+      if (props.mousePosition.current.y > window.innerHeight - 600) {
+        result.bottom = "1em";
+      } else {
+        result.top = props.mousePosition.current.y;
+      }
+      setPosition(result);
+    }
+  }, [props.mousePosition, props.open]);
 
-//   const onSelect = useCallback(
-//     (evt: string) => {
-//       props.addNode(nodeMetaData[evt as keyof typeof nodeMetaData].type, props.position!.x, props.position!.y);
-//       props.onClose(false);
-//       setQuery("");
-//     },
-//     [props.addNode, props.position, props.onClose, setQuery, nodeMetaData],
-//   );
-
-//   const onSelectFirst = useCallback(
-//     () => {
-//       if (filteredItems == null) {
-//         let element = (grouped[0][1][0])[1];
-//         props.addNode(element.type, props.position!.x, props.position!.y);
-//         props.onClose(false);
-//         setQuery("");
-//       } else {
-//         let items = (filteredItems == null ? sorted : filteredItems);
-//         if (items.length > 0) {
-//           props.addNode(items[0][1].type, props.position!.x, props.position!.y);
-//           props.onClose(false);
-//           setQuery("");
-//         }
-//       }
-//     },
-//     [props.addNode, props.position, props.onClose, filteredItems, grouped, setQuery],
-//   );
-
-//   const updateQuery = useCallback((evt: ChangeEvent<HTMLInputElement>) => {
-//     setQuery(evt.target.value)
-//   }, [setQuery]);
-
-//   const dropdownMenuRef = useRef<HTMLDivElement | null>(null);
-//   const searchBoxRef = useRef<HTMLInputElement | null>(null);
-
-//   const keydownFromSearch = useCallback((evt: ReactKeyboardEvent<HTMLDivElement>) => {
-//     if (evt.key === "ArrowDown" && dropdownMenuRef.current && (filteredItems == null || filteredItems.length > 0)) {
-//       dropdownMenuRef.current.focus();
-//       evt.preventDefault();
-//     }
-//   }, [dropdownMenuRef.current, filteredItems]);
-
-//   const keydownUpFromMenu = useCallback((evt: ReactKeyboardEvent<HTMLDivElement>) => {
-//     if (evt.key === "ArrowUp" && searchBoxRef.current) {
-//       searchBoxRef.current.focus();
-//       evt.preventDefault();
-//     }
-//   }, [searchBoxRef.current]);
-
-//   return (
-//     <DropdownMenu.Root open={props.open} onOpenChange={onClose}>
-//       <DropdownMenu.Content ref={dropdownMenuRef} style={{ ...props.position, position: 'absolute', width: NODE_MENU_DIMENSIONS.width }}>
-//         {/* <Box p='3'>
-//           <TextField.Root ref={searchBoxRef} autoFocus onKeyDown={keydownFromSearch} size='3' color="red" onSubmit={onSelectFirst} onChange={updateQuery} placeholder="Search for nodes…">
-//             <TextField.Slot>
-//               <MagnifyingGlassIcon height="1em" width="1em" />
-//             </TextField.Slot>
-//           </TextField.Root>
-//         </Box> */}
-//         {filteredItems == null ?
-//           (<>
-//             <DropdownMenu.Item textValue="search"><MagnifyingGlassIcon width={'1em'} /><Text>Search</Text></DropdownMenu.Item>
-//             <PreviewNodeDropdownMenuItem onSelect={onSelect} />
-//             <DropdownMenu.Sub>
-//               <DropdownMenu.SubTrigger><StarIcon color="current" width={'1em'} height={'1em'} />Favourites</DropdownMenu.SubTrigger>
-//               <DropdownMenu.SubContent>
-//                 <DropdownMenu.Item disabled={true}>No Favourites</DropdownMenu.Item>
-//               </DropdownMenu.SubContent>
-//             </DropdownMenu.Sub>
-//             <DropdownMenu.Separator />
-//             {grouped.map(([key, values]) => (
-//               <DropdownMenu.Sub key={key}>
-//                 <DropdownMenu.SubTrigger textValue={key} style={{ textTransform: 'capitalize' }}><Text style={{ color: `var(--${key}-color)` }}>⬤</Text>{key}</DropdownMenu.SubTrigger>
-//                 <DropdownMenu.SubContent>
-//                   {values.map(([key, value]) => <NodeDropdownMenuItem id={key} key={key} value={value} onSelect={onSelect} />)}
-//                 </DropdownMenu.SubContent>
-//               </DropdownMenu.Sub>
-//             )
-//             )}
-//           </>)
-
-//           : (filteredItems.length > 0
-//             ? <ScrollArea type="hover" scrollbars="vertical" style={{ maxHeight: NODE_MENU_DIMENSIONS.height }}>
-//               {filteredItems.map(([key, value], idx) => <NodeDropdownMenuItem id={key} key={key} value={value} onSelect={onSelect} color={true} onKeyEvent={idx == 0 ? keydownUpFromMenu : undefined} />)}</ScrollArea>
-//             : <Box p='3'>
-//               <Callout.Root color="amber">
-//                 <Callout.Icon>
-//                   <InformationCircleIcon width={24} height={24} />
-//                 </Callout.Icon>
-//                 <Callout.Text>
-//                   No nodes were found matching the serach query
-//                 </Callout.Text>
-//               </Callout.Root>
-//             </Box>)
-//         }
-//       </DropdownMenu.Content>
-//     </DropdownMenu.Root >
-//   );
-// }
+  return (
+    <Dialog.Root
+      data-search-menu="true"
+      open={props.open}
+      onOpenChange={onOpenChange}
+    >
+      <Dialog.Content
+        style={
+          props.useMousePosition
+            ? {
+                position: "absolute",
+                ...position,
+              }
+            : {}
+        }
+        className="action-menu"
+      >
+        <ActionMenuCombobox mousePosition={props.mousePosition} close={close} />
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+}

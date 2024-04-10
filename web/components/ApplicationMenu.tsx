@@ -21,7 +21,14 @@ import { BaseTheme, KeyboardShortcut } from "../../pkg/wbbl";
 import { useScopedShortcut } from "../hooks/use-shortcut";
 import formatKeybinding from "../utils/format-keybinding";
 
-export default function ApplicationMenu() {
+export default function ApplicationMenu(props: {
+  showNodesInActionMenu: boolean;
+  setActionMenuSettings: (settings: {
+    open: boolean;
+    showNodes: boolean;
+    useMousePosition: boolean;
+  }) => void;
+}) {
   const goHome = useCallback(() => {
     window.location.assign("/");
   }, []);
@@ -77,7 +84,13 @@ export default function ApplicationMenu() {
     preferencesStore,
     KeyboardShortcut.OpenKeybindings,
   );
-
+  const openActionMenu = useCallback(() => {
+    props.setActionMenuSettings({
+      open: true,
+      showNodes: props.showNodesInActionMenu,
+      useMousePosition: false,
+    });
+  }, [props.setActionMenuSettings, props.showNodesInActionMenu]);
   return (
     <Dialog.Root open={currentDialog !== null} onOpenChange={onOpenChange}>
       <DropdownMenu.Root>
@@ -97,7 +110,7 @@ export default function ApplicationMenu() {
           >
             <HomeIcon width={"1em"} /> Home
           </DropdownMenu.Item>
-          <DropdownMenu.Item shortcut="␣">
+          <DropdownMenu.Item onClick={openActionMenu} shortcut="␣">
             <MagnifyingGlassIcon width={"1em"} /> Quick Actions
           </DropdownMenu.Item>
           <DropdownMenu.Separator />

@@ -378,3 +378,63 @@ path.react-flow__edge-path {
         margin: "0 auto";
     }
 }
+
+.action-menu-item {
+    cursor: pointer;
+    margin-left: var(--space-1);
+    margin-right: var(--space-1);
+    padding: var(--space-1);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    .action-menu-title {
+        text-transform: capitalize;
+    }
+    &[data-highlighted="true"] {
+        background-color: var(--accent-9);
+        color: var(--accent-contrast);
+        border-radius: var(--radius-2);
+        .action-menu-description,
+        .action-menu-shortcut {
+            color: var(--accent-contrast);
+        }
+    }
+}
+
+.action-menu-list {
+    padding: 0;
+    margin-top: 0;
+}
+
+.action-menu-list-container {
+    margin: 0;
+    margin-bottom: 0;
+    max-height: min(550px, 75dvh);
+}
+
+.action-menu {
+    width: min(400px, 75dvw);
+    overflow: hidden;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: var(--space-2);
+    overflow: visible;
+    padding-bottom: 0;
+}
+
+.action-menu-search {
+    background-color: var(--color-background);
+    margin-left: var(--space-2);
+    margin-right: var(--space-2);
+    margin-bottom: var(--space-2);
+    box-shadow: var(--shadow-3);
+}
+
+.action-menu-callout {
+    margin: var(--space-2);
+}
+
+.rt-DialogOverlay:has(.action-menu-search) {
+    &::before {
+        background: transparent !important;
+    }
+}

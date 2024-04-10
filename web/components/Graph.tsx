@@ -49,8 +49,12 @@ import { andThen } from "../hooks/and-then";
 import { PortRefStore, PortRefStoreContext } from "../hooks/use-port-location";
 import { ShortcutScope, useScopedShortcut } from "../hooks/use-shortcut";
 import { AvailableActionsContext } from "../hooks/use-actions-menu";
-import { WbblPreferencesStoreContext } from "../hooks/use-preferences-store";
-import { isHotkeyPressed, useHotkeysContext } from "react-hotkeys-hook";
+import {
+  WbblPreferencesStoreContext,
+  useKeyBinding,
+} from "../hooks/use-preferences-store";
+import { isHotkeyPressed } from "react-hotkeys-hook";
+import { transformKeybindingForReactFlow } from "../utils/transform-keybinding-for-react-flow";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -97,6 +101,24 @@ function Graph() {
       }
     },
     [setIsSelectingTrue, setIsSelectingFalse],
+  );
+  const selectionKeybinding = useKeyBinding(
+    preferencesStore,
+    KeyboardShortcut.Selection,
+  );
+  useScopedShortcut(
+    KeyboardShortcut.SelectAll,
+    () => {
+      graphStore.select_all();
+    },
+    [graphStore],
+  );
+  useScopedShortcut(
+    KeyboardShortcut.SelectNone,
+    () => {
+      graphStore.select_none();
+    },
+    [graphStore],
   );
   const onConnectStart = useCallback(() => {
     setIsConnecting(true);
@@ -491,7 +513,20 @@ function Graph() {
               onConnectStart={onConnectStart}
               onConnectEnd={onConnectEnd}
               onBeforeDelete={onBeforeDelete}
-              multiSelectionKeyCode={useMemo(() => ["Shift", "Alt"], [])}
+              multiSelectionKeyCode={useMemo(
+                () =>
+                  selectionKeybinding
+                    ? [transformKeybindingForReactFlow(selectionKeybinding)]
+                    : [],
+                [selectionKeybinding],
+              )}
+              selectionKeyCode={useMemo(
+                () =>
+                  selectionKeybinding
+                    ? [transformKeybindingForReactFlow(selectionKeybinding)]
+                    : [],
+                [selectionKeybinding],
+              )}
               onSelectionStart={connectingHandlers.onSelectStart}
               onSelectionEnd={connectingHandlers.onSelectEnd}
               onSelectionChange={onSelectionChange}

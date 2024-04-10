@@ -1226,6 +1226,54 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
+    pub fn select_all(&mut self) -> Result<(), WbblWebappGraphStoreError> {
+        let id = self.graph.client_id().to_string();
+        {
+            let mut txn = self.graph.transact_mut_with(self.graph.client_id());
+            let node_ids: HashMap<String, bool> = self
+                .nodes
+                .iter(&txn)
+                .map(|(k, _)| (k.to_owned(), true))
+                .collect();
+            let edge_ids: HashMap<String, bool> = self
+                .edges
+                .iter(&txn)
+                .map(|(k, _)| (k.to_owned(), true))
+                .collect();
+            self.edge_selections
+                .insert(&mut txn, id.clone(), MapPrelim::from(edge_ids));
+            self.node_selections
+                .insert(&mut txn, id.clone(), MapPrelim::from(node_ids));
+        }
+        self.emit(false)?;
+        Ok(())
+    }
+
+    pub fn select_none(&mut self) -> Result<(), WbblWebappGraphStoreError> {
+        let id = self.graph.client_id().to_string();
+        {
+            let mut txn = self.graph.transact_mut_with(self.graph.client_id());
+            match get_map(&id, &txn, &self.node_selections) {
+                Ok(selection) => {
+                    selection.clear(&mut txn);
+                    Ok(())
+                }
+                Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+                Err(err) => Err(err),
+            }?;
+            match get_map(&id, &txn, &self.edge_selections) {
+                Ok(selection) => {
+                    selection.clear(&mut txn);
+                    Ok(())
+                }
+                Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+                Err(err) => Err(err),
+            }?;
+        }
+        self.emit(false)?;
+        Ok(())
+    }
+
     pub fn get_locally_selected_nodes(&self) -> Result<Vec<String>, WbblWebappGraphStoreError> {
         let txn = self.graph.transact();
         let id = self.graph.client_id().to_string();

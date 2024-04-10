@@ -13,6 +13,9 @@ const keybindingDescriptors: { [K in KeyboardShortcut]: string } = {
   [KeyboardShortcut.Duplicate]: "Duplicate",
   [KeyboardShortcut.Help]: "Help",
   [KeyboardShortcut.LinkToPreview]: "Link to Preview",
+  [KeyboardShortcut.Selection]: "Selection",
+  [KeyboardShortcut.SelectAll]: "Select All",
+  [KeyboardShortcut.SelectNone]: "Select None",
 };
 
 export default keybindingDescriptors;

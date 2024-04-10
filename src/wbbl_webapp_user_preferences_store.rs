@@ -57,6 +57,9 @@ pub enum KeyboardShortcut {
     Home,
     Help,
     LinkToPreview,
+    Selection,
+    SelectAll,
+    SelectNone,
 }
 
 impl KeyboardShortcut {
@@ -74,6 +77,9 @@ impl KeyboardShortcut {
             KeyboardShortcut::Home => "home",
             KeyboardShortcut::Help => "help",
             KeyboardShortcut::LinkToPreview => "link_to_preview",
+            KeyboardShortcut::Selection => "selection",
+            KeyboardShortcut::SelectAll => "select_all",
+            KeyboardShortcut::SelectNone => "select_none",
         }
         .to_owned()
     }
@@ -92,6 +98,9 @@ impl KeyboardShortcut {
             "home" => Some(Self::Home),
             "help" => Some(Self::Help),
             "link_to_preview" => Some(Self::LinkToPreview),
+            "selection" => Some(KeyboardShortcut::Selection),
+            "select_all" => Some(KeyboardShortcut::SelectAll),
+            "select_none" => Some(KeyboardShortcut::SelectNone),
             _ => None,
         }
     }
@@ -113,6 +122,9 @@ fn get_default_keybindings() -> HashMap<KeyboardShortcut, Option<String>> {
             Some("mod+shift+k".to_owned()),
         ),
         (KeyboardShortcut::Help, Some("f1".to_owned())),
+        (KeyboardShortcut::Selection, Some("shift".to_owned())),
+        (KeyboardShortcut::SelectAll, Some("mod+a".to_owned())),
+        (KeyboardShortcut::SelectNone, Some("shift+a".to_owned())),
     ])
 }
 

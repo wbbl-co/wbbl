@@ -1,7 +1,5 @@
 import {
-  NodeChange,
   Node,
-  EdgeChange,
   Edge,
   Connection,
   ReactFlow,
@@ -14,6 +12,8 @@ import {
   OnSelectionChangeFunc,
   OnBeforeDelete,
   useViewport,
+  OnNodesChange,
+  OnEdgesChange,
 } from "@xyflow/react";
 import React, {
   useContext,
@@ -203,8 +203,8 @@ function Graph() {
       mousePos,
     ],
   );
-  const onNodesChange = useCallback(
-    (changes: NodeChange<Node>[]) => {
+  const onNodesChange = useCallback<OnNodesChange>(
+    (changes) => {
       for (let change of changes) {
         switch (change.type) {
           case "add":
@@ -255,8 +255,8 @@ function Graph() {
     [graphStore],
   );
 
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange<Edge>[]) => {
+  const onEdgesChange = useCallback<OnEdgesChange>(
+    (changes) => {
       for (let change of changes) {
         switch (change.type) {
           case "add":

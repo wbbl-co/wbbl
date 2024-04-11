@@ -5,6 +5,7 @@ import {
   calcAutoPan,
   getEventPosition,
   addEdge,
+  NodeLookup,
 } from "@xyflow/system";
 import {
   ConnectionMode,
@@ -13,7 +14,6 @@ import {
   type HandleType,
   type Connection,
   type PanBy,
-  type NodeBase,
   type Transform,
   type ConnectingHandle,
   type OnConnectEnd,
@@ -44,7 +44,7 @@ type OnPointerDownParams = {
   handleId: string | null;
   nodeId: string;
   isTarget: boolean;
-  nodes: NodeBase[];
+  nodeLookup: NodeLookup;
   lib: string;
   flowId: string | null;
   edgeUpdaterType?: HandleType;
@@ -93,7 +93,7 @@ function onPointerDown(
     edgeUpdaterType,
     isTarget,
     domNode,
-    nodes,
+    nodeLookup,
     lib,
     autoPanOnConnect,
     flowId,
@@ -133,7 +133,7 @@ function onPointerDown(
   let handleDomNode: Element | null = null;
 
   const handleLookup = getHandleLookup({
-    nodes,
+    nodeLookup,
     nodeId,
     handleId,
     handleType,
@@ -402,7 +402,7 @@ export function useOnEdgeDragUpdater(
             connectionRadius: currentStore.connectionRadius,
             domNode: currentStore.domNode,
             edgeUpdaterType: "source",
-            nodes: currentStore.nodes,
+            nodeLookup: currentStore.nodeLookup,
             lib: currentStore.lib,
             isTarget: false,
             handleId: edge.sourceHandle!,

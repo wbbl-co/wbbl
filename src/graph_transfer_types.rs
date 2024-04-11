@@ -287,7 +287,7 @@ pub struct WbblWebappNode {
     )]
     pub node_type: WbblWebappNodeType,
     pub data: HashMap<String, Any>,
-    pub computed: Option<WbbleComputedNodeSize>,
+    pub measured: Option<WbbleComputedNodeSize>,
     pub dragging: bool,
     pub resizing: bool,
     pub selected: bool,

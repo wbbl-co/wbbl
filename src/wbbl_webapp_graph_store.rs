@@ -101,7 +101,7 @@ impl NewWbblWebappNode {
             position: self.position,
             node_type: self.node_type,
             data,
-            computed: None,
+            measured: None,
             dragging: false,
             resizing: false,
             selected: false,
@@ -346,7 +346,7 @@ impl WbblWebappNode {
         Ok(WbblWebappNode {
             id: *key,
             position: WbblePosition { x, y },
-            computed: None,
+            measured: None,
             node_type,
             dragging,
             resizing,
@@ -881,7 +881,7 @@ impl WbblWebappGraphStore {
             &self.edge_selections,
         )?;
         for node in snapshot.nodes.iter_mut() {
-            node.computed = self.computed_node_sizes.get(&node.id).map(|s| s.clone());
+            node.measured = self.computed_node_sizes.get(&node.id).map(|s| s.clone());
         }
         Ok(snapshot)
     }

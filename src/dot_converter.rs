@@ -99,7 +99,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                                 },
                                 node_type,
                                 data: node_data,
-                                computed: None,
+                                measured: None,
                                 dragging: false,
                                 resizing: false,
                                 selected: false,

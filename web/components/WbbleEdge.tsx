@@ -184,7 +184,6 @@ export default function WbbleEdge({
             factorY,
           );
         }
-        animationFrame = requestAnimationFrame(update);
       } else if (ropePath.current) {
         setConnectionPath(
           ropePath.current,
@@ -193,6 +192,10 @@ export default function WbbleEdge({
           factorX,
           factorY,
         );
+      }
+
+      if (isWbblEffectEnabled) {
+        animationFrame = requestAnimationFrame(update);
       }
     }
 

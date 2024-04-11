@@ -168,7 +168,12 @@ export function useScopedShortcut(
       ...options,
       disabled,
     };
-  }, [options, shortcutScope, enabledScopes, options?.disabled]);
+  }, [
+    ...Object.entries(options ?? {}).flatMap((kv) => kv),
+    shortcutScope,
+    dependencies,
+    enabledScopes,
+  ]);
   return useShortcut(
     shortcut,
     callback,

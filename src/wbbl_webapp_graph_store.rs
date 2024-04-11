@@ -1047,7 +1047,7 @@ impl WbblWebappGraphStore {
     }
 
     #[cfg(web_sys_unstable_apis)]
-    pub async fn paste(&mut self, cursor_position: &[f32]) -> Result<(), WbblWebappStoreError> {
+    pub async fn get_clipboard_snapshot() -> Result<JsValue, WbblWebappStoreError> {
         use web_sys::js_sys::JsString;
 
         use crate::dot_converter::from_dot;
@@ -1058,13 +1058,25 @@ impl WbblWebappGraphStore {
                 .await
                 .map_err(|_| WbblWebappStoreError::ClipboardFailure)?;
             let str: String = value.dyn_into::<JsString>().unwrap().into();
-            let mut snapshot =
+            let snapshot =
                 from_dot(&str).map_err(|_| WbblWebappStoreError::ClipboardContentsFailure)?;
-            let position = Vec2::from_slice(cursor_position);
-            self.integrate_snapshot(Some(position), &mut snapshot)?;
-            return Ok(());
+            let serialized_snapshot = serde_wasm_bindgen::to_value(&snapshot)
+                .map_err(|_| WbblWebappStoreError::SerializationFailure)?;
+            return Ok(serialized_snapshot);
         };
         Err(WbblWebappStoreError::ClipboardNotFound)
+    }
+
+    pub fn integrate_clipboard_snapshot(
+        &mut self,
+        value: JsValue,
+        cursor_position: &[f32],
+    ) -> Result<(), WbblWebappStoreError> {
+        let mut snapshot: WbblWebappGraphSnapshot = serde_wasm_bindgen::from_value(value)
+            .map_err(|_| WbblWebappStoreError::SerializationFailure)?;
+        let position = Vec2::from_slice(cursor_position);
+        self.integrate_snapshot(Some(position), &mut snapshot)?;
+        Ok(())
     }
 
     pub fn set_edge_selection(

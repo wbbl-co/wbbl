@@ -12,7 +12,7 @@ import {
   WbblPreferencesStoreContext,
   useKeyBinding,
 } from "../hooks/use-preferences-store";
-import { KeyboardShortcut } from "../../pkg/wbbl";
+import { KeyboardShortcut, WbblWebappGraphStore } from "../../pkg/wbbl";
 import formatKeybinding from "../utils/format-keybinding";
 import {
   ArrowUturnLeftIcon,
@@ -61,7 +61,14 @@ export default function GraphCanvasContextMenu(
               x: props.mousePosition.current[0],
               y: props.mousePosition.current[1],
             });
-            graphStore.paste(new Float32Array([pos.x, pos.y]));
+            WbblWebappGraphStore.get_clipboard_snapshot()
+              .then((snapshot) =>
+                graphStore.integrate_clipboard_snapshot(
+                  snapshot,
+                  new Float32Array([pos.x, pos.y]),
+                ),
+              )
+              .catch(console.error);
           }}
           shortcut={pasteBinding ? formatKeybinding(pasteBinding) : undefined}
         >

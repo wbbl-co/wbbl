@@ -385,8 +385,13 @@ function Graph() {
         { x: mousePos.current[0], y: mousePos.current[1] },
         { snapToGrid: false },
       );
-      graphStore
-        .paste(new Float32Array([screenPos.x, screenPos.y]))
+      WbblWebappGraphStore.get_clipboard_snapshot()
+        .then((snapshot) =>
+          graphStore.integrate_clipboard_snapshot(
+            snapshot,
+            new Float32Array([screenPos.x, screenPos.y]),
+          ),
+        )
         .catch(console.error);
     },
     [flow, graphStore, mousePos.current],
@@ -397,6 +402,11 @@ function Graph() {
       graphStore.copy();
     },
     [graphStore],
+    {
+      disabled:
+        snapshot.edges.every((x) => !x.selected) &&
+        snapshot.nodes.every((x) => !x.selected),
+    },
   );
 
   useScopedShortcut(
@@ -404,7 +414,12 @@ function Graph() {
     () => {
       graphStore.duplicate();
     },
-    [graphStore],
+    [graphStore, snapshot.edges, snapshot.nodes],
+    {
+      disabled:
+        snapshot.edges.every((x) => !x.selected) &&
+        snapshot.nodes.every((x) => !x.selected),
+    },
   );
 
   useScopedShortcut(
@@ -417,8 +432,12 @@ function Graph() {
         })
         .catch(console.error);
     },
-    [graphStore],
-    { preventDefault: true },
+    [graphStore, snapshot.edges, snapshot.nodes],
+    {
+      disabled:
+        snapshot.edges.every((x) => !x.selected) &&
+        snapshot.nodes.every((x) => !x.selected),
+    },
   );
   useScopedShortcut(
     KeyboardShortcut.Undo,
@@ -428,6 +447,9 @@ function Graph() {
       }
     },
     [graphStore],
+    {
+      disabled: !graphStore.can_undo(),
+    },
   );
 
   useScopedShortcut(
@@ -438,6 +460,9 @@ function Graph() {
       }
     },
     [graphStore],
+    {
+      disabled: !graphStore.can_redo(),
+    },
   );
 
   useScopedShortcut(
@@ -446,6 +471,11 @@ function Graph() {
       graphStore.remove_selected_nodes_and_edges();
     },
     [graphStore],
+    {
+      disabled:
+        snapshot.edges.every((x) => !x.selected) &&
+        snapshot.nodes.every((x) => !x.selected),
+    },
   );
 
   const reactFlowContents = useMemo(() => {

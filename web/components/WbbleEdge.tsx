@@ -164,11 +164,15 @@ export default function WbbleEdge({
         endMarker.current.style.transform = `translate(${endPos.x}px,${endPos.y}px)`;
       }
       lastUpdate.current = time;
-      const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
-      const cosAngle = Math.cos(angle);
-      const sinAngle = Math.sin(angle);
-      const factorX = -sinAngle;
-      const factorY = cosAngle;
+      let factorX = 0.75;
+      let factorY = 0.75;
+      if (edgeStyle !== EdgeStyle.Metropolis) {
+        const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
+        const cosAngle = Math.cos(angle);
+        const sinAngle = Math.sin(angle);
+        factorX = -sinAngle;
+        factorY = cosAngle;
+      }
       if (edgeStyle === EdgeStyle.Default && isWbblEffectEnabled) {
         rope.update(
           new Float32Array([startPos.x, startPos.y]),

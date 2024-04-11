@@ -59,14 +59,19 @@ export default function WbblConnectionLine(
         startMarker.current.style.transform = `translate(${props.fromX}px,${props.fromY}px)`;
         endMarker.current.style.transform = `translate(${props.toX}px,${props.toY}px)`;
       }
-      const angle = Math.atan2(
-        props.toY - props.fromY,
-        props.toX - props.fromX,
-      );
-      const cosAngle = Math.cos(angle);
-      const sinAngle = Math.sin(angle);
-      const factorX = -sinAngle;
-      const factorY = cosAngle;
+
+      let factorX = 0.75;
+      let factorY = 0.75;
+      if (edgeStyle !== EdgeStyle.Metropolis) {
+        const angle = Math.atan2(
+          props.toY - props.fromY,
+          props.toX - props.fromX,
+        );
+        const cosAngle = Math.cos(angle);
+        const sinAngle = Math.sin(angle);
+        factorX = -sinAngle;
+        factorY = cosAngle;
+      }
 
       if (edgeStyle === EdgeStyle.Default && isWbblEffectEnabled) {
         rope.update(

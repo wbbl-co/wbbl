@@ -9,7 +9,7 @@ use std::{
 use glam::Vec2;
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
-use yrs::{block::Prelim, types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut, Value};
+use yrs::{types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut, Value};
 
 use crate::{
     data_types::AbstractDataType,
@@ -19,7 +19,9 @@ use crate::{
     },
     graph_types::PortId,
     log,
+    store_errors::WbblWebappStoreError,
     wbbl_graph_web_worker::{WbblGraphWebWorkerRequestMessage, WbblGraphWebWorkerResponseMessage},
+    yrs_utils::*,
 };
 
 const GRAPH_YRS_NODE_SELECTIONS_MAP_KEY: &str = "node_selections";
@@ -58,7 +60,7 @@ fn encode_data(
     data: &HashMap<String, Any>,
     transaction: &mut TransactionMut,
     node_ref: &mut yrs::MapRef,
-) -> Result<HashMap<String, Any>, WbblWebappGraphStoreError> {
+) -> Result<HashMap<String, Any>, WbblWebappStoreError> {
     let mut map: HashMap<String, yrs::Any> = HashMap::new();
     for (key, value) in data.iter() {
         // Probably not that fast, but whatever
@@ -76,7 +78,7 @@ impl NewWbblWebappNode {
         &self,
         transaction: &mut TransactionMut,
         nodes: &mut yrs::MapRef,
-    ) -> Result<WbblWebappNode, WbblWebappGraphStoreError> {
+    ) -> Result<WbblWebappNode, WbblWebappStoreError> {
         let data = {
             let prelim_map: yrs::MapPrelim<yrs::Any> = yrs::MapPrelim::new();
             let mut node_ref = nodes.insert(
@@ -186,19 +188,18 @@ impl WbblWebappGraphSnapshot {
         edges_map_ref: &yrs::MapRef,
         node_selections_map: &yrs::MapRef,
         edge_selections_map: &yrs::MapRef,
-    ) -> Result<WbblWebappGraphSnapshot, WbblWebappGraphStoreError> {
+    ) -> Result<WbblWebappGraphSnapshot, WbblWebappStoreError> {
         let mut nodes: Vec<WbblWebappNode> = Vec::new();
         let mut edges: Vec<WbblWebappEdge> = Vec::new();
         for node in nodes_map_ref.iter(read_txn) {
             let key = node.0.to_owned();
             let node_values = node.1;
-            let key =
-                uuid::Uuid::from_str(&key).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+            let key = uuid::Uuid::from_str(&key).map_err(|_| WbblWebappStoreError::MalformedId)?;
             let node: WbblWebappNode = match node_values {
                 yrs::Value::YMap(map) => {
                     WbblWebappNode::decode(&key.as_u128(), read_txn, &map, node_selections_map)
                 }
-                _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+                _ => Err(WbblWebappStoreError::UnexpectedStructure),
             }?;
             nodes.push(node);
         }
@@ -206,14 +207,13 @@ impl WbblWebappGraphSnapshot {
         for edge in edges_map_ref.iter(read_txn) {
             let key = edge.0.to_owned();
             let edge_values = edge.1;
-            let key =
-                uuid::Uuid::from_str(&key).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+            let key = uuid::Uuid::from_str(&key).map_err(|_| WbblWebappStoreError::MalformedId)?;
 
             let edge: WbblWebappEdge = match edge_values {
                 yrs::Value::YMap(map) => {
                     WbblWebappEdge::decode(key.as_u128(), read_txn, &map, edge_selections_map)
                 }
-                _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+                _ => Err(WbblWebappStoreError::UnexpectedStructure),
             }?;
             edges.push(edge);
         }
@@ -229,99 +229,13 @@ impl WbblWebappGraphSnapshot {
     }
 }
 
-fn get_atomic_string<Txn: yrs::ReadTxn>(
-    key: &str,
-    txn: &Txn,
-    map: &yrs::MapRef,
-) -> Result<String, WbblWebappGraphStoreError> {
-    match map.get(txn, key) {
-        Some(yrs::Value::Any(yrs::Any::String(result))) => Ok((*result).to_owned()),
-        _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
-    }
-}
-
-fn get_atomic_u128_from_string<Txn: yrs::ReadTxn>(
-    key: &str,
-    txn: &Txn,
-    map: &yrs::MapRef,
-) -> Result<u128, WbblWebappGraphStoreError> {
-    let str = get_atomic_string(key, txn, map)?;
-    uuid::Uuid::from_str(&str)
-        .map_err(|_| WbblWebappGraphStoreError::MalformedId)
-        .map(|uuid| uuid.as_u128())
-}
-
-fn get_atomic_bigint<Txn: yrs::ReadTxn>(
-    key: &str,
-    txn: &Txn,
-    map: &yrs::MapRef,
-) -> Result<i64, WbblWebappGraphStoreError> {
-    match map.get(txn, key) {
-        Some(yrs::Value::Any(yrs::Any::BigInt(result))) => Ok(result),
-        None => Err(WbblWebappGraphStoreError::NotFound),
-        _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
-    }
-}
-
-fn get_float_64<Txn: yrs::ReadTxn>(
-    key: &str,
-    txn: &Txn,
-    map: &yrs::MapRef,
-) -> Result<f64, WbblWebappGraphStoreError> {
-    match map.get(txn, key) {
-        Some(yrs::Value::Any(yrs::Any::Number(result))) => Ok(result),
-        None => Err(WbblWebappGraphStoreError::NotFound),
-        _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
-    }
-}
-
-fn get_map<Txn: yrs::ReadTxn>(
-    key: &str,
-    txn: &Txn,
-    map: &yrs::MapRef,
-) -> Result<MapRef, WbblWebappGraphStoreError> {
-    match map.get(txn, key) {
-        Some(yrs::Value::YMap(map_ref)) => Ok(map_ref),
-        None => Err(WbblWebappGraphStoreError::NotFound),
-        _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
-    }
-}
-
-fn get_or_insert_map<T: Prelim>(
-    key: &str,
-    txn: &mut TransactionMut,
-    map: &yrs::MapRef,
-    default_value: T,
-) -> Result<MapRef, WbblWebappGraphStoreError> {
-    match map.get(txn, key) {
-        Some(yrs::Value::YMap(map_ref)) => Ok(map_ref),
-        None => {
-            map.insert(txn, key, default_value);
-            get_map(key, txn, map)
-        }
-        _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
-    }
-}
-
-fn get_bool<Txn: yrs::ReadTxn>(
-    key: &str,
-    txn: &Txn,
-    map: &yrs::MapRef,
-) -> Result<bool, WbblWebappGraphStoreError> {
-    match map.get(txn, key) {
-        Some(yrs::Value::Any(yrs::Any::Bool(result))) => Ok(result),
-        None => Err(WbblWebappGraphStoreError::NotFound),
-        _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
-    }
-}
-
 impl WbblWebappNode {
     pub(crate) fn decode<Txn: yrs::ReadTxn>(
         key: &u128,
         txn: &Txn,
         map: &yrs::MapRef,
         selections: &yrs::MapRef,
-    ) -> Result<WbblWebappNode, WbblWebappGraphStoreError> {
+    ) -> Result<WbblWebappNode, WbblWebappStoreError> {
         let type_name: String = get_atomic_string("type", txn, map)?;
         let data = get_map("data", txn, map)?;
         let x = get_float_64("x", txn, map)?;
@@ -332,11 +246,11 @@ impl WbblWebappNode {
         let data = &data.to_json(txn);
         let data = match data {
             yrs::Any::Map(hash_map) => Ok(hash_map.clone()),
-            _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+            _ => Err(WbblWebappStoreError::UnexpectedStructure),
         }?;
         let node_type = match from_type_name(&type_name) {
             Some(typ) => Ok(typ),
-            None => Err(WbblWebappGraphStoreError::UnknownNodeType),
+            None => Err(WbblWebappStoreError::UnknownNodeType),
         }?;
         let key_str = uuid::Uuid::from_u128(*key).to_string();
         let selected = selections.iter(txn).any(|(_, selection)| match selection {
@@ -365,7 +279,7 @@ impl WbblWebappNode {
         &self,
         transaction: &mut TransactionMut,
         nodes: &mut yrs::MapRef,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         let prelim_map: yrs::MapPrelim<yrs::Any> = yrs::MapPrelim::new();
         let mut node_ref = nodes.insert(
             transaction,
@@ -392,10 +306,10 @@ fn delete_edge(
     edges: &mut MapRef,
     nodes: &mut MapRef,
     edge_selections: &mut MapRef,
-) -> Result<(), WbblWebappGraphStoreError> {
+) -> Result<(), WbblWebappStoreError> {
     let edge = match get_map(edge_id, transaction, edges) {
         Ok(edge) => Ok(Some(edge)),
-        Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
+        Err(WbblWebappStoreError::NotFound) => Ok(None),
         Err(err) => Err(err),
     }?;
     if edge.is_none() {
@@ -411,7 +325,7 @@ fn delete_edge(
             in_edges.remove(transaction, edge_id);
             Ok(())
         }
-        Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+        Err(WbblWebappStoreError::NotFound) => Ok(()),
         Err(err) => Err(err),
     }?;
     match get_map(&target, transaction, nodes) {
@@ -420,7 +334,7 @@ fn delete_edge(
             out_edges.remove(transaction, edge_id);
             Ok(())
         }
-        Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+        Err(WbblWebappStoreError::NotFound) => Ok(()),
         Err(err) => Err(err),
     }?;
     {
@@ -447,7 +361,7 @@ fn delete_associated_edges(
     nodes: &mut MapRef,
     edges: &mut MapRef,
     edge_selections: &mut MapRef,
-) -> Result<(), WbblWebappGraphStoreError> {
+) -> Result<(), WbblWebappStoreError> {
     let in_edges = get_map("in_edges", transaction, &node)?;
     let out_edges = get_map("out_edges", transaction, &node)?;
     {
@@ -473,10 +387,10 @@ fn delete_node(
     edges: &mut MapRef,
     node_selections: &mut MapRef,
     edge_selections: &mut MapRef,
-) -> Result<(), WbblWebappGraphStoreError> {
+) -> Result<(), WbblWebappStoreError> {
     let node = match get_map(node_id, transaction, &nodes) {
         Ok(node) => Ok(Some(node)),
-        Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
+        Err(WbblWebappStoreError::NotFound) => Ok(None),
         Err(err) => Err(err),
     }?;
     if node.is_none() {
@@ -509,7 +423,7 @@ impl WbblWebappEdge {
         txn: &Txn,
         map: &yrs::MapRef,
         selections: &yrs::MapRef,
-    ) -> Result<WbblWebappEdge, WbblWebappGraphStoreError> {
+    ) -> Result<WbblWebappEdge, WbblWebappStoreError> {
         let source = get_atomic_u128_from_string("source", txn, map)?;
         let target = get_atomic_u128_from_string("target", txn, map)?;
         let source_handle = get_atomic_bigint("source_handle", txn, map)?;
@@ -536,7 +450,7 @@ impl WbblWebappEdge {
         &self,
         txn: &mut TransactionMut,
         nodes: &yrs::MapRef,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         let source_node = nodes.get(txn, &uuid::Uuid::from_u128(self.source).to_string());
         let target_node = nodes.get(txn, &uuid::Uuid::from_u128(self.target).to_string());
         match (source_node, target_node) {
@@ -552,7 +466,7 @@ impl WbblWebappEdge {
                 }
                 Ok(())
             }
-            (_, _) => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+            (_, _) => Err(WbblWebappStoreError::UnexpectedStructure),
         }?;
         Ok(())
     }
@@ -562,7 +476,7 @@ impl WbblWebappEdge {
         txn: &mut TransactionMut,
         edges: &mut yrs::MapRef,
         nodes: &yrs::MapRef,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         let prelim_map: HashMap<String, yrs::Any> = HashMap::new();
         let edge_ref = edges.insert(
             txn,
@@ -593,21 +507,6 @@ impl WbblWebappEdge {
         self.set_node_edge_ids(txn, nodes)?;
         Ok(())
     }
-}
-
-#[wasm_bindgen]
-#[derive(Debug)]
-pub enum WbblWebappGraphStoreError {
-    UnexpectedStructure,
-    UnknownNodeType,
-    FailedToUndo,
-    FailedToRedo,
-    FailedToEmit,
-    NotFound,
-    MalformedId,
-    ClipboardFailure,
-    ClipboardNotFound,
-    ClipboardContentsFailure,
 }
 
 #[wasm_bindgen]
@@ -644,7 +543,7 @@ impl WbblWebappGraphStore {
                         for (_, listener) in listeners.borrow().iter() {
                             listener
                                 .call0(&JsValue::UNDEFINED)
-                                .map_err(|_| WbblWebappGraphStoreError::FailedToEmit)
+                                .map_err(|_| WbblWebappStoreError::FailedToEmit)
                                 .unwrap();
                         }
                     }
@@ -704,18 +603,18 @@ impl WbblWebappGraphStore {
         store
     }
 
-    pub fn emit(&self, should_publish_to_worker: bool) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn emit(&self, should_publish_to_worker: bool) -> Result<(), WbblWebappStoreError> {
         for (_, listener) in self.listeners.borrow().iter() {
             listener
                 .call0(&JsValue::UNDEFINED)
-                .map_err(|_| WbblWebappGraphStoreError::FailedToEmit)?;
+                .map_err(|_| WbblWebappStoreError::FailedToEmit)?;
         }
         if should_publish_to_worker && self.initialized {
             let snapshot = self.get_snapshot_raw()?;
             let snapshot_js_value = serde_wasm_bindgen::to_value(
                 &WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot),
             )
-            .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure)?;
+            .map_err(|_| WbblWebappStoreError::UnexpectedStructure)?;
 
             self.graph_worker.post_message(&snapshot_js_value).unwrap();
         }
@@ -740,22 +639,22 @@ impl WbblWebappGraphStore {
         }
     }
 
-    pub fn undo(&mut self) -> Result<bool, WbblWebappGraphStoreError> {
+    pub fn undo(&mut self) -> Result<bool, WbblWebappStoreError> {
         let result = self
             .undo_manager
             .undo()
-            .map_err(|_| WbblWebappGraphStoreError::FailedToUndo)?;
+            .map_err(|_| WbblWebappStoreError::FailedToUndo)?;
         if result {
             self.emit(true)?;
         }
         Ok(result)
     }
 
-    pub fn redo(&mut self) -> Result<bool, WbblWebappGraphStoreError> {
+    pub fn redo(&mut self) -> Result<bool, WbblWebappStoreError> {
         let result = self
             .undo_manager
             .redo()
-            .map_err(|_| WbblWebappGraphStoreError::FailedToRedo)?;
+            .map_err(|_| WbblWebappStoreError::FailedToRedo)?;
         if result {
             self.emit(true)?;
         }
@@ -770,14 +669,14 @@ impl WbblWebappGraphStore {
         self.undo_manager.can_redo()
     }
 
-    pub fn get_snapshot(&mut self) -> Result<JsValue, WbblWebappGraphStoreError> {
+    pub fn get_snapshot(&mut self) -> Result<JsValue, WbblWebappStoreError> {
         let mut snapshot = self.get_snapshot_raw()?;
         snapshot.computed_types = Some(self.computed_types.borrow().clone());
         serde_wasm_bindgen::to_value(&snapshot)
-            .map_err(|_| WbblWebappGraphStoreError::UnexpectedStructure)
+            .map_err(|_| WbblWebappStoreError::UnexpectedStructure)
     }
 
-    pub fn remove_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn remove_node(&mut self, node_id: &str) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             delete_node(
@@ -797,7 +696,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    pub fn remove_selected_nodes_and_edges(&mut self) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn remove_selected_nodes_and_edges(&mut self) -> Result<(), WbblWebappStoreError> {
         {
             let selected_nodes = self.get_locally_selected_nodes()?;
             let selected_edges = self.get_locally_selected_edges()?;
@@ -820,7 +719,7 @@ impl WbblWebappGraphStore {
                             Ok(())
                         }
                     }
-                    Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+                    Err(WbblWebappStoreError::NotFound) => Ok(()),
                     Err(err) => Err(err),
                 }?;
             }
@@ -838,7 +737,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    pub fn remove_edge(&mut self, edge_id: &str) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn remove_edge(&mut self, edge_id: &str) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             delete_edge(
@@ -857,7 +756,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    pub fn add_node(&mut self, node: NewWbblWebappNode) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn add_node(&mut self, node: NewWbblWebappNode) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             node.encode(&mut mut_transaction, &mut self.nodes)
@@ -870,7 +769,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    fn get_snapshot_raw(&self) -> Result<WbblWebappGraphSnapshot, WbblWebappGraphStoreError> {
+    fn get_snapshot_raw(&self) -> Result<WbblWebappGraphSnapshot, WbblWebappStoreError> {
         let read_txn = self.graph.transact();
         let mut snapshot = WbblWebappGraphSnapshot::get_snapshot(
             &read_txn,
@@ -892,7 +791,7 @@ impl WbblWebappGraphStore {
         width: Option<f64>,
         height: Option<f64>,
         resizing: Option<bool>,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             match self.nodes.get(&mut_transaction, node_id) {
@@ -904,13 +803,13 @@ impl WbblWebappGraphStore {
                     );
                     Ok(())
                 }
-                _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+                _ => Err(WbblWebappStoreError::UnexpectedStructure),
             }?;
         }
 
         let node_id = uuid::Uuid::from_str(node_id)
             .map(|id| id.as_u128())
-            .map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+            .map_err(|_| WbblWebappStoreError::MalformedId)?;
 
         if let Some(maybe_computed) = self.computed_node_sizes.get_mut(&node_id) {
             maybe_computed.width = width;
@@ -941,7 +840,7 @@ impl WbblWebappGraphStore {
         position_absolute_x: Option<f64>,
         position_absolute_y: Option<f64>,
         dragging: Option<bool>,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
 
@@ -956,11 +855,11 @@ impl WbblWebappGraphStore {
                     );
                     Ok(())
                 }
-                _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+                _ => Err(WbblWebappStoreError::UnexpectedStructure),
             }?;
             let node_id = uuid::Uuid::from_str(node_id)
                 .map(|id| id.as_u128())
-                .map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+                .map_err(|_| WbblWebappStoreError::MalformedId)?;
             if let Some(maybe_computed) = self.computed_node_sizes.get_mut(&node_id) {
                 maybe_computed.position_absolute = Some(WbblePosition {
                     x: position_absolute_x.unwrap_or(0.0),
@@ -991,7 +890,7 @@ impl WbblWebappGraphStore {
         &mut self,
         node_id: &str,
         selected: bool,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             let id = self.graph.client_id().to_string();
@@ -1014,10 +913,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    pub fn replace_node(
-        &mut self,
-        node: &NewWbblWebappNode,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn replace_node(&mut self, node: &NewWbblWebappNode) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             node.encode(&mut mut_transaction, &mut self.nodes)
@@ -1036,12 +932,12 @@ impl WbblWebappGraphStore {
         target: &str,
         source_handle: i64,
         target_handle: i64,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let source_uuid =
-                uuid::Uuid::from_str(source).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+                uuid::Uuid::from_str(source).map_err(|_| WbblWebappStoreError::MalformedId)?;
             let target_uuid =
-                uuid::Uuid::from_str(target).map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+                uuid::Uuid::from_str(target).map_err(|_| WbblWebappStoreError::MalformedId)?;
 
             let edge = WbblWebappEdge::new(
                 &(source_uuid.as_u128()),
@@ -1061,7 +957,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    fn get_selection_snapshot(&self) -> Result<WbblWebappGraphSnapshot, WbblWebappGraphStoreError> {
+    fn get_selection_snapshot(&self) -> Result<WbblWebappGraphSnapshot, WbblWebappStoreError> {
         use std::collections::HashSet;
 
         let selected_nodes: HashSet<u128> = self
@@ -1092,9 +988,9 @@ impl WbblWebappGraphStore {
     fn get_node_snapshot(
         &self,
         node_id: &str,
-    ) -> Result<WbblWebappGraphSnapshot, WbblWebappGraphStoreError> {
+    ) -> Result<WbblWebappGraphSnapshot, WbblWebappStoreError> {
         let node_id = uuid::Uuid::parse_str(node_id)
-            .map_err(|_| WbblWebappGraphStoreError::MalformedId)?
+            .map_err(|_| WbblWebappStoreError::MalformedId)?
             .as_u128();
 
         let mut snapshot = self.get_snapshot_raw()?;
@@ -1107,14 +1003,14 @@ impl WbblWebappGraphStore {
         Ok(snapshot)
     }
 
-    pub fn duplicate(&mut self) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn duplicate(&mut self) -> Result<(), WbblWebappStoreError> {
         let mut snapshot = self.get_selection_snapshot()?;
         snapshot.offset(&Vec2::new(200.0, 200.0));
         self.integrate_snapshot(None, &mut snapshot)?;
         Ok(())
     }
 
-    pub fn duplicate_node(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn duplicate_node(&mut self, node_id: &str) -> Result<(), WbblWebappStoreError> {
         let mut snapshot = self.get_node_snapshot(node_id)?;
         snapshot.offset(&Vec2::new(200.0, 200.0));
         self.integrate_snapshot(None, &mut snapshot)?;
@@ -1122,10 +1018,7 @@ impl WbblWebappGraphStore {
     }
 
     #[cfg(web_sys_unstable_apis)]
-    pub fn copy_node(
-        &mut self,
-        node_id: &str,
-    ) -> Result<js_sys::Promise, WbblWebappGraphStoreError> {
+    pub fn copy_node(&mut self, node_id: &str) -> Result<js_sys::Promise, WbblWebappStoreError> {
         use crate::dot_converter::to_dot;
         let clipboard_contents: String = {
             let snapshot = self.get_node_snapshot(node_id)?;
@@ -1135,12 +1028,12 @@ impl WbblWebappGraphStore {
         if let Some(clipboard) = window.navigator().clipboard() {
             Ok(clipboard.write_text(&clipboard_contents))
         } else {
-            Err(WbblWebappGraphStoreError::ClipboardFailure)
+            Err(WbblWebappStoreError::ClipboardFailure)
         }
     }
 
     #[cfg(web_sys_unstable_apis)]
-    pub fn copy(&self) -> Result<js_sys::Promise, WbblWebappGraphStoreError> {
+    pub fn copy(&self) -> Result<js_sys::Promise, WbblWebappStoreError> {
         use crate::dot_converter::to_dot;
         let snapshot = self.get_selection_snapshot()?;
         let clipboard_contents = to_dot(&snapshot);
@@ -1148,7 +1041,7 @@ impl WbblWebappGraphStore {
         if let Some(clipboard) = window.navigator().clipboard() {
             Ok(clipboard.write_text(&clipboard_contents))
         } else {
-            Err(WbblWebappGraphStoreError::ClipboardFailure)
+            Err(WbblWebappStoreError::ClipboardFailure)
         }
     }
 
@@ -1156,7 +1049,7 @@ impl WbblWebappGraphStore {
         &mut self,
         position: Option<Vec2>,
         snapshot: &mut WbblWebappGraphSnapshot,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             snapshot.reassign_ids();
@@ -1176,10 +1069,7 @@ impl WbblWebappGraphStore {
     }
 
     #[cfg(web_sys_unstable_apis)]
-    pub async fn paste(
-        &mut self,
-        cursor_position: &[f32],
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    pub async fn paste(&mut self, cursor_position: &[f32]) -> Result<(), WbblWebappStoreError> {
         use web_sys::js_sys::JsString;
 
         use crate::dot_converter::from_dot;
@@ -1188,22 +1078,22 @@ impl WbblWebappGraphStore {
         if let Some(clipboard) = window.navigator().clipboard() {
             let value = wasm_bindgen_futures::JsFuture::from(clipboard.read_text())
                 .await
-                .map_err(|_| WbblWebappGraphStoreError::ClipboardFailure)?;
+                .map_err(|_| WbblWebappStoreError::ClipboardFailure)?;
             let str: String = value.dyn_into::<JsString>().unwrap().into();
             let mut snapshot =
-                from_dot(&str).map_err(|_| WbblWebappGraphStoreError::ClipboardContentsFailure)?;
+                from_dot(&str).map_err(|_| WbblWebappStoreError::ClipboardContentsFailure)?;
             let position = Vec2::from_slice(cursor_position);
             self.integrate_snapshot(Some(position), &mut snapshot)?;
             return Ok(());
         };
-        Err(WbblWebappGraphStoreError::ClipboardNotFound)
+        Err(WbblWebappStoreError::ClipboardNotFound)
     }
 
     pub fn set_edge_selection(
         &mut self,
         edge_id: &str,
         selected: bool,
-    ) -> Result<(), WbblWebappGraphStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             let id = self.graph.client_id().to_string();
@@ -1226,7 +1116,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    pub fn select_all(&mut self) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn select_all(&mut self) -> Result<(), WbblWebappStoreError> {
         let id = self.graph.client_id().to_string();
         {
             let mut txn = self.graph.transact_mut_with(self.graph.client_id());
@@ -1249,7 +1139,7 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    pub fn select_none(&mut self) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn select_none(&mut self) -> Result<(), WbblWebappStoreError> {
         let id = self.graph.client_id().to_string();
         {
             let mut txn = self.graph.transact_mut_with(self.graph.client_id());
@@ -1258,7 +1148,7 @@ impl WbblWebappGraphStore {
                     selection.clear(&mut txn);
                     Ok(())
                 }
-                Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+                Err(WbblWebappStoreError::NotFound) => Ok(()),
                 Err(err) => Err(err),
             }?;
             match get_map(&id, &txn, &self.edge_selections) {
@@ -1266,7 +1156,7 @@ impl WbblWebappGraphStore {
                     selection.clear(&mut txn);
                     Ok(())
                 }
-                Err(WbblWebappGraphStoreError::NotFound) => Ok(()),
+                Err(WbblWebappStoreError::NotFound) => Ok(()),
                 Err(err) => Err(err),
             }?;
         }
@@ -1274,12 +1164,12 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
-    pub fn get_locally_selected_nodes(&self) -> Result<Vec<String>, WbblWebappGraphStoreError> {
+    pub fn get_locally_selected_nodes(&self) -> Result<Vec<String>, WbblWebappStoreError> {
         let txn = self.graph.transact();
         let id = self.graph.client_id().to_string();
         let maybe_selection_for_current_user = match get_map(&id, &txn, &self.node_selections) {
             Ok(selection) => Ok(Some(selection)),
-            Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
+            Err(WbblWebappStoreError::NotFound) => Ok(None),
             Err(err) => Err(err),
         }?;
         if maybe_selection_for_current_user.is_none() {
@@ -1293,12 +1183,12 @@ impl WbblWebappGraphStore {
             .collect());
     }
 
-    pub fn get_locally_selected_edges(&self) -> Result<Vec<String>, WbblWebappGraphStoreError> {
+    pub fn get_locally_selected_edges(&self) -> Result<Vec<String>, WbblWebappStoreError> {
         let txn = self.graph.transact();
         let id = self.graph.client_id().to_string();
         let maybe_selection_for_current_user = match get_map(&id, &txn, &self.edge_selections) {
             Ok(selection) => Ok(Some(selection)),
-            Err(WbblWebappGraphStoreError::NotFound) => Ok(None),
+            Err(WbblWebappStoreError::NotFound) => Ok(None),
             Err(err) => Err(err),
         }?;
         if maybe_selection_for_current_user.is_none() {
@@ -1327,7 +1217,7 @@ impl WbblWebappGraphStore {
     pub fn get_edge_type(
         type_a: JsValue,
         type_b: JsValue,
-    ) -> Result<JsValue, WbblWebappGraphStoreError> {
+    ) -> Result<JsValue, WbblWebappStoreError> {
         match (
             serde_wasm_bindgen::from_value::<AbstractDataType>(type_a),
             serde_wasm_bindgen::from_value::<AbstractDataType>(type_b),
@@ -1336,13 +1226,13 @@ impl WbblWebappGraphStore {
                 &AbstractDataType::get_most_specific_type(a, b),
             )
             .unwrap()),
-            (Ok(_), Err(_)) => Err(WbblWebappGraphStoreError::UnexpectedStructure),
-            (Err(_), Ok(_)) => Err(WbblWebappGraphStoreError::UnexpectedStructure),
-            (Err(_), Err(_)) => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+            (Ok(_), Err(_)) => Err(WbblWebappStoreError::UnexpectedStructure),
+            (Err(_), Ok(_)) => Err(WbblWebappStoreError::UnexpectedStructure),
+            (Err(_), Err(_)) => Err(WbblWebappStoreError::UnexpectedStructure),
         }
     }
 
-    pub fn link_to_preview(&mut self, node_id: &str) -> Result<(), WbblWebappGraphStoreError> {
+    pub fn link_to_preview(&mut self, node_id: &str) -> Result<(), WbblWebappStoreError> {
         {
             // TODO Add validation for this
             let mut_transaction = &mut self.graph.transact_mut_with(self.graph.client_id());
@@ -1356,16 +1246,16 @@ impl WbblWebappGraphStore {
                             Some(yrs::Value::Any(yrs::Any::Number(x))),
                             Some(yrs::Value::Any(yrs::Any::Number(y))),
                         ) => Ok((x, y)),
-                        (_, _) => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+                        (_, _) => Err(WbblWebappStoreError::UnexpectedStructure),
                     }
                 }
-                _ => Err(WbblWebappGraphStoreError::UnexpectedStructure),
+                _ => Err(WbblWebappStoreError::UnexpectedStructure),
             }?;
             let preview_node =
                 NewWbblWebappNode::new(position.0 + 350.0, position.1, WbblWebappNodeType::Preview);
             preview_node.encode(mut_transaction, &mut self.nodes)?;
-            let source = uuid::Uuid::from_str(node_id)
-                .map_err(|_| WbblWebappGraphStoreError::MalformedId)?;
+            let source =
+                uuid::Uuid::from_str(node_id).map_err(|_| WbblWebappStoreError::MalformedId)?;
             let edge = WbblWebappEdge::new(&(source.as_u128()), &preview_node.id, 0, 0);
             edge.encode(mut_transaction, &mut self.edges, &self.nodes)?;
         }

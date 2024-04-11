@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   BaseTheme,
+  EdgeStyle,
   KeyboardShortcut,
   WbblWebappNodeType,
   WbblWebappPreferencesStore,
@@ -318,6 +319,90 @@ export function useNodeKeyBinding(
     }
     return data.current;
   }, [store, node_type]);
+
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  return snapshot;
+}
+
+export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
+  let data = useRef<EdgeStyle>();
+  let count = useRef<number>(0);
+  let cacheHandle = useRef<number>(0);
+
+  let subscribe = useCallback(
+    (subscriber: () => void) => {
+      if (count.current == 0) {
+        cacheHandle.current = store.subscribe(() => {
+          data.current = undefined;
+        });
+      }
+      count.current = count.current + 1;
+      let handle = store.subscribe(subscriber);
+      return () => {
+        count.current = count.current - 1;
+        if (count.current === 0) {
+          store.unsubscribe(cacheHandle.current);
+        }
+        store.unsubscribe(handle);
+      };
+    },
+    [store],
+  );
+
+  let getSnapshot = useCallback(() => {
+    if (data.current === undefined) {
+      console.log("getting edge style snapshot");
+      let edgeStyle = store.get_edge_style();
+      if (edgeStyle === EdgeStyle.Default) {
+        data.current = EdgeStyle.Default;
+      } else if (edgeStyle === EdgeStyle.Bezier) {
+        data.current = EdgeStyle.Bezier;
+      } else {
+        data.current = EdgeStyle.Metropolis;
+      }
+    }
+    return data.current;
+  }, [store]);
+
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  return snapshot;
+}
+
+export function useIsWobbleEffectEnabledInPreferences(
+  store: WbblWebappPreferencesStore,
+): boolean {
+  let data = useRef<boolean>();
+  let count = useRef<number>(0);
+  let cacheHandle = useRef<number>(0);
+
+  let subscribe = useCallback(
+    (subscriber: () => void) => {
+      if (count.current == 0) {
+        cacheHandle.current = store.subscribe(() => {
+          data.current = undefined;
+        });
+      }
+      count.current = count.current + 1;
+      let handle = store.subscribe(subscriber);
+      return () => {
+        count.current = count.current - 1;
+        if (count.current === 0) {
+          store.unsubscribe(cacheHandle.current);
+        }
+        store.unsubscribe(handle);
+      };
+    },
+    [store],
+  );
+
+  let getSnapshot = useCallback(() => {
+    if (data.current === undefined) {
+      data.current = store.get_allow_wobble();
+    }
+    return data.current;
+  }, [store]);
 
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 

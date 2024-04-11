@@ -14,10 +14,12 @@ import KeybindingDialogContents from "./KeybindingDialogContents";
 import React from "react";
 import {
   WbblPreferencesStoreContext,
+  useEdgeStyle,
+  useIsWobbleEffectEnabledInPreferences,
   useKeyBinding,
   useThemePreferences,
 } from "../hooks/use-preferences-store";
-import { BaseTheme, KeyboardShortcut } from "../../pkg/wbbl";
+import { BaseTheme, EdgeStyle, KeyboardShortcut } from "../../pkg/wbbl";
 import { useScopedShortcut } from "../hooks/use-shortcut";
 import formatKeybinding from "../utils/format-keybinding";
 import Breadcrumb from "./Breadcrumb";
@@ -33,13 +35,45 @@ export default function ApplicationMenu(props: {
   const goHome = useCallback(() => {
     window.location.assign("/");
   }, []);
-
   const [currentDialog, setCurrentDialog] =
     useState<FunctionComponent<{}> | null>(null);
   const setKeybindingDialog = useCallback(() => {
     setCurrentDialog(() => () => <KeybindingDialogContents />);
   }, [setCurrentDialog]);
   const preferencesStore = useContext(WbblPreferencesStoreContext);
+  const isWbblEnabledInPreferences =
+    useIsWobbleEffectEnabledInPreferences(preferencesStore);
+  const edgeStyle = useEdgeStyle(preferencesStore);
+  const edgeStyleValue = useMemo(() => {
+    switch (edgeStyle) {
+      case EdgeStyle.Bezier:
+        return "bezier";
+      case EdgeStyle.Metropolis:
+        return "metropolis";
+      case EdgeStyle.Default:
+        return "default";
+    }
+  }, [edgeStyle]);
+  const setEdgeStyle = useCallback(
+    (edgeStyle: string) => {
+      switch (edgeStyle) {
+        case "bezier":
+          preferencesStore.set_edge_style(EdgeStyle.Bezier);
+          break;
+        case "metropolis":
+          preferencesStore.set_edge_style(EdgeStyle.Metropolis);
+          break;
+        case "default":
+          preferencesStore.set_edge_style(EdgeStyle.Default);
+          break;
+        default:
+          // DO NOTHING
+          break;
+      }
+    },
+    [preferencesStore],
+  );
+
   const setMode = useCallback(
     (mode: string) => {
       try {
@@ -146,6 +180,39 @@ export default function ApplicationMenu(props: {
                   System Theme
                 </DropdownMenu.RadioItem>
               </DropdownMenu.RadioGroup>
+              <DropdownMenu.Separator />
+              <DropdownMenu.CheckboxItem
+                checked={!isWbblEnabledInPreferences}
+                onCheckedChange={useCallback<(value: boolean) => void>(
+                  (evt) => {
+                    console.log("checked changed", evt);
+                    preferencesStore.toggle_wobble();
+                  },
+                  [],
+                )}
+              >
+                Disable Wobble
+              </DropdownMenu.CheckboxItem>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Sub>
+                <DropdownMenu.SubTrigger>Edge Style</DropdownMenu.SubTrigger>
+                <DropdownMenu.SubContent>
+                  <DropdownMenu.RadioGroup
+                    onValueChange={setEdgeStyle}
+                    value={edgeStyleValue}
+                  >
+                    <DropdownMenu.RadioItem value="default">
+                      Default
+                    </DropdownMenu.RadioItem>
+                    <DropdownMenu.RadioItem value="bezier">
+                      Bezier
+                    </DropdownMenu.RadioItem>
+                    <DropdownMenu.RadioItem value="metropolis">
+                      Metropolis
+                    </DropdownMenu.RadioItem>
+                  </DropdownMenu.RadioGroup>
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Sub>
             </DropdownMenu.SubContent>
           </DropdownMenu.Sub>
         </DropdownMenu.Content>

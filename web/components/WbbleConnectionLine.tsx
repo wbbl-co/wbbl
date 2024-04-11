@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ConnectionLineComponentProps } from "@xyflow/react";
-import { WbblRope } from "../../pkg/wbbl";
+import { EdgeStyle, WbblRope } from "../../pkg/wbbl";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
 import { HALF_PORT_SIZE } from "../port-constants";
@@ -11,6 +11,10 @@ import {
   setConnectionPath,
 } from "../utils/set-connection-path";
 import useIsWbblEffectEnabled from "../hooks/use-is-wbble-effect-enabled";
+import {
+  WbblPreferencesStoreContext,
+  useEdgeStyle,
+} from "../hooks/use-preferences-store";
 
 export default function WbblConnectionLine(
   props: ConnectionLineComponentProps,
@@ -39,6 +43,9 @@ export default function WbblConnectionLine(
     ),
   );
   const isWbblEffectEnabled = useIsWbblEffectEnabled();
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
+  const edgeStyle = useEdgeStyle(preferencesStore);
+
   const lastUpdate = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -61,7 +68,7 @@ export default function WbblConnectionLine(
       const factorX = -sinAngle;
       const factorY = cosAngle;
 
-      if (isWbblEffectEnabled) {
+      if (edgeStyle === EdgeStyle.Default && isWbblEffectEnabled) {
         rope.update(
           new Float32Array([props.fromX, props.fromY]),
           new Float32Array([props.toX, props.toY]),
@@ -80,12 +87,14 @@ export default function WbblConnectionLine(
           animationFrame = requestAnimationFrame(update);
         }
       } else if (pathRef.current) {
+        console.log("setting connection path");
         setConnectionPath(
           pathRef.current,
           connectionLineClassName,
           defaultConnectionPathProvider(
             { x: props.fromX, y: props.fromY },
             { x: props.toX, y: props.toY },
+            edgeStyle,
           ),
           factorX,
           factorY,
@@ -96,6 +105,7 @@ export default function WbblConnectionLine(
     return () => cancelAnimationFrame(animationFrame);
   }, [
     isWbblEffectEnabled,
+    edgeStyle,
     rope,
     props.fromX,
     props.fromY,

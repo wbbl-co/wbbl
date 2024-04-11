@@ -4,7 +4,11 @@ use wasm_bindgen::prelude::*;
 use web_sys::js_sys;
 use yrs::{Map, Transact};
 
-use crate::graph_transfer_types::{from_type_name, get_type_name, WbblWebappNodeType};
+use crate::{
+    graph_transfer_types::{from_type_name, get_type_name, WbblWebappNodeType},
+    store_errors::WbblWebappStoreError,
+    yrs_utils::{get_atomic_string, get_bool},
+};
 
 const GENERAL_SETTINGS_MAP_KEY: &str = "general_settings";
 const KEYBOARD_SHORTCUTS_MAP_KEY: &str = "keyboard_shortcuts";
@@ -36,10 +40,29 @@ pub enum BaseTheme {
 }
 
 #[wasm_bindgen]
-pub enum WbblWebappPreferencesStoreError {
-    MalformedId,
-    FailedToEmit,
-    SerializationFailure,
+pub enum EdgeStyle {
+    Default,
+    Bezier,
+    Metropolis,
+}
+
+impl EdgeStyle {
+    fn get_string_representation(&self) -> String {
+        match self {
+            EdgeStyle::Default => "default",
+            EdgeStyle::Bezier => "bezier",
+            EdgeStyle::Metropolis => "metropolis",
+        }
+        .to_owned()
+    }
+    fn from_string_representation(str: &str) -> Option<Self> {
+        match str {
+            "default" => Some(Self::Default),
+            "bezier" => Some(Self::Bezier),
+            "metropolis" => Some(Self::Metropolis),
+            _ => None,
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -153,7 +176,7 @@ pub struct KeybindingSnapshot {
 
 #[wasm_bindgen]
 impl WbblWebappPreferencesStore {
-    pub fn empty() -> Result<WbblWebappPreferencesStore, WbblWebappPreferencesStoreError> {
+    pub fn empty() -> Result<WbblWebappPreferencesStore, WbblWebappStoreError> {
         let preferences = yrs::Doc::new();
         let general_settings = preferences.get_or_insert_map(GENERAL_SETTINGS_MAP_KEY.to_owned());
         let theme = preferences.get_or_insert_map(THEME_MAP_KEY.to_owned());
@@ -182,11 +205,11 @@ impl WbblWebappPreferencesStore {
         Ok(store)
     }
 
-    fn emit(&self) -> Result<(), WbblWebappPreferencesStoreError> {
+    fn emit(&self) -> Result<(), WbblWebappStoreError> {
         for (_, listener) in self.listeners.borrow().iter() {
             listener
                 .call0(&JsValue::UNDEFINED)
-                .map_err(|_| WbblWebappPreferencesStoreError::FailedToEmit)?;
+                .map_err(|_| WbblWebappStoreError::FailedToEmit)?;
         }
         Ok(())
     }
@@ -209,10 +232,7 @@ impl WbblWebappPreferencesStore {
         }
     }
 
-    pub fn set_base_theme(
-        &mut self,
-        theme: BaseTheme,
-    ) -> Result<(), WbblWebappPreferencesStoreError> {
+    pub fn set_base_theme(&mut self, theme: BaseTheme) -> Result<(), WbblWebappStoreError> {
         {
             let mut txn = self.preferences.transact_mut();
             self.theme
@@ -238,7 +258,7 @@ impl WbblWebappPreferencesStore {
     pub fn reset_keybinding(
         &mut self,
         command: KeyboardShortcut,
-    ) -> Result<(), WbblWebappPreferencesStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut txn = self.preferences.transact_mut();
             let command_key = command.get_string_representation();
@@ -252,7 +272,7 @@ impl WbblWebappPreferencesStore {
         &mut self,
         command: KeyboardShortcut,
         binding: Option<String>,
-    ) -> Result<(), WbblWebappPreferencesStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut txn = self.preferences.transact_mut();
             let command_key = command.get_string_representation();
@@ -267,9 +287,7 @@ impl WbblWebappPreferencesStore {
         Ok(())
     }
 
-    pub fn get_favourites(
-        &self,
-    ) -> Result<Vec<WbblWebappNodeType>, WbblWebappPreferencesStoreError> {
+    pub fn get_favourites(&self) -> Result<Vec<WbblWebappNodeType>, WbblWebappStoreError> {
         let txn = self.preferences.transact();
         let mut result: Vec<WbblWebappNodeType> = Vec::new();
         for (key, _) in self.favourites.iter(&txn) {
@@ -285,7 +303,7 @@ impl WbblWebappPreferencesStore {
         &mut self,
         node_type: WbblWebappNodeType,
         value: bool,
-    ) -> Result<(), WbblWebappPreferencesStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut txn = self.preferences.transact_mut();
             if value {
@@ -307,7 +325,7 @@ impl WbblWebappPreferencesStore {
         }
     }
 
-    pub fn get_keybindings(&self) -> Result<JsValue, WbblWebappPreferencesStoreError> {
+    pub fn get_keybindings(&self) -> Result<JsValue, WbblWebappStoreError> {
         let mut bindings = get_default_keybindings();
         let txn = self.preferences.transact();
         for binding in self.keyboard_shortcuts.iter(&txn) {
@@ -325,13 +343,13 @@ impl WbblWebappPreferencesStore {
             };
         }
         serde_wasm_bindgen::to_value(&bindings)
-            .map_err(|_| WbblWebappPreferencesStoreError::SerializationFailure)
+            .map_err(|_| WbblWebappStoreError::SerializationFailure)
     }
 
     pub fn get_keybinding(
         &self,
         shortcut: KeyboardShortcut,
-    ) -> Result<Option<String>, WbblWebappPreferencesStoreError> {
+    ) -> Result<Option<String>, WbblWebappStoreError> {
         let bindings = get_default_keybindings();
         let txn = self.preferences.transact();
 
@@ -351,7 +369,7 @@ impl WbblWebappPreferencesStore {
     pub fn get_node_keybinding(
         &self,
         node_type: WbblWebappNodeType,
-    ) -> Result<Option<String>, WbblWebappPreferencesStoreError> {
+    ) -> Result<Option<String>, WbblWebappStoreError> {
         let bindings = get_default_node_keybindings();
         let txn = self.preferences.transact();
 
@@ -366,7 +384,7 @@ impl WbblWebappPreferencesStore {
         }
     }
 
-    pub fn get_node_keybindings(&self) -> Result<JsValue, WbblWebappPreferencesStoreError> {
+    pub fn get_node_keybindings(&self) -> Result<JsValue, WbblWebappStoreError> {
         let mut bindings = get_default_node_keybindings();
         let txn = self.preferences.transact();
         for binding in self.node_keyboard_shortcuts.iter(&txn) {
@@ -381,13 +399,13 @@ impl WbblWebappPreferencesStore {
             };
         }
         serde_wasm_bindgen::to_value(&bindings)
-            .map_err(|_| WbblWebappPreferencesStoreError::SerializationFailure)
+            .map_err(|_| WbblWebappStoreError::SerializationFailure)
     }
 
     pub fn reset_node_keybinding(
         &mut self,
         node_type: WbblWebappNodeType,
-    ) -> Result<(), WbblWebappPreferencesStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut txn = self.preferences.transact_mut();
 
@@ -402,13 +420,75 @@ impl WbblWebappPreferencesStore {
         &mut self,
         node_type: WbblWebappNodeType,
         binding: Option<String>,
-    ) -> Result<(), WbblWebappPreferencesStoreError> {
+    ) -> Result<(), WbblWebappStoreError> {
         {
             let mut txn = self.preferences.transact_mut();
             let key = get_type_name(node_type);
             match binding {
                 Some(binding) => self.node_keyboard_shortcuts.insert(&mut txn, key, binding),
                 None => self.keyboard_shortcuts.insert(&mut txn, key, false),
+            };
+        }
+        self.emit()?;
+        Ok(())
+    }
+
+    pub fn toggle_wobble(&mut self) -> Result<(), WbblWebappStoreError> {
+        {
+            let mut txn = self.preferences.transact_mut();
+            match get_bool("allow_wobble", &txn, &self.general_settings) {
+                Ok(allowed) => {
+                    self.general_settings
+                        .insert(&mut txn, "allow_wobble", !allowed);
+                    Ok(())
+                }
+                Err(WbblWebappStoreError::NotFound) => {
+                    self.general_settings
+                        .insert(&mut txn, "allow_wobble", false);
+                    Ok(())
+                }
+                Err(err) => Err(err),
+            }?;
+        }
+        self.emit()?;
+        Ok(())
+    }
+
+    pub fn get_allow_wobble(&self) -> Result<bool, WbblWebappStoreError> {
+        let txn = self.preferences.transact();
+        match get_bool("allow_wobble", &txn, &self.general_settings) {
+            Ok(allowed) => Ok(allowed),
+            Err(WbblWebappStoreError::NotFound) => Ok(true),
+            Err(err) => Err(err),
+        }
+    }
+
+    pub fn get_edge_style(&self) -> Result<EdgeStyle, WbblWebappStoreError> {
+        let txn = self.preferences.transact();
+        match get_atomic_string("edge_style", &txn, &self.general_settings) {
+            Ok(str) => {
+                if let Some(style) = EdgeStyle::from_string_representation(&str) {
+                    Ok(style)
+                } else {
+                    Err(WbblWebappStoreError::UnexpectedStructure)
+                }
+            }
+            Err(WbblWebappStoreError::NotFound) => Ok(EdgeStyle::Default),
+            Err(err) => Err(err),
+        }
+    }
+
+    pub fn set_edge_style(&self, style: EdgeStyle) -> Result<(), WbblWebappStoreError> {
+        {
+            let mut txn = self.preferences.transact_mut();
+            if let EdgeStyle::Default = style {
+                self.general_settings.remove(&mut txn, "edge_style");
+            } else {
+                self.general_settings.insert(
+                    &mut txn,
+                    "edge_style",
+                    style.get_string_representation(),
+                );
             };
         }
         self.emit()?;

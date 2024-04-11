@@ -2,10 +2,12 @@ import { useContext, useEffect, useMemo, useRef } from "react";
 import {
   BaseEdge,
   EdgeProps,
+  getBezierPath,
+  getSmoothStepPath,
   getStraightPath,
   useReactFlow,
 } from "@xyflow/react";
-import { WbblRope, WbblWebappGraphStore } from "../../pkg/wbbl";
+import { EdgeStyle, WbblRope, WbblWebappGraphStore } from "../../pkg/wbbl";
 import { createPortal } from "react-dom";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
@@ -17,6 +19,10 @@ import {
 } from "../utils/set-connection-path";
 import useIsWbblEffectEnabled from "../hooks/use-is-wbble-effect-enabled";
 import { PortRefStoreContext } from "../hooks/use-port-location";
+import {
+  WbblPreferencesStoreContext,
+  useEdgeStyle,
+} from "../hooks/use-preferences-store";
 
 export default function WbbleEdge({
   id,
@@ -32,6 +38,8 @@ export default function WbbleEdge({
 }: EdgeProps) {
   const flow = useReactFlow();
   const portRefStore = useContext(PortRefStoreContext);
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
+  const edgeStyle = useEdgeStyle(preferencesStore);
   const sourceType = usePortTypeWithNodeId(
     source,
     sourceHandleId as `${"s" | "t"}#${number}`,
@@ -61,14 +69,31 @@ export default function WbbleEdge({
   const isWbblEffectEnabled = useIsWbblEffectEnabled();
 
   const pathElement = useMemo(() => {
-    const [path] = getStraightPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-    });
+    let path = "";
+    if (edgeStyle === EdgeStyle.Default) {
+      [path] = getStraightPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+      });
+    } else if (edgeStyle === EdgeStyle.Bezier) {
+      [path] = getBezierPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+      });
+    } else {
+      [path] = getSmoothStepPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+      });
+    }
     return <BaseEdge path={path} interactionWidth={25} />;
-  }, [sourceX, sourceY, targetX, targetY]);
+  }, [sourceX, sourceY, targetX, targetY, edgeStyle]);
 
   const startMarker = useRef<SVGCircleElement>(null);
   const endMarker = useRef<SVGCircleElement>(null);
@@ -144,7 +169,7 @@ export default function WbbleEdge({
       const sinAngle = Math.sin(angle);
       const factorX = -sinAngle;
       const factorY = cosAngle;
-      if (isWbblEffectEnabled) {
+      if (edgeStyle === EdgeStyle.Default && isWbblEffectEnabled) {
         rope.update(
           new Float32Array([startPos.x, startPos.y]),
           new Float32Array([endPos.x, endPos.y]),
@@ -164,7 +189,7 @@ export default function WbbleEdge({
         setConnectionPath(
           ropePath.current,
           edgeClassName,
-          defaultConnectionPathProvider(startPos, endPos),
+          defaultConnectionPathProvider(startPos, endPos, edgeStyle),
           factorX,
           factorY,
         );
@@ -183,6 +208,7 @@ export default function WbbleEdge({
     startMarker,
     edgeClassName,
     isWbblEffectEnabled,
+    edgeStyle,
     sourceX,
     sourceY,
     targetX,

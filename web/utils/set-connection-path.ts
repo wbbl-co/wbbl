@@ -1,11 +1,35 @@
+import { Position, getBezierPath, getSmoothStepPath } from "@xyflow/system";
+import { EdgeStyle } from "../../pkg/wbbl";
 import { EDGE_STROKE_WIDTH, VECTOR_EDGE_STROKE_WIDTH } from "../port-constants";
 
 export function defaultConnectionPathProvider(
   startPos: { x: number; y: number },
   endPos: { x: number; y: number },
+  edgeStyle: EdgeStyle,
 ) {
-  return (position: Float32Array) =>
-    `M ${startPos.x + position[0]} ${startPos.y + position[1]} L ${endPos.x + position[0]} ${endPos.y + position[1]}`;
+  return (position: Float32Array) => {
+    if (edgeStyle === EdgeStyle.Default) {
+      return `M ${startPos.x + position[0]} ${startPos.y + position[1]} L ${endPos.x + position[0]} ${endPos.y + position[1]}`;
+    } else if (edgeStyle === EdgeStyle.Bezier) {
+      return getBezierPath({
+        sourceX: startPos.x,
+        sourceY: startPos.y,
+        targetX: endPos.x,
+        targetY: endPos.y,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      })[0];
+    } else {
+      return getSmoothStepPath({
+        sourceX: startPos.x,
+        sourceY: startPos.y,
+        targetX: endPos.x,
+        targetY: endPos.y,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      })[0];
+    }
+  };
 }
 
 export function setConnectionPath(

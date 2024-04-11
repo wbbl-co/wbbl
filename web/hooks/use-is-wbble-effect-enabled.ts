@@ -1,4 +1,9 @@
 import { useViewport } from "@xyflow/react";
+import { useContext } from "react";
+import {
+  WbblPreferencesStoreContext,
+  useIsWobbleEffectEnabledInPreferences,
+} from "./use-preferences-store";
 
 function getPrefersReducedMotion() {
   const mediaQueryList = window.matchMedia(
@@ -12,5 +17,12 @@ function getPrefersReducedMotion() {
 export default function useIsWbblEffectEnabled() {
   // TODO add additional check for visible node count
   const viewport = useViewport();
-  return !getPrefersReducedMotion() && viewport.zoom > 0.5;
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
+  const isWbblEnabledInPreferences =
+    useIsWobbleEffectEnabledInPreferences(preferencesStore);
+  return (
+    isWbblEnabledInPreferences &&
+    !getPrefersReducedMotion() &&
+    viewport.zoom > 0.5
+  );
 }

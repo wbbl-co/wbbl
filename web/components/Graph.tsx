@@ -257,6 +257,7 @@ function Graph() {
 
   const onEdgesChange = useCallback<OnEdgesChange>(
     (changes) => {
+      console.log(changes);
       for (let change of changes) {
         switch (change.type) {
           case "add":

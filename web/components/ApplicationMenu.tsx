@@ -185,7 +185,6 @@ export default function ApplicationMenu(props: {
                 checked={!isWbblEnabledInPreferences}
                 onCheckedChange={useCallback<(value: boolean) => void>(
                   (evt) => {
-                    console.log("checked changed", evt);
                     preferencesStore.toggle_wobble();
                   },
                   [],

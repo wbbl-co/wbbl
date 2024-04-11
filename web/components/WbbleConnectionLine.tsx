@@ -92,7 +92,6 @@ export default function WbblConnectionLine(
           animationFrame = requestAnimationFrame(update);
         }
       } else if (pathRef.current) {
-        console.log("setting connection path");
         setConnectionPath(
           pathRef.current,
           connectionLineClassName,

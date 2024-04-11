@@ -352,7 +352,6 @@ export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
 
   let getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      console.log("getting edge style snapshot");
       let edgeStyle = store.get_edge_style();
       if (edgeStyle === EdgeStyle.Default) {
         data.current = EdgeStyle.Default;

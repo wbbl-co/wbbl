@@ -20,8 +20,6 @@ use crate::{
 pub struct WbbleComputedNodeSize {
     pub width: Option<f64>,
     pub height: Option<f64>,
-    #[serde(rename = "positionAbsolute")]
-    pub position_absolute: Option<WbblePosition>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

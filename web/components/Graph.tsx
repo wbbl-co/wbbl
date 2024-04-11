@@ -242,8 +242,7 @@ function Graph() {
               change.id,
               change.position?.x ?? 0,
               change.position?.y ?? 0,
-              change.positionAbsolute?.x,
-              change.positionAbsolute?.y,
+              true,
             );
             break;
           case "select":
@@ -257,7 +256,6 @@ function Graph() {
 
   const onEdgesChange = useCallback<OnEdgesChange>(
     (changes) => {
-      console.log(changes);
       for (let change of changes) {
         switch (change.type) {
           case "add":

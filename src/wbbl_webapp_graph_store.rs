@@ -387,6 +387,7 @@ fn delete_node(
     edges: &mut MapRef,
     node_selections: &mut MapRef,
     edge_selections: &mut MapRef,
+    computed_node_sizes: &mut HashMap<u128, WbbleComputedNodeSize>,
 ) -> Result<(), WbblWebappStoreError> {
     let node = match get_map(node_id, transaction, &nodes) {
         Ok(node) => Ok(Some(node)),
@@ -399,6 +400,10 @@ fn delete_node(
     let node = node.unwrap();
 
     delete_associated_edges(transaction, &node, nodes, edges, edge_selections)?;
+    let node_id_u128 = uuid::Uuid::parse_str(node_id)
+        .map_err(|_| WbblWebappStoreError::MalformedId)?
+        .as_u128();
+    computed_node_sizes.remove(&node_id_u128);
     nodes.remove(transaction, node_id);
     {
         let keys: Vec<String> = node_selections
@@ -686,6 +691,7 @@ impl WbblWebappGraphStore {
                 &mut self.edges,
                 &mut self.node_selections,
                 &mut self.edge_selections,
+                &mut self.computed_node_sizes,
             )?;
         }
 
@@ -715,6 +721,7 @@ impl WbblWebappGraphStore {
                                 &mut self.edges,
                                 &mut self.node_selections,
                                 &mut self.edge_selections,
+                                &mut self.computed_node_sizes,
                             )?;
                             Ok(())
                         }
@@ -815,14 +822,8 @@ impl WbblWebappGraphStore {
             maybe_computed.width = width;
             maybe_computed.height = height;
         } else {
-            self.computed_node_sizes.insert(
-                node_id.to_owned(),
-                WbbleComputedNodeSize {
-                    width,
-                    height,
-                    position_absolute: None,
-                },
-            );
+            self.computed_node_sizes
+                .insert(node_id.to_owned(), WbbleComputedNodeSize { width, height });
         }
 
         // Important that emit is called here. Rather than before the drop
@@ -837,8 +838,6 @@ impl WbblWebappGraphStore {
         node_id: &str,
         x: f64,
         y: f64,
-        position_absolute_x: Option<f64>,
-        position_absolute_y: Option<f64>,
         dragging: Option<bool>,
     ) -> Result<(), WbblWebappStoreError> {
         {
@@ -857,27 +856,6 @@ impl WbblWebappGraphStore {
                 }
                 _ => Err(WbblWebappStoreError::UnexpectedStructure),
             }?;
-            let node_id = uuid::Uuid::from_str(node_id)
-                .map(|id| id.as_u128())
-                .map_err(|_| WbblWebappStoreError::MalformedId)?;
-            if let Some(maybe_computed) = self.computed_node_sizes.get_mut(&node_id) {
-                maybe_computed.position_absolute = Some(WbblePosition {
-                    x: position_absolute_x.unwrap_or(0.0),
-                    y: position_absolute_y.unwrap_or(0.0),
-                })
-            } else {
-                self.computed_node_sizes.insert(
-                    node_id,
-                    WbbleComputedNodeSize {
-                        width: None,
-                        height: None,
-                        position_absolute: Some(WbblePosition {
-                            x: position_absolute_x.unwrap_or(0.0),
-                            y: position_absolute_y.unwrap_or(0.0),
-                        }),
-                    },
-                );
-            }
         }
         // Important that emit is called here. Rather than before the drop
         // as this could trigger a panic as the store value may be read

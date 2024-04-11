@@ -183,12 +183,9 @@ export default function ApplicationMenu(props: {
               <DropdownMenu.Separator />
               <DropdownMenu.CheckboxItem
                 checked={!isWbblEnabledInPreferences}
-                onCheckedChange={useCallback<(value: boolean) => void>(
-                  (evt) => {
-                    preferencesStore.toggle_wobble();
-                  },
-                  [],
-                )}
+                onCheckedChange={useCallback(() => {
+                  preferencesStore.toggle_wobble();
+                }, [])}
               >
                 Disable Wobble
               </DropdownMenu.CheckboxItem>

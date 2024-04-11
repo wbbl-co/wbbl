@@ -1,8 +1,4 @@
-import ELK, {
-  type ELK as ElkType,
-  ElkNode,
-  ElkPort,
-} from "elkjs/lib/elk-api.js";
+import ELK, { ElkNode, ElkPort } from "elkjs/lib/elk-api.js";
 import { useCallback, useContext } from "react";
 import {
   WbblGraphStoreContext,
@@ -11,10 +7,7 @@ import {
 import { type Node, type Edge, useStoreApi, InternalNode } from "@xyflow/react";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../port-constants";
 import { EdgeStyle } from "../../pkg/wbbl";
-import {
-  WbblPreferencesStoreContext,
-  useEdgeStyle,
-} from "./use-preferences-store";
+import { WbblPreferencesStoreContext } from "./use-preferences-store";
 
 const elk = new ELK({
   algorithms: ["layered"],

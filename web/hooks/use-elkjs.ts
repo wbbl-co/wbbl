@@ -23,6 +23,7 @@ const elk = new ELK({
 });
 
 async function elkLayout(nodes: Node[], edges: Edge[]) {
+  const nodeMap = new Set(nodes.map((x) => x.id));
   const graph = {
     id: "elk-root",
     layoutOptions: {
@@ -35,11 +36,13 @@ async function elkLayout(nodes: Node[], edges: Edge[]) {
       width: node.measured?.width ?? 0,
       height: node.measured?.height ?? 0,
     })),
-    edges: edges.map((edge) => ({
-      id: edge.id,
-      sources: [edge.source],
-      targets: [edge.target],
-    })),
+    edges: edges
+      .filter((edge) => nodeMap.has(edge.source) && nodeMap.has(edge.target))
+      .map((edge) => ({
+        id: edge.id,
+        sources: [edge.source],
+        targets: [edge.target],
+      })),
   };
 
   // We create a map of the laid out nodes here to avoid multiple traversals when

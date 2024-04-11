@@ -220,18 +220,22 @@ function NodeContextMenu(
               {getSelectionCountLabel(selectedEdgesCount, selectedNodesCount)}
             </ContextMenu.Item>
             <ContextMenu.Separator />
-            <ContextMenu.Item
-              onClick={elkJs}
-              shortcut={
-                autoLayoutShortcut
-                  ? formatKeybinding(autoLayoutShortcut)
-                  : undefined
-              }
-            >
-              <Squares2X2Icon width={"1em"} />
-              {keybindingDescriptors[KeyboardShortcut.AutoLayout]}
-            </ContextMenu.Item>
-            <ContextMenu.Separator />
+            {selectedNodesCount > 1 ? (
+              <>
+                <ContextMenu.Item
+                  onClick={elkJs}
+                  shortcut={
+                    autoLayoutShortcut
+                      ? formatKeybinding(autoLayoutShortcut)
+                      : undefined
+                  }
+                >
+                  <Squares2X2Icon width={"1em"} />
+                  {keybindingDescriptors[KeyboardShortcut.AutoLayout]}
+                </ContextMenu.Item>
+                <ContextMenu.Separator />
+              </>
+            ) : undefined}
           </>
         )}
         {props.previewable && currentNodeExclusivelySelected && (

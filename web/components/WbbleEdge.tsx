@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef } from "react";
 import {
   BaseEdge,
   EdgeProps,
+  Position,
   getBezierPath,
   getSmoothStepPath,
   getStraightPath,
@@ -83,6 +84,8 @@ export default function WbbleEdge({
         sourceY,
         targetX,
         targetY,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
       });
     } else {
       [path] = getSmoothStepPath({
@@ -90,6 +93,8 @@ export default function WbbleEdge({
         sourceY,
         targetX,
         targetY,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
       });
     }
     return <BaseEdge path={path} interactionWidth={25} />;

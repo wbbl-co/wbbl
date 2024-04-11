@@ -29,6 +29,9 @@ import {
 import { KeyboardShortcut } from "../../pkg/wbbl";
 import formatKeybinding from "../utils/format-keybinding";
 import { useScopedShortcut } from "../hooks/use-shortcut";
+import { useElkJs } from "../hooks/use-elkjs";
+import keybindingDescriptors from "../keybind-descriptors";
+import { Squares2X2Icon } from "@heroicons/react/24/solid";
 
 function getSelectionCountLabel(edges: number, nodes: number) {
   if (nodes > 0 && edges > 0) {
@@ -104,6 +107,8 @@ function NodeContextMenu(
       : () => graphStore.remove_selected_nodes_and_edges(),
     [props.id, graphStore, currentNodeExclusivelySelected],
   );
+
+  const elkJs = useElkJs();
 
   useScopedShortcut(
     KeyboardShortcut.Delete,
@@ -187,6 +192,11 @@ function NodeContextMenu(
   );
   const copyShortcut = useKeyBinding(preferencesStore, KeyboardShortcut.Copy);
   const cutShortcut = useKeyBinding(preferencesStore, KeyboardShortcut.Cut);
+  const autoLayoutShortcut = useKeyBinding(
+    preferencesStore,
+    KeyboardShortcut.AutoLayout,
+  );
+
   const deleteShortcut = useKeyBinding(
     preferencesStore,
     KeyboardShortcut.Delete,
@@ -208,6 +218,18 @@ function NodeContextMenu(
             <ContextMenu.Item disabled>
               <RectangleGroupIcon width={"1em"} />
               {getSelectionCountLabel(selectedEdgesCount, selectedNodesCount)}
+            </ContextMenu.Item>
+            <ContextMenu.Separator />
+            <ContextMenu.Item
+              onClick={elkJs}
+              shortcut={
+                autoLayoutShortcut
+                  ? formatKeybinding(autoLayoutShortcut)
+                  : undefined
+              }
+            >
+              <Squares2X2Icon width={"1em"} />
+              {keybindingDescriptors[KeyboardShortcut.AutoLayout]}
             </ContextMenu.Item>
             <ContextMenu.Separator />
           </>

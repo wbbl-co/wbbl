@@ -83,6 +83,7 @@ pub enum KeyboardShortcut {
     Selection,
     SelectAll,
     SelectNone,
+    AutoLayout,
 }
 
 impl KeyboardShortcut {
@@ -103,6 +104,7 @@ impl KeyboardShortcut {
             KeyboardShortcut::Selection => "selection",
             KeyboardShortcut::SelectAll => "select_all",
             KeyboardShortcut::SelectNone => "select_none",
+            KeyboardShortcut::AutoLayout => "auto_layout",
         }
         .to_owned()
     }
@@ -124,6 +126,7 @@ impl KeyboardShortcut {
             "selection" => Some(KeyboardShortcut::Selection),
             "select_all" => Some(KeyboardShortcut::SelectAll),
             "select_none" => Some(KeyboardShortcut::SelectNone),
+            "auto_layout" => Some(KeyboardShortcut::AutoLayout),
             _ => None,
         }
     }
@@ -148,6 +151,7 @@ fn get_default_keybindings() -> HashMap<KeyboardShortcut, Option<String>> {
         (KeyboardShortcut::Selection, Some("shift".to_owned())),
         (KeyboardShortcut::SelectAll, Some("mod+a".to_owned())),
         (KeyboardShortcut::SelectNone, Some("shift+a".to_owned())),
+        (KeyboardShortcut::AutoLayout, Some("mod+shift+f".to_owned())),
     ])
 }
 

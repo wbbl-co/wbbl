@@ -16,6 +16,7 @@ const keybindingDescriptors: { [K in KeyboardShortcut]: string } = {
   [KeyboardShortcut.Selection]: "Selection",
   [KeyboardShortcut.SelectAll]: "Select All",
   [KeyboardShortcut.SelectNone]: "Select None",
+  [KeyboardShortcut.AutoLayout]: "Automatically Reposition Nodes",
 };
 
 export default keybindingDescriptors;

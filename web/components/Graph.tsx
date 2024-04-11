@@ -55,6 +55,7 @@ import {
 } from "../hooks/use-preferences-store";
 import { isHotkeyPressed } from "react-hotkeys-hook";
 import { transformKeybindingForReactFlow } from "../utils/transform-keybinding-for-react-flow";
+import { useElkJs } from "../hooks/use-elkjs";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -419,6 +420,18 @@ function Graph() {
       disabled:
         snapshot.edges.every((x) => !x.selected) &&
         snapshot.nodes.every((x) => !x.selected),
+    },
+  );
+
+  const elkJs = useElkJs();
+  useScopedShortcut(
+    KeyboardShortcut.AutoLayout,
+    () => {
+      elkJs();
+    },
+    [elkJs],
+    {
+      disabled: snapshot.nodes.every((x) => !x.selected),
     },
   );
 

@@ -1,6 +1,6 @@
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { PencilIcon } from "@heroicons/react/24/solid";
-import { Flex, Text, IconButton, Link } from "@radix-ui/themes";
+import { Flex, Text, Link, Button, Box } from "@radix-ui/themes";
 import { FocusEventHandler, useCallback, useRef, useState } from "react";
 
 export default function Breadcrumb() {
@@ -62,36 +62,33 @@ export default function Breadcrumb() {
   return (
     <Flex className="breadcrumb" align={"center"}>
       <Link href="#">
-        <Text
-          color="gray"
-          className=" project-name-breadcrumb breadcrumb-item"
-          size={"6"}
-        >
+        <Text className="project-name-breadcrumb breadcrumb-item" size={"6"}>
           Project Name
         </Text>
       </Link>
       <ChevronRightIcon color="var(--gray-6)" strokeWidth={"4"} width={"2em"} />
-      <Text
-        ref={documentTitleRef}
-        contentEditable={edit ? "plaintext-only" : false}
-        suppressContentEditableWarning={true}
-        onBlur={onBlur}
-        color="gray"
-        spellCheck="false"
-        className="breadcrumb-item file-name-breadcrumb"
-        size={"6"}
-      >
-        Graph Name
-      </Text>
-      <IconButton
+      <Button
+        variant="ghost"
         onClick={onEditStart}
-        style={{ marginLeft: "1em" }}
         size={"1"}
-        className="edit-button"
+        className="file-name-breadcrumb breadcrumb-item"
         data-visible={!edit}
       >
-        <PencilIcon width={"1em"} />
-      </IconButton>
+        <Text
+          ref={documentTitleRef}
+          contentEditable={edit ? "plaintext-only" : false}
+          suppressContentEditableWarning={true}
+          onBlur={onBlur}
+          className="file-name-editable"
+          spellCheck="false"
+          size={"6"}
+        >
+          Graph Name
+        </Text>
+        <Box className="icon" data-visible={!edit}>
+          <PencilIcon className="icon" width={"1em"} />
+        </Box>
+      </Button>
     </Flex>
   );
 }

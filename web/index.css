@@ -443,26 +443,53 @@ path.react-flow__edge-path {
 }
 
 .breadcrumb {
-    .edit-button {
+    .file-name-editable:focus-within {
+        border: 0;
+        outline: none;
+        text-decoration: underline;
+    }
+    .icon {
+        display: flex;
+        align-items: center;
+        align-content: center;
+        justify-content: center;
+        padding: 0.18em;
+        border-radius: var(--radius-1);
+        background: var(--gray-10);
+        color: var(--gray-2);
+
         transition-property: opacity;
         transition-duration: 300ms;
         &[data-visible="false"] {
             opacity: 0;
         }
     }
+
     .breadcrumb-item {
+        color: var(--gray-10);
         font-family: var(--brand-font-family);
-        user-select: none;
-        opacity: 0.6;
-        &:hover,
-        &:focus-within,
-        &:focus-visible {
-            opacity: 1;
+        button {
+            cursor: var(--cursor-button);
         }
-        &:focus-visible {
-            border: 0;
+        user-select: none;
+        &.project-name-breadcrumb:hover,
+        &.project-name-breadcrumb:focus-within,
+        &.project-name-breadcrumb:focus-visible {
+            color: var(--gray-11);
+        }
+        &.file-name-breadcrumb {
             outline: none;
-            text-decoration: underline;
+            &:hover,
+            &:focus-within,
+            &:focus-visible {
+                color: var(--accent-9);
+            }
+        }
+
+        &.file-name-breadcrumb:hover .icon,
+        &.file-name-breadcrumb:focus-within .icon {
+            background: var(--accent-9);
+            color: var(--accent-contrast);
         }
     }
 }

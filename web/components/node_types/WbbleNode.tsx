@@ -15,7 +15,7 @@ import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
 import { nodeMetaData } from ".";
 import NodeContextMenu from "../NodeContextMenu";
 import { Card, Heading, Flex } from "@radix-ui/themes";
-import { Box } from "@radix-ui/themes/dist/cjs/index.js";
+import { Box } from "@radix-ui/themes";
 import useIsWbblEffectEnabled from "../../hooks/use-is-wbble-effect-enabled";
 import { ShortcutScope } from "../../hooks/use-shortcut";
 

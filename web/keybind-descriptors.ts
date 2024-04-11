@@ -7,7 +7,7 @@ const keybindingDescriptors: { [K in KeyboardShortcut]: string } = {
   [KeyboardShortcut.Undo]: "Undo",
   [KeyboardShortcut.Redo]: "Redo",
   [KeyboardShortcut.QuickActions]: "Quick Actions",
-  [KeyboardShortcut.OpenKeybindings]: "Toggle Keybindings",
+  [KeyboardShortcut.OpenKeybindings]: "Open Keybindings",
   [KeyboardShortcut.Home]: "Home",
   [KeyboardShortcut.Delete]: "Delete",
   [KeyboardShortcut.Duplicate]: "Duplicate",

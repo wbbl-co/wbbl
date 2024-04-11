@@ -296,8 +296,10 @@ export default function KeybindingDialogContents() {
         <Table.Root variant="ghost">
           <Table.Header>
             <Table.Row>
-              <Table.ColumnHeaderCell>Description</Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell width={"50%"}>
+                Description
+              </Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell width={"50%"}>
                 Binding (Click for options)
               </Table.ColumnHeaderCell>
             </Table.Row>

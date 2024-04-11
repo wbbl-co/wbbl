@@ -16,7 +16,7 @@ import { WbblPreferencesStoreContext } from "../hooks/use-preferences-store";
 import { Dialog, Text, Flex, TextField, ScrollArea } from "@radix-ui/themes";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 import formatKeybinding from "../utils/format-keybinding";
-import { Callout } from "@radix-ui/themes/dist/cjs/index.js";
+import { Callout } from "@radix-ui/themes";
 import { useScopedShortcut } from "../hooks/use-shortcut";
 import { ExclamationCircleIcon } from "@heroicons/react/24/solid";
 

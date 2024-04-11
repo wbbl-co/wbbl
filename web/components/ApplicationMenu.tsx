@@ -1,4 +1,4 @@
-import { DropdownMenu, Button, Dialog } from "@radix-ui/themes";
+import { DropdownMenu, Button, Dialog, Flex } from "@radix-ui/themes";
 import WbblLogo from "./WbblLogo";
 import {
   FunctionComponent,
@@ -20,6 +20,7 @@ import {
 import { BaseTheme, KeyboardShortcut } from "../../pkg/wbbl";
 import { useScopedShortcut } from "../hooks/use-shortcut";
 import formatKeybinding from "../utils/format-keybinding";
+import Breadcrumb from "./Breadcrumb";
 
 export default function ApplicationMenu(props: {
   showNodesInActionMenu: boolean;
@@ -94,15 +95,14 @@ export default function ApplicationMenu(props: {
   return (
     <Dialog.Root open={currentDialog !== null} onOpenChange={onOpenChange}>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger className="application-menu-trigger">
-          <Button
-            size={"3"}
-            variant="solid"
-            aria-label="Global Application Menu"
-          >
-            <WbblLogo className="logo-button" />
-          </Button>
-        </DropdownMenu.Trigger>
+        <Flex align={"center"} gap={"4"} className="application-menu-box">
+          <DropdownMenu.Trigger className="application-menu-trigger">
+            <Button size={"3"} variant="solid" aria-label="Application Menu">
+              <WbblLogo className="logo-button" />
+            </Button>
+          </DropdownMenu.Trigger>
+          <Breadcrumb />
+        </Flex>
         <DropdownMenu.Content>
           <DropdownMenu.Item
             shortcut={homeShortcut ? formatKeybinding(homeShortcut) : undefined}

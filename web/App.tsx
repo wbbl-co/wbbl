@@ -23,6 +23,7 @@ import {
 } from "./hooks/use-actions-menu";
 import { ShortcutScope } from "./hooks/use-shortcut";
 import { ActionMenu } from "./components/SearchMenu";
+import Breadcrumb from "./components/Breadcrumb";
 
 function App() {
   let [ready, setReady] = useState<boolean>(false);

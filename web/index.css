@@ -363,12 +363,15 @@ path.react-flow__edge-path {
     --type-color: var(--material-color);
 }
 
-.application-menu-trigger {
+.application-menu-box {
     position: absolute;
     top: 0;
     left: 0;
     margin: 1em;
     z-index: 100;
+}
+
+.application-menu-trigger {
     width: 4em;
     height: 4em;
     box-shadow: var(--shadow-4);
@@ -380,7 +383,6 @@ path.react-flow__edge-path {
 }
 
 .action-menu-item {
-    cursor: pointer;
     margin-left: var(--space-1);
     margin-right: var(--space-1);
     padding: var(--space-1);
@@ -437,5 +439,30 @@ path.react-flow__edge-path {
 .rt-DialogOverlay:has(.action-menu-search) {
     &::before {
         background: transparent !important;
+    }
+}
+
+.breadcrumb {
+    .edit-button {
+        transition-property: opacity;
+        transition-duration: 300ms;
+        &[data-visible="false"] {
+            opacity: 0;
+        }
+    }
+    .breadcrumb-item {
+        font-family: var(--brand-font-family);
+        user-select: none;
+        opacity: 0.6;
+        &:hover,
+        &:focus-within,
+        &:focus-visible {
+            opacity: 1;
+        }
+        &:focus-visible {
+            border: 0;
+            outline: none;
+            text-decoration: underline;
+        }
     }
 }

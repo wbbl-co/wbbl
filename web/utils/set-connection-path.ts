@@ -12,19 +12,19 @@ export function defaultConnectionPathProvider(
       return `M ${startPos.x + position[0]} ${startPos.y + position[1]} L ${endPos.x + position[0]} ${endPos.y + position[1]}`;
     } else if (edgeStyle === EdgeStyle.Bezier) {
       return getBezierPath({
-        sourceX: startPos.x,
-        sourceY: startPos.y,
-        targetX: endPos.x,
-        targetY: endPos.y,
+        sourceX: startPos.x + position[0],
+        sourceY: startPos.y + position[1],
+        targetX: endPos.x + position[0],
+        targetY: endPos.y + position[1],
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
       })[0];
     } else {
       return getSmoothStepPath({
-        sourceX: startPos.x,
-        sourceY: startPos.y,
-        targetX: endPos.x,
-        targetY: endPos.y,
+        sourceX: startPos.x + position[0],
+        sourceY: startPos.y + position[1],
+        targetX: endPos.x + position[0],
+        targetY: endPos.y + position[1],
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
       })[0];

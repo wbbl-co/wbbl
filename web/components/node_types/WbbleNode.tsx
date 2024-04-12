@@ -13,7 +13,7 @@ import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
 import { nodeMetaData } from ".";
-import NodeContextMenu from "../NodeContextMenu";
+import NodeContextMenu from "../NodeOrEdgeContextMenu";
 import { Card, Heading, Flex } from "@radix-ui/themes";
 import { Box } from "@radix-ui/themes";
 import useIsWbblEffectEnabled from "../../hooks/use-is-wbble-effect-enabled";
@@ -181,6 +181,7 @@ function WbblNode({
   return (
     <ShortcutScope scope={`node-${id}`} mode="hover">
       <NodeContextMenu
+        isEdge={false}
         selected={selected ?? false}
         previewable={previewable}
         deleteable={deleteable}

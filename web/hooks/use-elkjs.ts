@@ -10,7 +10,7 @@ import { EdgeStyle } from "../../pkg/wbbl";
 import { WbblPreferencesStoreContext } from "./use-preferences-store";
 
 const elk = new ELK({
-  algorithms: ["layered"],
+  algorithms: ["layered", "fixed"],
   workerFactory: function (_) {
     // the value of 'url' is irrelevant here
     return new Worker("/node_modules/elkjs/lib/elk-worker.js", {
@@ -42,6 +42,7 @@ async function elkLayout(
           ? "ORTHOGONAL"
           : "UNDEFINED",
     "elk.spacing.nodeNode": `50`,
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN",
     "elk.spacing.portPort": `${PORT_SIZE + HALF_PORT_SIZE}`,
   };
 
@@ -54,9 +55,15 @@ async function elkLayout(
         id: node.id,
         width: node.measured?.width ?? 0,
         height: node.measured?.height ?? 0,
-        properties: {
-          "org.eclipse.elk.portConstraints": "FIXED_ORDER",
-        },
+        layoutOptions: node.selected
+          ? {
+              "elk.portConstraints": "FIXED_ORDER",
+            }
+          : ({
+              "elk.algorithm": "fixed",
+            } as { [key: string]: string }),
+        x: node.position.x,
+        y: node.position.y,
         ports: (handleBounds?.source ?? [])
           .map<ElkPort>(
             (x) => ({ ...x, properties: { side: "EAST", ...x } }) as ElkPort,
@@ -95,14 +102,16 @@ async function elkLayout(
     layoutNodes.set(node.id, node);
   }
 
-  const nextNodes = nodes.map((node) => {
-    const elkNode = layoutNodes.get(node.id)!;
-    const position = { x: elkNode.x!, y: elkNode.y! };
-    return {
-      id: node.id,
-      position,
-    };
-  });
+  const nextNodes = nodes
+    .filter((x) => x.selected)
+    .map((node) => {
+      const elkNode = layoutNodes.get(node.id)!;
+      const position = { x: elkNode.x!, y: elkNode.y! };
+      return {
+        id: node.id,
+        position,
+      };
+    });
 
   return { nodes: nextNodes };
 }
@@ -114,7 +123,6 @@ export function useElkJs() {
 
   return useCallback(async () => {
     let thisSnapshot = graphStore.get_snapshot() as WbblWebappGraphSnapshot;
-    thisSnapshot.nodes = thisSnapshot.nodes.filter((x) => x.selected);
     const results = await elkLayout(
       storeApi.getState().nodeLookup,
       thisSnapshot.nodes,

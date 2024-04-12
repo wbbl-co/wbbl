@@ -193,7 +193,7 @@ export function useFavouritesPreferences(
 
 export function useIsFavouritePreference(
   store: WbblWebappPreferencesStore,
-  type: WbblWebappNodeType,
+  type: WbblWebappNodeType | undefined,
   isOpen: boolean,
 ): boolean {
   let data = useRef<boolean | undefined>(undefined);
@@ -202,30 +202,35 @@ export function useIsFavouritePreference(
 
   let subscribe = useCallback(
     (subscriber: () => void) => {
-      if (count.current == 0) {
-        cacheHandle.current = store.subscribe(() => {
-          data.current = undefined;
-        });
-      }
-      count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
-      return () => {
-        count.current = count.current - 1;
-        if (count.current === 0) {
-          store.unsubscribe(cacheHandle.current);
+      if (type) {
+        if (count.current == 0) {
+          cacheHandle.current = store.subscribe(() => {
+            data.current = undefined;
+          });
         }
-        store.unsubscribe(handle);
-      };
+        count.current = count.current + 1;
+        let handle = store.subscribe(subscriber);
+        return () => {
+          count.current = count.current - 1;
+          if (count.current === 0) {
+            store.unsubscribe(cacheHandle.current);
+          }
+          store.unsubscribe(handle);
+        };
+      }
+      return () => {};
     },
-    [store],
+    [store, type],
   );
 
   useEffect(() => {
-    data.current = store.is_favourite(type);
+    if (type) {
+      data.current = store.is_favourite(type);
+    }
   }, [type, isOpen]);
 
   let getSnapshot = useCallback(() => {
-    if (data.current === undefined) {
+    if (data.current === undefined && type) {
       let favourite = store.is_favourite(type);
       data.current = favourite;
     }
@@ -234,7 +239,7 @@ export function useIsFavouritePreference(
 
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  return snapshot;
+  return !!snapshot;
 }
 
 export function useKeyBinding(

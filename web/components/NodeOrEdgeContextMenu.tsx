@@ -43,15 +43,19 @@ function getSelectionCountLabel(edges: number, nodes: number) {
   }
 }
 
-function NodeContextMenu(
-  props: PropsWithChildren<{
-    id: string;
-    type: string;
-    previewable: boolean;
-    deleteable: boolean;
-    copyable: boolean;
-    selected: boolean;
-  }>,
+function NodeOrEdgeContextMenu(
+  props: PropsWithChildren<
+    { id: string; selected: boolean } & (
+      | { isEdge: true; edgeClassname: string }
+      | {
+          isEdge: false;
+          type: string;
+          previewable: boolean;
+          deleteable: boolean;
+          copyable: boolean;
+        }
+    )
+  >,
 ) {
   const graphStore = useContext(WbblGraphStoreContext);
   const preferencesStore = useContext(WbblPreferencesStoreContext);
@@ -63,7 +67,9 @@ function NodeContextMenu(
 
   const isFavourite = useIsFavouritePreference(
     preferencesStore,
-    nodeMetaData[props.type as keyof typeof nodeMetaData].type,
+    props.isEdge
+      ? undefined
+      : nodeMetaData[props.type as keyof typeof nodeMetaData].type,
     isOpen,
   );
   const [isFavouriteDeferred, setIsFavouriteDeferred] = useState(isFavourite);
@@ -74,11 +80,13 @@ function NodeContextMenu(
     return () => clearTimeout(handle);
   }, [isFavourite, setIsFavouriteDeferred]);
   const toggleFavourites = useCallback(() => {
-    preferencesStore.set_favourite(
-      nodeMetaData[props.type as keyof typeof nodeMetaData].type,
-      !isFavourite,
-    );
-  }, [preferencesStore, props.type, isFavourite]);
+    if (!props.isEdge) {
+      preferencesStore.set_favourite(
+        nodeMetaData[props.type as keyof typeof nodeMetaData].type,
+        !isFavourite,
+      );
+    }
+  }, [preferencesStore, !props.isEdge && props.type, isFavourite]);
 
   const [
     [selectedEdgesCount, selectedNodesCount, currentNodeExclusivelySelected],
@@ -158,7 +166,10 @@ function NodeContextMenu(
       graphStore.duplicate_node(props.id);
     },
     [graphStore, props.id],
-    { disabled: !currentNodeExclusivelySelected || !props.copyable },
+    {
+      disabled:
+        !currentNodeExclusivelySelected || (!props.isEdge && !props.copyable),
+    },
   );
 
   useScopedShortcut(
@@ -167,7 +178,10 @@ function NodeContextMenu(
       graphStore.copy_node(props.id);
     },
     [graphStore, props.id],
-    { disabled: !currentNodeExclusivelySelected || !props.copyable },
+    {
+      disabled:
+        !currentNodeExclusivelySelected || (!props.isEdge && !props.copyable),
+    },
   );
 
   useScopedShortcut(
@@ -178,7 +192,10 @@ function NodeContextMenu(
       });
     },
     [graphStore, props.id],
-    { disabled: !currentNodeExclusivelySelected || !props.deleteable },
+    {
+      disabled:
+        !currentNodeExclusivelySelected || (!props.isEdge && !props.deleteable),
+    },
   );
 
   const helpShortcut = useKeyBinding(preferencesStore, KeyboardShortcut.Help);
@@ -211,7 +228,7 @@ function NodeContextMenu(
       <ContextMenu.Content
         onContextMenu={blockNestedContextMenu}
         onClick={blockNestedContextMenu}
-        className={`node-context-menu-content category-${nodeMetaData[props.type as keyof typeof nodeMetaData].category}`}
+        className={` ${props.isEdge ? `edge-context-menu-content ${props.edgeClassname}` : `node-context-menu-content category-${nodeMetaData[props.type as keyof typeof nodeMetaData].category}`}`}
       >
         {!currentNodeExclusivelySelected && (
           <>
@@ -238,22 +255,25 @@ function NodeContextMenu(
             ) : undefined}
           </>
         )}
-        {props.previewable && currentNodeExclusivelySelected && (
-          <>
-            <ContextMenu.Item
-              shortcut={
-                linkToPreviewShortcut
-                  ? formatKeybinding(linkToPreviewShortcut)
-                  : undefined
-              }
-              onClick={linkToPreview}
-            >
-              <EyeIcon width={"1em"} /> Link to Preview
-            </ContextMenu.Item>
-            <ContextMenu.Separator />
-          </>
-        )}
-        {(!currentNodeExclusivelySelected || props.copyable) && (
+        {!props.isEdge &&
+          props.previewable &&
+          currentNodeExclusivelySelected && (
+            <>
+              <ContextMenu.Item
+                shortcut={
+                  linkToPreviewShortcut
+                    ? formatKeybinding(linkToPreviewShortcut)
+                    : undefined
+                }
+                onClick={linkToPreview}
+              >
+                <EyeIcon width={"1em"} /> Link to Preview
+              </ContextMenu.Item>
+              <ContextMenu.Separator />
+            </>
+          )}
+        {(!currentNodeExclusivelySelected ||
+          (!props.isEdge && props.copyable)) && (
           <>
             <ContextMenu.Item
               shortcut={
@@ -282,6 +302,7 @@ function NodeContextMenu(
           </>
         )}
         {currentNodeExclusivelySelected &&
+          !props.isEdge &&
           !nodeMetaData[props.type as keyof typeof nodeMetaData]
             .hiddenFromNodeMenu && (
             <>
@@ -299,7 +320,9 @@ function NodeContextMenu(
             <LifebuoyIcon width={"1em"} /> Help
           </ContextMenu.Item>
         )}
-        {(!currentNodeExclusivelySelected || props.deleteable) && (
+        {(!currentNodeExclusivelySelected ||
+          props.isEdge ||
+          props.deleteable) && (
           <>
             <ContextMenu.Separator />
             <ContextMenu.Item
@@ -321,25 +344,27 @@ function NodeContextMenu(
     selectedNodesCount,
     linkToPreview,
     toggleFavourites,
-    props.deleteable,
-    props.copyable,
-    props.previewable,
-    props.type,
+    props.isEdge || props.deleteable,
+    props.isEdge || props.copyable,
+    props.isEdge || props.previewable,
+    props.isEdge || props.type,
     blockNestedContextMenu,
     isFavouriteDeferred,
   ]);
 
-  const nodeMenu = useMemo(
+  const menu = useMemo(
     () => (
       <ContextMenu.Root onOpenChange={setIsOpen}>
-        <ContextMenu.Trigger>{props.children}</ContextMenu.Trigger>
+        <ContextMenu.Trigger>
+          {props.isEdge ? <g>{props.children}</g> : props.children}
+        </ContextMenu.Trigger>
         {contextMenuContent}
       </ContextMenu.Root>
     ),
     [props.children, contextMenuContent, setIsOpen],
   );
 
-  return nodeMenu;
+  return menu;
 }
 
-export default memo(NodeContextMenu);
+export default memo(NodeOrEdgeContextMenu);

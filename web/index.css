@@ -32,6 +32,10 @@ body,
     --accent-9: var(--category-color);
 }
 
+.edge-context-menu-content {
+    --accent-9: var(--type-color);
+}
+
 .react-flow {
     --xy-selection-background-color-default: var(--accent-a1);
     --xy-selection-border-default: 2px dotted var(--accent-9);

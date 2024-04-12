@@ -24,6 +24,7 @@ import {
   WbblPreferencesStoreContext,
   useEdgeStyle,
 } from "../hooks/use-preferences-store";
+import EdgeContextMenu from "./NodeOrEdgeContextMenu";
 
 export default function WbbleEdge({
   id,
@@ -49,14 +50,19 @@ export default function WbbleEdge({
     target,
     targetHandleId as `${"s" | "t"}#${number}`,
   );
+  const edgeType = useMemo(
+    () =>
+      sourceType &&
+      targetType &&
+      WbblWebappGraphStore.get_edge_type(sourceType, targetType),
+    [sourceType, targetType],
+  );
   const edgeClassName = useMemo(() => {
     if (targetType && sourceType) {
-      return getStyleForType(
-        WbblWebappGraphStore.get_edge_type(sourceType, targetType),
-      );
+      return getStyleForType(edgeType);
     }
     return "";
-  }, [sourceType, targetType]);
+  }, [edgeType]);
 
   const rope = useMemo(
     () =>
@@ -266,7 +272,14 @@ export default function WbbleEdge({
   return (
     <>
       {visibleEdges}
-      {pathElement}
+      <EdgeContextMenu
+        edgeClassname={edgeClassName}
+        isEdge
+        id={id}
+        selected={!!selected}
+      >
+        {pathElement}
+      </EdgeContextMenu>
     </>
   );
 }

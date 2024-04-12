@@ -4,6 +4,7 @@ import OutputNode from "./OutputNode";
 import PreviewNode from "./PreviewNode";
 import SlabNode from "./SlabNode";
 import { WbblWebappNodeType } from "../../../pkg/wbbl";
+import JunctionNode from "./JunctionNode";
 
 export const nodeTypes = {
   output: OutputNode,
@@ -31,6 +32,7 @@ export const nodeTypes = {
   clip_pos: BuiltInNode,
   tex_coord: BuiltInNode,
   tex_coord_2: BuiltInNode,
+  junction: JunctionNode,
 };
 
 export type NodeCategory =
@@ -185,5 +187,12 @@ export const nodeMetaData: {
     type: WbblWebappNodeType.TexCoord2,
     description:
       "Returns the 2nd texture coordinate for this model, if present",
+  },
+  junction: {
+    nodeMenuName: "Junction",
+    category: "utility",
+    type: WbblWebappNodeType.Junction,
+    description:
+      "Passes the source value to the output without modification. Used mainly for rerouting awkward edges",
   },
 };

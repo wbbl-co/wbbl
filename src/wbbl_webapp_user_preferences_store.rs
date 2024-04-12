@@ -170,6 +170,10 @@ fn get_default_node_keybindings() -> HashMap<String, Option<String>> {
             get_type_name(WbblWebappNodeType::Multiply),
             Some("m".to_owned()),
         ),
+        (
+            get_type_name(WbblWebappNodeType::Junction),
+            Some("j".to_owned()),
+        ),
     ])
 }
 

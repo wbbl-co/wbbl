@@ -104,6 +104,9 @@ impl Node {
             NodeType::Preview => vec![],
             NodeType::BuiltIn(_) => vec![],
             NodeType::BinaryOperation(op) => op.constraints(self),
+            NodeType::Junction => vec![Constraint::SameTypes(SameTypesConstraint {
+                ports: self.port_ids().iter().map(|p| p.clone()).collect(),
+            })],
         }
     }
 
@@ -126,6 +129,9 @@ impl Node {
                     .collect::<Vec<(AbstractDataType, Option<u128>, Option<u128>)>>(),
             ),
             NodeType::BuiltIn(_) => vec![],
+            NodeType::Junction => {
+                self.make_input_ports(incoming_edges, &[(AbstractDataType::Any, None, None)])
+            }
         }
     }
 
@@ -143,6 +149,7 @@ impl Node {
                 self.make_output_ports(outgoing_edges, &[op.output_port_type()])
             }
             NodeType::BuiltIn(b) => self.make_output_ports(outgoing_edges, &[b.output_port_type()]),
+            NodeType::Junction => self.make_output_ports(outgoing_edges, &[AbstractDataType::Any]),
         }
     }
 }
@@ -189,6 +196,7 @@ impl Node {
                 ComputationDomain::ModelDependant,
                 ComputationDomain::TransformDependant,
             ])),
+            NodeType::Junction => None,
         }
     }
 }
@@ -406,6 +414,7 @@ pub enum NodeType {
     Preview,
     BinaryOperation(BinaryOperation),
     BuiltIn(BuiltIn),
+    Junction,
 }
 
 impl NodeType {
@@ -420,6 +429,7 @@ impl NodeType {
             NodeType::Preview => 1,
             NodeType::BinaryOperation(_) => 2,
             NodeType::BuiltIn(_) => 0,
+            NodeType::Junction => 1,
         }
     }
 
@@ -434,6 +444,7 @@ impl NodeType {
             NodeType::Preview => 0,
             NodeType::BinaryOperation(_) => 1,
             NodeType::BuiltIn(_) => 1,
+            NodeType::Junction => 1,
         }
     }
 }

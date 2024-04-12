@@ -143,6 +143,7 @@ impl NewWbblWebappNode {
             WbblWebappNodeType::WorldTangent => HashMap::new(),
             WbblWebappNodeType::TexCoord => HashMap::new(),
             WbblWebappNodeType::TexCoord2 => HashMap::new(),
+            WbblWebappNodeType::Junction => HashMap::new(),
         }
     }
     pub fn new(
@@ -1248,6 +1249,37 @@ impl WbblWebappGraphStore {
                 uuid::Uuid::from_str(node_id).map_err(|_| WbblWebappStoreError::MalformedId)?;
             let edge = WbblWebappEdge::new(&(source.as_u128()), &preview_node.id, 0, 0);
             edge.encode(mut_transaction, &mut self.edges, &self.nodes)?;
+        }
+        self.emit(true)?;
+        Ok(())
+    }
+
+    pub fn make_junction(
+        &mut self,
+        edge_id: &str,
+        position_x: f64,
+        position_y: f64,
+    ) -> Result<(), WbblWebappStoreError> {
+        {
+            let uuid =
+                uuid::Uuid::parse_str(edge_id).map_err(|_| WbblWebappStoreError::MalformedId)?;
+            let mut txn = self.graph.transact_mut_with(self.graph.client_id());
+            let edge = get_map(edge_id, &txn, &self.edges)?;
+            let edge = WbblWebappEdge::decode(uuid.as_u128(), &txn, &edge, &self.edge_selections)?;
+            let new_node =
+                NewWbblWebappNode::new(position_x, position_y, WbblWebappNodeType::Junction);
+            new_node.encode(&mut txn, &mut self.nodes)?;
+            let edge_1 = WbblWebappEdge::new(&edge.source, &new_node.id, edge.source_handle, 0);
+            let edge_2 = WbblWebappEdge::new(&new_node.id, &edge.target, 0, edge.target_handle);
+            edge_1.encode(&mut txn, &mut self.edges, &self.nodes)?;
+            edge_2.encode(&mut txn, &mut self.edges, &self.nodes)?;
+            delete_edge(
+                &mut txn,
+                edge_id,
+                &mut self.edges,
+                &mut self.nodes,
+                &mut self.edge_selections,
+            )?;
         }
         self.emit(true)?;
         Ok(())

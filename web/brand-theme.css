@@ -1041,7 +1041,7 @@
 }
 
 .radix-themes {
-    --any-color: var(--black-contrast);
+    --any-color: var(--gray-12);
     --field-color: var(--blue-9);
     --material-color: var(--violet-9);
     --number-color: var(--red-9);

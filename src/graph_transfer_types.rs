@@ -167,6 +167,8 @@ pub enum WbblWebappNodeType {
     WorldTangent,
     TexCoord,
     TexCoord2,
+
+    Junction,
 }
 
 pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
@@ -196,6 +198,7 @@ pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
         WbblWebappNodeType::WorldTangent => "tangent".to_owned(),
         WbblWebappNodeType::TexCoord => "tex_coord".to_owned(),
         WbblWebappNodeType::TexCoord2 => "tex_coord_2".to_owned(),
+        WbblWebappNodeType::Junction => "junction".to_owned(),
     }
 }
 
@@ -227,6 +230,7 @@ pub fn from_type_name(type_name: &str) -> Option<WbblWebappNodeType> {
         "tangent" => Some(WbblWebappNodeType::WorldTangent),
         "tex_coord" => Some(WbblWebappNodeType::TexCoord),
         "tex_coord_2" => Some(WbblWebappNodeType::TexCoord2),
+        "junction" => Some(WbblWebappNodeType::Junction),
         _ => None,
     }
 }
@@ -478,6 +482,7 @@ impl Node {
             WbblWebappNodeType::TexCoord2 => {
                 NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate2)
             }
+            WbblWebappNodeType::Junction => NodeType::Junction,
         }
     }
 

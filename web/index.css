@@ -184,6 +184,10 @@ path.react-flow__edge-path {
     --type-color: var(--material-color);
 }
 
+.AnyMaterial {
+    --type-color: var(--material-color);
+}
+
 .Material {
     --type-color: var(--material-color);
 }
@@ -495,5 +499,48 @@ path.react-flow__edge-path {
             background: var(--accent-9);
             color: var(--accent-contrast);
         }
+    }
+}
+
+.junction-separator {
+    background-color: var(--category-color);
+}
+
+@keyframes background-scroll {
+    from {
+        background-position-x: 0%;
+    }
+
+    to {
+        background-position-x: 200%;
+    }
+}
+.junction::before {
+    background-image: url("/web/junction-background.svg");
+    background-size: 65%;
+    animation-name: background-scroll;
+    animation-iteration-count: infinite;
+    animation-duration: 5s;
+    animation-timing-function: linear;
+    animation-play-state: running;
+    transition-property: animation;
+    transition-timing-function: cubic-bezier(0.6, -0.28, 0.735, 0.045);
+    transition-duration: 1s;
+}
+
+.junction[data-connected="false"]::before {
+    animation-play-state: paused;
+}
+
+.dark,
+.dark-theme {
+    .junction::before {
+        background-image: url("/web/junction-background-dark.svg");
+    }
+}
+
+@media (prefers-reduced-motion) {
+    .junction::before {
+        animation: none;
     }
 }

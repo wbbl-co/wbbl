@@ -236,6 +236,20 @@ function NodeOrEdgeContextMenu(
     },
   );
 
+  useScopedShortcut(
+    KeyboardShortcut.LinkToPreview,
+    () => {
+      linkToPreview();
+    },
+    [graphStore, props.id, props.isEdge],
+    {
+      disabled:
+        props.isEdge ||
+        !currentNodeOrEdgeExclusivelySelected ||
+        !props.previewable,
+    },
+  );
+
   const makeJunctionShortcut = useNodeKeyBinding(
     preferencesStore,
     WbblWebappNodeType.Junction,

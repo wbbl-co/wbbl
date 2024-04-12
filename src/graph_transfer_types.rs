@@ -169,6 +169,7 @@ pub enum WbblWebappNodeType {
     TexCoord2,
 
     Junction,
+    Frame,
 }
 
 pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
@@ -199,6 +200,7 @@ pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
         WbblWebappNodeType::TexCoord => "tex_coord".to_owned(),
         WbblWebappNodeType::TexCoord2 => "tex_coord_2".to_owned(),
         WbblWebappNodeType::Junction => "junction".to_owned(),
+        WbblWebappNodeType::Frame => "frame".to_owned(),
     }
 }
 
@@ -231,6 +233,7 @@ pub fn from_type_name(type_name: &str) -> Option<WbblWebappNodeType> {
         "tex_coord" => Some(WbblWebappNodeType::TexCoord),
         "tex_coord_2" => Some(WbblWebappNodeType::TexCoord2),
         "junction" => Some(WbblWebappNodeType::Junction),
+        "frame" => Some(WbblWebappNodeType::Frame),
         _ => None,
     }
 }
@@ -483,6 +486,7 @@ impl Node {
                 NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate2)
             }
             WbblWebappNodeType::Junction => NodeType::Junction,
+            WbblWebappNodeType::Frame => NodeType::Frame,
         }
     }
 

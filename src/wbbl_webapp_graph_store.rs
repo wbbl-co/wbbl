@@ -144,6 +144,7 @@ impl NewWbblWebappNode {
             WbblWebappNodeType::TexCoord => HashMap::new(),
             WbblWebappNodeType::TexCoord2 => HashMap::new(),
             WbblWebappNodeType::Junction => HashMap::new(),
+            WbblWebappNodeType::Frame => HashMap::new(),
         }
     }
     pub fn new(

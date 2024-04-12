@@ -33,8 +33,8 @@ async function elkLayout(
     "elk.direction": "RIGHT",
     "elk.alignment": "TOP",
     "elk.port.anchor": `35`,
-    "elk.port.borderOffset": `${PORT_SIZE}`,
-    "elk.portConstraints": "FIXED_ORDER",
+    "elk.portConstraints": "FIXED_POS",
+    "elk.graphviz.adaptPortPositions": "false",
     "elk.edgeRouting":
       edgeStyle === EdgeStyle.Bezier
         ? "SPLINE"
@@ -42,8 +42,8 @@ async function elkLayout(
           ? "ORTHOGONAL"
           : "UNDEFINED",
     "elk.spacing.nodeNode": `50`,
+    "elk.layered.considerModelOrder.portModelOrder": "true",
     "elk.hierarchyHandling": "INCLUDE_CHILDREN",
-    "elk.spacing.portPort": `${PORT_SIZE + HALF_PORT_SIZE}`,
   };
 
   const graph: ElkNode = {
@@ -56,9 +56,7 @@ async function elkLayout(
         width: node.measured?.width ?? 0,
         height: node.measured?.height ?? 0,
         layoutOptions: node.selected
-          ? {
-              "elk.portConstraints": "FIXED_ORDER",
-            }
+          ? {}
           : ({
               "elk.algorithm": "fixed",
             } as { [key: string]: string }),
@@ -66,14 +64,16 @@ async function elkLayout(
         y: node.position.y,
         ports: (handleBounds?.source ?? [])
           .map<ElkPort>(
-            (x) => ({ ...x, properties: { side: "EAST", ...x } }) as ElkPort,
+            (x) =>
+              ({
+                ...x,
+              }) as ElkPort,
           )
           .concat(
             (handleBounds?.target ?? []).map<ElkPort>(
               (x) =>
                 ({
                   ...x,
-                  properties: { side: "WEST", ...x },
                 }) as ElkPort,
             ),
           )

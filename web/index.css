@@ -456,48 +456,21 @@ path.react-flow__edge-path {
         outline: none;
         text-decoration: underline;
     }
-    .icon {
-        display: flex;
-        align-items: center;
-        align-content: center;
-        justify-content: center;
-        padding: 0.18em;
-        border-radius: var(--radius-1);
-        background: var(--gray-10);
-        color: var(--gray-2);
-
-        transition-property: opacity;
-        transition-duration: 300ms;
-        &[data-visible="false"] {
-            opacity: 0;
-        }
-    }
 
     .breadcrumb-item {
         color: var(--gray-10);
         font-family: var(--brand-font-family);
-        button {
-            cursor: var(--cursor-button);
-        }
         user-select: none;
-        &.project-name-breadcrumb:hover,
-        &.project-name-breadcrumb:focus-within,
-        &.project-name-breadcrumb:focus-visible {
-            color: var(--gray-11);
+        &.file-name-breadcrumb {
+            cursor: text !important;
+        }
+        &.file-name-breadcrumb:hover,
+        &.file-name-breadcrumb:focus-within,
+        &.file-name-breadcrumb:focus {
+            color: var(--accent-9);
         }
         &.file-name-breadcrumb {
             outline: none;
-            &:hover,
-            &:focus-within,
-            &:focus-visible {
-                color: var(--accent-9);
-            }
-        }
-
-        &.file-name-breadcrumb:hover .icon,
-        &.file-name-breadcrumb:focus-within .icon {
-            background: var(--accent-9);
-            color: var(--accent-contrast);
         }
     }
 }
@@ -542,5 +515,81 @@ path.react-flow__edge-path {
 @media (prefers-reduced-motion) {
     .junction::before {
         animation: none;
+    }
+}
+
+.frame-title-button {
+    color: var(--gray-10);
+    font-family: var(--brand-font-family);
+    @supports (-webkit-text-stroke: 1px var(--gray-10)) {
+        -webkit-text-stroke: 1px var(--gray-10);
+        -webkit-text-fill-color: transparent;
+    }
+    cursor: text !important;
+    &:hover,
+    &:focus {
+        background: var(--gray-a3);
+    }
+
+    .frame-text-editable:focus-within {
+        border: 0;
+        outline: none;
+        text-decoration: underline;
+    }
+
+    &:focus-within {
+        .frame-text-editable {
+            color: var(--gray-4);
+            @supports (-webkit-text-stroke: 1px var(--gray-4)) {
+                -webkit-text-stroke: 1px var(--gray-4);
+                -webkit-text-fill-color: transparent;
+            }
+            caret-color: var(--gray-3);
+            &::selection {
+                color: var(--gray-contrast);
+                background: var(--gray-9);
+            }
+        }
+    }
+}
+
+.frame-subtitle-button {
+    font-family: var(--code-font-family);
+    color: var(--yellow-11);
+    margin-top: var(--space-2);
+    text-align: left;
+    display: flex;
+    cursor: text !important;
+    justify-content: flex-start;
+    &:hover,
+    &:focus,
+    &:active {
+        background-color: transparent;
+    }
+
+    .frame-subtitle-text {
+        white-space: pre;
+        &::before {
+            content: "/*\A";
+            white-space: pre;
+        }
+        &::after {
+            content: "*/";
+            white-space: pre;
+        }
+        &:focus-within {
+            border: 0;
+            outline: none;
+            text-decoration: underline;
+        }
+        &:focus,
+        &:hover {
+            color: var(--yellow-11);
+        }
+        caret-color: var(--yellow-9);
+        &::selection {
+            color: var(--yellow-contrast);
+            background: var(--yellow-9);
+        }
     }
 }

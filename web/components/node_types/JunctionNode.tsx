@@ -1,4 +1,4 @@
-import { NodeProps, useEdges, useHandleConnections } from "@xyflow/react";
+import { NodeProps, useHandleConnections } from "@xyflow/react";
 import { memo } from "react";
 import { areNodePropsEqual } from "../../hooks/use-wbbl-graph-store";
 import NodeContextMenu from "../NodeOrEdgeContextMenu";
@@ -8,6 +8,7 @@ import { nodeMetaData } from ".";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
 import SourcePort from "../SourcePort";
 import TargetPort from "../TargetPort";
+import { useCardWbbl } from "../../hooks/use-card-wbbl";
 
 export const JUNCTION_WIDTH = PORT_SIZE * 5;
 export const JUNCTION_HEIGHT = PORT_SIZE * 3;
@@ -15,7 +16,18 @@ function JunctionNode({
   id,
   type,
   selected,
+  positionAbsoluteX,
+  positionAbsoluteY,
+  dragging,
 }: Omit<NodeProps, "width" | "height">) {
+  const contentsRef = useCardWbbl({
+    w: JUNCTION_WIDTH,
+    h: JUNCTION_HEIGHT,
+    positionAbsoluteX,
+    positionAbsoluteY,
+    dragging,
+    selected: !!selected,
+  });
   const sourceEdges = useHandleConnections({
     id: "s#0",
     nodeId: id,
@@ -48,6 +60,7 @@ function JunctionNode({
           }}
         >
           <Card
+            ref={contentsRef}
             aria-selected={selected}
             data-connected={
               sourceEdges.length > 0 && targetEdges.length > 0

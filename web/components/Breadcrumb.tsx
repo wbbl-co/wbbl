@@ -1,6 +1,5 @@
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
-import { PencilIcon } from "@heroicons/react/24/solid";
-import { Flex, Text, Link, Button, Box } from "@radix-ui/themes";
+import { Flex, Text, Link, Button } from "@radix-ui/themes";
 import { FocusEventHandler, useCallback, useRef, useState } from "react";
 
 export default function Breadcrumb() {
@@ -8,6 +7,9 @@ export default function Breadcrumb() {
   const documentTitleRef = useRef<HTMLSpanElement>(null);
   const oldValue = useRef<string>("");
   const onEditStart = useCallback(() => {
+    if (edit) {
+      return;
+    }
     setEdit(true);
     if (documentTitleRef.current) {
       oldValue.current = (documentTitleRef.current.innerText ?? "").trim();
@@ -17,7 +19,7 @@ export default function Breadcrumb() {
         documentTitleRef.current.addEventListener(
           "keydown",
           function keydownListener(evt) {
-            if (evt.keyCode === 13) {
+            if (evt.key === "Enter") {
               evt.preventDefault();
               setEdit(false);
               documentTitleRef.current?.removeEventListener(
@@ -43,7 +45,7 @@ export default function Breadcrumb() {
         }
       }
     }, 100);
-  }, [setEdit, oldValue]);
+  }, [setEdit, oldValue, edit]);
 
   const onBlur = useCallback<FocusEventHandler<HTMLDivElement>>(
     (evt) => {
@@ -71,6 +73,7 @@ export default function Breadcrumb() {
         variant="ghost"
         onClick={onEditStart}
         size={"1"}
+        color="lime"
         className="file-name-breadcrumb breadcrumb-item"
         data-visible={!edit}
       >
@@ -85,9 +88,6 @@ export default function Breadcrumb() {
         >
           Graph Name
         </Text>
-        <Box className="icon" data-visible={!edit}>
-          <PencilIcon className="icon" width={"1em"} />
-        </Box>
       </Button>
     </Flex>
   );

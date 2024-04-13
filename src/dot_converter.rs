@@ -69,7 +69,8 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                         let mut node_data: HashMap<String, Any> = HashMap::new();
                         let mut position_x: f64 = 0.0;
                         let mut position_y: f64 = 0.0;
-                        log!("Node {}", id);
+                        let mut group_id: Option<u128> = None;
+
                         for attribute in attributes {
                             match attribute {
                                 Attribute(Id::Plain(id), Id::Escaped(data))
@@ -82,6 +83,14 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                                             DotFileError::MalformedData(data.to_owned())
                                         })?;
                                     node_data.insert(id.replacen("data", "", 1).to_owned(), value);
+                                }
+                                Attribute(Id::Plain(id), Id::Escaped(group))
+                                    if id.starts_with("group") =>
+                                {
+                                    let unquoted: String = unquote_string(&group);
+                                    let id = uuid::Uuid::parse_str(&unquoted)
+                                        .map_err(|_| DotFileError::MalformedId)?;
+                                    group_id = Some(id.as_u128());
                                 }
                                 Attribute(Id::Plain(id), Id::Plain(x)) if id == "x" => {
                                     position_x = str::parse(&x)
@@ -118,7 +127,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                                 selectable: true,
                                 connectable: true,
                                 deletable: true,
-                                parent_id: None,
+                                group_id,
                             }),
                             _ => return Err(DotFileError::MissingNodeType),
                         }
@@ -187,7 +196,11 @@ fn to_node(node: &WbblWebappNode) -> Node {
         attr!("x", node.position.x.to_string()),
         attr!("y", node.position.y.to_string())
     );
-
+    if let Some(group_id) = node.group_id {
+        dot_node
+            .attributes
+            .push(attr!("group", esc uuid::Uuid::from_u128(group_id).to_string()));
+    }
     dot_node.attributes.append(&mut data_attributes);
     dot_node
 }

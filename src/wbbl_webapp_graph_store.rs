@@ -24,6 +24,7 @@ use crate::{
     yrs_utils::*,
 };
 
+const GRAPH_YRS_NODE_GROUPS_MAP_KEY: &str = "node_groups";
 const GRAPH_YRS_NODE_SELECTIONS_MAP_KEY: &str = "node_selections";
 const GRAPH_YRS_EDGE_SELECTIONS_MAP_KEY: &str = "edge_selections";
 const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
@@ -39,6 +40,7 @@ pub struct WbblWebappGraphStore {
     nodes: yrs::MapRef,
     node_selections: yrs::MapRef,
     edge_selections: yrs::MapRef,
+    node_groups: yrs::MapRef,
     edges: yrs::MapRef,
     computed_node_sizes: HashMap<u128, WbbleComputedNodeSize>,
     graph_worker: Worker,
@@ -110,6 +112,7 @@ impl NewWbblWebappNode {
             selectable: true,
             deletable: self.node_type != WbblWebappNodeType::Output,
             connectable: true,
+            group_id: None,
         })
     }
 }
@@ -144,15 +147,14 @@ impl NewWbblWebappNode {
             WbblWebappNodeType::TexCoord => HashMap::new(),
             WbblWebappNodeType::TexCoord2 => HashMap::new(),
             WbblWebappNodeType::Junction => HashMap::new(),
-            WbblWebappNodeType::Frame => HashMap::new(),
         }
     }
     pub fn new(
         position_x: f64,
         position_y: f64,
         node_type: WbblWebappNodeType,
-    ) -> NewWbblWebappNode {
-        NewWbblWebappNode {
+    ) -> Result<NewWbblWebappNode, WbblWebappStoreError> {
+        Ok(NewWbblWebappNode {
             id: uuid::Uuid::new_v4().as_u128(),
             position: WbblePosition {
                 x: position_x,
@@ -160,7 +162,7 @@ impl NewWbblWebappNode {
             },
             node_type,
             data: NewWbblWebappNode::get_initial_data(node_type),
-        }
+        })
     }
 
     pub fn new_with_data(
@@ -168,9 +170,9 @@ impl NewWbblWebappNode {
         position_y: f64,
         node_type: WbblWebappNodeType,
         data: JsValue,
-    ) -> NewWbblWebappNode {
+    ) -> Result<NewWbblWebappNode, WbblWebappStoreError> {
         let data = serde_wasm_bindgen::from_value::<HashMap<String, Any>>(data).unwrap();
-        NewWbblWebappNode {
+        Ok(NewWbblWebappNode {
             id: uuid::Uuid::new_v4().as_u128(),
             position: WbblePosition {
                 x: position_x,
@@ -178,7 +180,7 @@ impl NewWbblWebappNode {
             },
             node_type,
             data,
-        }
+        })
     }
 }
 
@@ -190,6 +192,7 @@ impl WbblWebappGraphSnapshot {
         edges_map_ref: &yrs::MapRef,
         node_selections_map: &yrs::MapRef,
         edge_selections_map: &yrs::MapRef,
+        client_id: u64,
     ) -> Result<WbblWebappGraphSnapshot, WbblWebappStoreError> {
         let mut nodes: Vec<WbblWebappNode> = Vec::new();
         let mut edges: Vec<WbblWebappEdge> = Vec::new();
@@ -198,9 +201,13 @@ impl WbblWebappGraphSnapshot {
             let node_values = node.1;
             let key = uuid::Uuid::from_str(&key).map_err(|_| WbblWebappStoreError::MalformedId)?;
             let node: WbblWebappNode = match node_values {
-                yrs::Value::YMap(map) => {
-                    WbblWebappNode::decode(&key.as_u128(), read_txn, &map, node_selections_map)
-                }
+                yrs::Value::YMap(map) => WbblWebappNode::decode(
+                    &key.as_u128(),
+                    read_txn,
+                    &map,
+                    node_selections_map,
+                    client_id,
+                ),
                 _ => Err(WbblWebappStoreError::UnexpectedStructure),
             }?;
             nodes.push(node);
@@ -237,6 +244,7 @@ impl WbblWebappNode {
         txn: &Txn,
         map: &yrs::MapRef,
         selections: &yrs::MapRef,
+        client_id: u64,
     ) -> Result<WbblWebappNode, WbblWebappStoreError> {
         let type_name: String = get_atomic_string("type", txn, map)?;
         let data = get_map("data", txn, map)?;
@@ -244,6 +252,12 @@ impl WbblWebappNode {
         let y = get_float_64("y", txn, map)?;
         let dragging = get_bool("dragging", txn, map)?;
         let resizing = get_bool("resizing", txn, map)?;
+        let maybe_group_id = get_atomic_u128_from_string("group_id", txn, map);
+        let group_id = match maybe_group_id {
+            Ok(id) => Ok(Some(id)),
+            Err(WbblWebappStoreError::NotFound) => Ok(None),
+            Err(err) => Err(err),
+        }?;
 
         let data = &data.to_json(txn);
         let data = match data {
@@ -255,10 +269,10 @@ impl WbblWebappNode {
             None => Err(WbblWebappStoreError::UnknownNodeType),
         }?;
         let key_str = uuid::Uuid::from_u128(*key).to_string();
-        let selected = selections.iter(txn).any(|(_, selection)| match selection {
-            Value::YMap(selection) => selection.contains_key(txn, &key_str),
+        let selected = match selections.get(txn, &client_id.to_string()) {
+            Some(Value::YMap(selection)) => selection.contains_key(txn, &key_str),
             _ => false,
-        });
+        };
         Ok(WbblWebappNode {
             id: *key,
             position: WbblePosition { x, y },
@@ -274,6 +288,7 @@ impl WbblWebappNode {
             connectable: true,
             selectable: true,
             deletable: node_type != WbblWebappNodeType::Output,
+            group_id,
         })
     }
 
@@ -382,6 +397,20 @@ fn delete_associated_edges(
     }
 }
 
+fn remove_node_from_group(
+    transaction: &mut TransactionMut,
+    node_id: &str,
+    node: &MapRef,
+    node_groups: &mut MapRef,
+) -> Result<(), WbblWebappStoreError> {
+    if let Ok(group_id) = get_atomic_string("group_id", transaction, node) {
+        if let Ok(group) = get_map(&group_id, transaction, node_groups) {
+            group.remove(transaction, node_id);
+        }
+    }
+    Ok(())
+}
+
 fn delete_node(
     transaction: &mut TransactionMut,
     node_id: &str,
@@ -390,6 +419,7 @@ fn delete_node(
     node_selections: &mut MapRef,
     edge_selections: &mut MapRef,
     computed_node_sizes: &mut HashMap<u128, WbbleComputedNodeSize>,
+    node_groups: &mut MapRef,
 ) -> Result<(), WbblWebappStoreError> {
     let node = match get_map(node_id, transaction, &nodes) {
         Ok(node) => Ok(Some(node)),
@@ -400,8 +430,8 @@ fn delete_node(
         return Ok(());
     }
     let node = node.unwrap();
-
     delete_associated_edges(transaction, &node, nodes, edges, edge_selections)?;
+    remove_node_from_group(transaction, node_id, &node, node_groups)?;
     let node_id_u128 = uuid::Uuid::parse_str(node_id)
         .map_err(|_| WbblWebappStoreError::MalformedId)?
         .as_u128();
@@ -521,6 +551,7 @@ impl WbblWebappGraphStore {
     pub fn empty(graph_worker: Worker) -> Self {
         let graph = yrs::Doc::new();
         let node_selections = graph.get_or_insert_map(GRAPH_YRS_NODE_SELECTIONS_MAP_KEY.to_owned());
+        let node_groups = graph.get_or_insert_map(GRAPH_YRS_NODE_GROUPS_MAP_KEY.to_owned());
         let edge_selections = graph.get_or_insert_map(GRAPH_YRS_EDGE_SELECTIONS_MAP_KEY.to_owned());
         let nodes = graph.get_or_insert_map(GRAPH_YRS_NODES_MAP_KEY.to_owned());
         let edges = graph.get_or_insert_map(GRAPH_YRS_EDGES_MAP_KEY.to_owned());
@@ -577,6 +608,7 @@ impl WbblWebappGraphStore {
             graph: Arc::new(graph),
             nodes,
             edges,
+            node_groups,
             node_selections,
             edge_selections,
             computed_node_sizes: HashMap::new(),
@@ -586,10 +618,10 @@ impl WbblWebappGraphStore {
             initialized: false,
         };
 
-        let output_node = NewWbblWebappNode::new(600.0, 500.0, WbblWebappNodeType::Output);
+        let output_node = NewWbblWebappNode::new(600.0, 500.0, WbblWebappNodeType::Output).unwrap();
         store.add_node(output_node.clone()).unwrap();
 
-        let slab_node = NewWbblWebappNode::new(200.0, 500.0, WbblWebappNodeType::Slab);
+        let slab_node = NewWbblWebappNode::new(200.0, 500.0, WbblWebappNodeType::Slab).unwrap();
         store.add_node(slab_node.clone()).unwrap();
 
         store
@@ -603,8 +635,24 @@ impl WbblWebappGraphStore {
 
         store.undo_manager.include_origin(store.graph.client_id()); // only track changes originating from local peer
         store.undo_manager.expand_scope(&store.edges);
-        store.undo_manager.expand_scope(&store.node_selections);
-        store.undo_manager.expand_scope(&store.edge_selections);
+        store.undo_manager.expand_scope(&store.node_groups);
+        {
+            let mut txn_mut = store.graph.transact_mut();
+
+            let local_node_selections = store.node_selections.insert(
+                &mut txn_mut,
+                store.graph.client_id().to_string(),
+                MapPrelim::<String>::new(),
+            );
+
+            let local_edge_selections = store.edge_selections.insert(
+                &mut txn_mut,
+                store.graph.client_id().to_string(),
+                MapPrelim::<String>::new(),
+            );
+            store.undo_manager.expand_scope(&local_node_selections);
+            store.undo_manager.expand_scope(&local_edge_selections);
+        }
         store.initialized = true;
         store.emit(true).unwrap();
         store
@@ -694,6 +742,7 @@ impl WbblWebappGraphStore {
                 &mut self.node_selections,
                 &mut self.edge_selections,
                 &mut self.computed_node_sizes,
+                &mut self.node_groups,
             )?;
         }
 
@@ -724,6 +773,7 @@ impl WbblWebappGraphStore {
                                 &mut self.node_selections,
                                 &mut self.edge_selections,
                                 &mut self.computed_node_sizes,
+                                &mut self.node_groups,
                             )?;
                             Ok(())
                         }
@@ -787,6 +837,7 @@ impl WbblWebappGraphStore {
             &self.edges,
             &self.node_selections,
             &self.edge_selections,
+            self.graph.client_id(),
         )?;
         for node in snapshot.nodes.iter_mut() {
             node.measured = self.computed_node_sizes.get(&node.id).map(|s| s.clone());
@@ -1048,6 +1099,98 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
+    pub fn group_selected_nodes(&mut self) -> Result<(), WbblWebappStoreError> {
+        let selected_nodes = self.get_locally_selected_nodes()?;
+        {
+            let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
+
+            let group_id = uuid::Uuid::new_v4().to_string();
+            for node_id in selected_nodes.iter() {
+                match get_map(&node_id, &mut_transaction, &self.nodes) {
+                    Ok(node) => {
+                        node.insert(&mut mut_transaction, "group_id", group_id.clone());
+                    }
+                    Err(WbblWebappStoreError::NotFound) => {}
+                    Err(err) => {
+                        return Err(err);
+                    }
+                };
+            }
+            self.node_groups.insert(
+                &mut mut_transaction,
+                group_id,
+                selected_nodes
+                    .iter()
+                    .map(|n| (n.to_owned(), true))
+                    .collect::<HashMap<String, bool>>(),
+            );
+        }
+        self.emit(false)?;
+        Ok(())
+    }
+
+    pub fn ungroup_selected_nodes(&mut self) -> Result<(), WbblWebappStoreError> {
+        let selected_nodes = self.get_locally_selected_nodes()?;
+        {
+            let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
+            for node_id in selected_nodes.iter() {
+                match get_map(&node_id, &mut_transaction, &self.nodes) {
+                    Ok(node) => {
+                        remove_node_from_group(
+                            &mut mut_transaction,
+                            node_id,
+                            &node,
+                            &mut self.node_groups,
+                        )?;
+                        node.remove(&mut mut_transaction, "group_id");
+                    }
+                    Err(WbblWebappStoreError::NotFound) => {}
+                    Err(err) => {
+                        return Err(err);
+                    }
+                };
+            }
+        }
+        self.emit(false)?;
+        Ok(())
+    }
+
+    pub fn get_group_bounds(&self, group_id: &str) -> Result<Vec<f32>, WbblWebappStoreError> {
+        let mut min_position = Vec2::new(f32::MAX, f32::MAX);
+        let mut max_position = Vec2::new(f32::MIN, f32::MIN);
+        let txn = self.graph.transact();
+        let group = get_map(group_id, &txn, &self.node_groups)?;
+        let node_ids: Vec<String> = group.keys(&txn).map(|k| k.to_owned()).collect();
+        for node_id in node_ids {
+            match get_map(&node_id, &txn, &self.nodes) {
+                Ok(map) => {
+                    let pos_x = get_float_64("x", &txn, &map)?;
+                    if (pos_x as f32) < min_position.x {
+                        min_position.x = pos_x as f32;
+                    }
+                    if (pos_x as f32) > max_position.x {
+                        max_position.x = pos_x as f32;
+                    }
+                    let pos_y = get_float_64("y", &txn, &map)?;
+                    if (pos_y as f32) < min_position.y {
+                        min_position.y = pos_y as f32;
+                    }
+                    if (pos_y as f32) > max_position.y {
+                        max_position.y = pos_y as f32;
+                    }
+                }
+                Err(WbblWebappStoreError::NotFound) => {}
+                Err(err) => return Err(err),
+            };
+        }
+        Ok(Vec::from([
+            min_position.x,
+            min_position.y,
+            max_position.x,
+            max_position.y,
+        ]))
+    }
+
     #[cfg(web_sys_unstable_apis)]
     pub async fn get_clipboard_snapshot() -> Result<JsValue, WbblWebappStoreError> {
         use web_sys::js_sys::JsString;
@@ -1243,8 +1386,11 @@ impl WbblWebappGraphStore {
                 }
                 _ => Err(WbblWebappStoreError::UnexpectedStructure),
             }?;
-            let preview_node =
-                NewWbblWebappNode::new(position.0 + 350.0, position.1, WbblWebappNodeType::Preview);
+            let preview_node = NewWbblWebappNode::new(
+                position.0 + 350.0,
+                position.1,
+                WbblWebappNodeType::Preview,
+            )?;
             preview_node.encode(mut_transaction, &mut self.nodes)?;
             let source =
                 uuid::Uuid::from_str(node_id).map_err(|_| WbblWebappStoreError::MalformedId)?;
@@ -1268,7 +1414,7 @@ impl WbblWebappGraphStore {
             let edge = get_map(edge_id, &txn, &self.edges)?;
             let edge = WbblWebappEdge::decode(uuid.as_u128(), &txn, &edge, &self.edge_selections)?;
             let new_node =
-                NewWbblWebappNode::new(position_x, position_y, WbblWebappNodeType::Junction);
+                NewWbblWebappNode::new(position_x, position_y, WbblWebappNodeType::Junction)?;
             new_node.encode(&mut txn, &mut self.nodes)?;
             let edge_1 = WbblWebappEdge::new(&edge.source, &new_node.id, edge.source_handle, 0);
             let edge_2 = WbblWebappEdge::new(&new_node.id, &edge.target, 0, edge.target_handle);

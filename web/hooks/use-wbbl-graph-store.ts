@@ -86,10 +86,10 @@ const shallowProps = [
 
 export function areNodePropsEqual(
   oldProps: { [K in (typeof shallowProps)[any]]?: any } & {
-    data: Map<string, any>;
+    data: any;
   },
   newProps: { [K in (typeof shallowProps)[any]]?: any } & {
-    data: Map<string, any>;
+    data: any;
   },
 ) {
   for (let prop of shallowProps) {

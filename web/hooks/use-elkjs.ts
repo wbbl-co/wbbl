@@ -5,7 +5,6 @@ import {
   WbblWebappGraphSnapshot,
 } from "./use-wbbl-graph-store";
 import { type Node, type Edge, useStoreApi, InternalNode } from "@xyflow/react";
-import { HALF_PORT_SIZE, PORT_SIZE } from "../port-constants";
 import { EdgeStyle } from "../../pkg/wbbl";
 import { WbblPreferencesStoreContext } from "./use-preferences-store";
 

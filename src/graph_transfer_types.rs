@@ -169,7 +169,6 @@ pub enum WbblWebappNodeType {
     TexCoord2,
 
     Junction,
-    Frame,
 }
 
 pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
@@ -200,7 +199,6 @@ pub fn get_type_name(node_type: WbblWebappNodeType) -> String {
         WbblWebappNodeType::TexCoord => "tex_coord".to_owned(),
         WbblWebappNodeType::TexCoord2 => "tex_coord_2".to_owned(),
         WbblWebappNodeType::Junction => "junction".to_owned(),
-        WbblWebappNodeType::Frame => "frame".to_owned(),
     }
 }
 
@@ -233,7 +231,6 @@ pub fn from_type_name(type_name: &str) -> Option<WbblWebappNodeType> {
         "tex_coord" => Some(WbblWebappNodeType::TexCoord),
         "tex_coord_2" => Some(WbblWebappNodeType::TexCoord2),
         "junction" => Some(WbblWebappNodeType::Junction),
-        "frame" => Some(WbblWebappNodeType::Frame),
         _ => None,
     }
 }
@@ -280,6 +277,31 @@ where
     }
 }
 
+fn option_uuid_to_option_string<S>(id: &Option<u128>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match id {
+        None => serializer.serialize_none(),
+        Some(id) => serializer.serialize_some(&uuid::Uuid::from_u128(*id).to_string()),
+    }
+}
+
+fn string_to_option_uuid<'de, D>(deserializer: D) -> Result<Option<u128>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let maybe_str: Option<String> = Option::deserialize(deserializer)?;
+
+    match maybe_str {
+        Some(buf) => match uuid::Uuid::from_str(&buf) {
+            Ok(t) => Ok(Some(t.as_u128())),
+            Err(_) => Err(Error::custom("Malformed Id")),
+        },
+        None => Ok(None),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WbblWebappNode {
     #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
@@ -299,6 +321,12 @@ pub struct WbblWebappNode {
     pub selectable: bool,
     pub connectable: bool,
     pub deletable: bool,
+    #[serde(
+        rename = "groupId",
+        serialize_with = "option_uuid_to_option_string",
+        deserialize_with = "string_to_option_uuid"
+    )]
+    pub group_id: Option<u128>,
 }
 
 fn target_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::Error>
@@ -486,7 +514,6 @@ impl Node {
                 NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate2)
             }
             WbblWebappNodeType::Junction => NodeType::Junction,
-            WbblWebappNodeType::Frame => NodeType::Frame,
         }
     }
 
@@ -571,11 +598,20 @@ impl From<WbblWebappGraphSnapshot> for Graph {
 impl WbblWebappGraphSnapshot {
     pub(crate) fn reassign_ids(&mut self) {
         let mut new_node_ids: HashMap<u128, u128> = HashMap::new();
+        let mut new_group_ids: HashMap<u128, u128> = HashMap::new();
+
         for n in self.nodes.iter_mut() {
             let old_id = n.id;
             let new_id = uuid::Uuid::new_v4().as_u128();
             n.id = new_id;
             new_node_ids.insert(old_id, new_id);
+            if let Some(group_id) = n.group_id {
+                if !new_group_ids.contains_key(&group_id) {
+                    new_group_ids.insert(group_id, uuid::Uuid::new_v4().as_u128());
+                }
+                let new_group_id = new_group_ids.get(&group_id).unwrap();
+                n.group_id = Some(*new_group_id);
+            }
         }
         self.edges = self
             .edges

@@ -56,6 +56,7 @@ import {
 import { isHotkeyPressed } from "react-hotkeys-hook";
 import { transformKeybindingForReactFlow } from "../utils/transform-keybinding-for-react-flow";
 import { useElkJs } from "../hooks/use-elkjs";
+import { MousePositionContext } from "../hooks/use-card-wbbl";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -530,69 +531,76 @@ function Graph() {
     viewport.zoom,
   ]);
   const portRefStore = useMemo(() => new PortRefStore(), []);
+  const sortedNodes = useMemo(() => {
+    return snapshot.nodes.sort((a, b) =>
+      a.type === b.type ? 0 : a.type === "frame" ? -1 : 1,
+    );
+  }, [snapshot.nodes]);
 
   return (
-    <WbblSnapshotContext.Provider value={snapshot}>
-      <WbblEdgeEndContext.Provider value={edgeRendererRef}>
-        <PortRefStoreContext.Provider value={portRefStore}>
-          <GraphCanvasContextMenu mousePosition={mousePos}>
-            <ReactFlow
-              width={width}
-              height={height}
-              nodes={snapshot.nodes}
-              onNodesChange={onNodesChange}
-              edges={snapshot.edges}
-              edgeTypes={edgeTypes}
-              nodeTypes={nodeTypes}
-              onConnect={onConnect}
-              deleteKeyCode={[]}
-              maxZoom={1.4}
-              minZoom={0.25}
-              snapToGrid={false}
-              onEdgeMouseMove={connectingHandlers.onPointerDown}
-              onPaneClick={onPaneClick}
-              onEdgeDoubleClick={removeEdge}
-              onConnectStart={onConnectStart}
-              onConnectEnd={onConnectEnd}
-              onBeforeDelete={onBeforeDelete}
-              multiSelectionKeyCode={useMemo(
-                () =>
-                  selectionKeybinding
-                    ? [transformKeybindingForReactFlow(selectionKeybinding)]
-                    : [],
-                [selectionKeybinding],
-              )}
-              selectionKeyCode={useMemo(
-                () =>
-                  selectionKeybinding
-                    ? [transformKeybindingForReactFlow(selectionKeybinding)]
-                    : [],
-                [selectionKeybinding],
-              )}
-              onSelectionStart={connectingHandlers.onSelectStart}
-              onSelectionEnd={connectingHandlers.onSelectEnd}
-              onSelectionChange={onSelectionChange}
-              onEdgesChange={onEdgesChange}
-              onEdgeUpdate={onEdgesUpdate}
-              onEdgeUpdateEnd={onEdgeUpdateEnd}
-              onEdgeUpdateStart={onEdgeUpdateStart}
-              connectionLineComponent={WbblConnectionLine}
-              onPointerMove={andThen(
-                connectingHandlers.onPointerMove,
-                onMouseMove,
-              )}
-              onPointerUp={connectingHandlers.onPointerMove}
-              selectionMode={SelectionMode.Partial}
-              proOptions={useMemo(() => ({ hideAttribution: true }), [])}
-              fitView
-              onlyRenderVisibleElements
-            >
-              {reactFlowContents}
-            </ReactFlow>
-          </GraphCanvasContextMenu>
-        </PortRefStoreContext.Provider>
-      </WbblEdgeEndContext.Provider>
-    </WbblSnapshotContext.Provider>
+    <MousePositionContext.Provider value={mousePos}>
+      <WbblSnapshotContext.Provider value={snapshot}>
+        <WbblEdgeEndContext.Provider value={edgeRendererRef}>
+          <PortRefStoreContext.Provider value={portRefStore}>
+            <GraphCanvasContextMenu mousePosition={mousePos}>
+              <ReactFlow
+                width={width}
+                height={height}
+                nodes={sortedNodes}
+                onNodesChange={onNodesChange}
+                edges={snapshot.edges}
+                edgeTypes={edgeTypes}
+                nodeTypes={nodeTypes}
+                onConnect={onConnect}
+                deleteKeyCode={[]}
+                maxZoom={1.4}
+                minZoom={0.25}
+                snapToGrid={false}
+                onEdgeMouseMove={connectingHandlers.onPointerDown}
+                onPaneClick={onPaneClick}
+                onEdgeDoubleClick={removeEdge}
+                onConnectStart={onConnectStart}
+                onConnectEnd={onConnectEnd}
+                onBeforeDelete={onBeforeDelete}
+                multiSelectionKeyCode={useMemo(
+                  () =>
+                    selectionKeybinding
+                      ? [transformKeybindingForReactFlow(selectionKeybinding)]
+                      : [],
+                  [selectionKeybinding],
+                )}
+                selectionKeyCode={useMemo(
+                  () =>
+                    selectionKeybinding
+                      ? [transformKeybindingForReactFlow(selectionKeybinding)]
+                      : [],
+                  [selectionKeybinding],
+                )}
+                onSelectionStart={connectingHandlers.onSelectStart}
+                onSelectionEnd={connectingHandlers.onSelectEnd}
+                onSelectionChange={onSelectionChange}
+                onEdgesChange={onEdgesChange}
+                onEdgeUpdate={onEdgesUpdate}
+                onEdgeUpdateEnd={onEdgeUpdateEnd}
+                onEdgeUpdateStart={onEdgeUpdateStart}
+                connectionLineComponent={WbblConnectionLine}
+                onPointerMove={andThen(
+                  connectingHandlers.onPointerMove,
+                  onMouseMove,
+                )}
+                onPointerUp={connectingHandlers.onPointerMove}
+                selectionMode={SelectionMode.Partial}
+                proOptions={useMemo(() => ({ hideAttribution: true }), [])}
+                fitView
+                onlyRenderVisibleElements
+              >
+                {reactFlowContents}
+              </ReactFlow>
+            </GraphCanvasContextMenu>
+          </PortRefStoreContext.Provider>
+        </WbblEdgeEndContext.Provider>
+      </WbblSnapshotContext.Provider>
+    </MousePositionContext.Provider>
   );
 }
 

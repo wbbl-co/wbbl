@@ -85,8 +85,12 @@ const shallowProps = [
 ] as const;
 
 export function areNodePropsEqual(
-  oldProps: { [K in (typeof shallowProps)[any]]?: any } & { data: any },
-  newProps: { [K in (typeof shallowProps)[any]]?: any } & { data: any },
+  oldProps: { [K in (typeof shallowProps)[any]]?: any } & {
+    data: Map<string, any>;
+  },
+  newProps: { [K in (typeof shallowProps)[any]]?: any } & {
+    data: Map<string, any>;
+  },
 ) {
   for (let prop of shallowProps) {
     if (oldProps[prop] !== newProps[prop]) {
@@ -94,9 +98,12 @@ export function areNodePropsEqual(
     }
   }
 
-  for (let key of Object.keys(oldProps.data)) {
-    let oldValue = oldProps.data[key];
-    let newValue = oldProps.data[key];
+  if (oldProps.data.size !== newProps.data.size) {
+    return false;
+  }
+  for (let key of oldProps.data.keys()) {
+    let oldValue = oldProps.data.get(key);
+    let newValue = newProps.data.get(key);
     if (typeof oldValue == "object") {
       for (let subkey of Object.keys(oldValue as object)) {
         let oldSubValue = (oldValue as Record<string, unknown>)[subkey];

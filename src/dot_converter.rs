@@ -1,8 +1,13 @@
 use std::{collections::HashMap, str::FromStr};
+use web_sys::js_sys::escape;
+use web_sys::js_sys::unescape;
 
-use crate::graph_transfer_types::{
-    from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot, WbblWebappNode,
-    WbblWebappNodeType, WbblePosition,
+use crate::{
+    graph_transfer_types::{
+        from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
+        WbblWebappNode, WbblWebappNodeType, WbblePosition,
+    },
+    log,
 };
 
 use graphviz_rust::{
@@ -31,12 +36,15 @@ fn parse_escaped_id(id: &str) -> Result<u128, DotFileError> {
         .map_err(|_| DotFileError::MalformedId)
 }
 
-fn unescape_string(id: &str) -> String {
+fn unquote_string(id: &str) -> String {
     id.replace("\"", "").to_owned()
 }
 
 pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> {
-    let graph = parse(dotfile).map_err(|err| DotFileError::ParseError(err))?;
+    let graph = parse(dotfile).map_err(|err| {
+        log!("err {:?}", err);
+        DotFileError::ParseError(err)
+    })?;
     match graph {
         Graph::DiGraph {
             id: Id::Escaped(id),
@@ -61,15 +69,19 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                         let mut node_data: HashMap<String, Any> = HashMap::new();
                         let mut position_x: f64 = 0.0;
                         let mut position_y: f64 = 0.0;
+                        log!("Node {}", id);
                         for attribute in attributes {
                             match attribute {
                                 Attribute(Id::Plain(id), Id::Escaped(data))
-                                    if id.starts_with("data-") =>
+                                    if id.starts_with("data") =>
                                 {
-                                    let value: Any = serde_json::from_str(&data).map_err(|_| {
-                                        DotFileError::MalformedData(data.to_owned())
-                                    })?;
-                                    node_data.insert(id.replacen("data-", "", 1).to_owned(), value);
+                                    let decoded: String = unescape(&unquote_string(&data)).into();
+                                    let value: Any =
+                                        serde_json::from_str(&decoded).map_err(|err| {
+                                            log!("json_err {:?}", err);
+                                            DotFileError::MalformedData(data.to_owned())
+                                        })?;
+                                    node_data.insert(id.replacen("data", "", 1).to_owned(), value);
                                 }
                                 Attribute(Id::Plain(id), Id::Plain(x)) if id == "x" => {
                                     position_x = str::parse(&x)
@@ -82,7 +94,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                                 Attribute(Id::Plain(id), Id::Escaped(node_type_str))
                                     if id == "label" =>
                                 {
-                                    match from_type_name(&unescape_string(&node_type_str)) {
+                                    match from_type_name(&unquote_string(&node_type_str)) {
                                         Some(t) => node_type = Some(t),
                                         None => return Err(DotFileError::MalformedTypeName),
                                     }
@@ -106,6 +118,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                                 selectable: true,
                                 connectable: true,
                                 deletable: true,
+                                parent_id: None,
                             }),
                             _ => return Err(DotFileError::MissingNodeType),
                         }
@@ -159,20 +172,22 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
 
 fn to_node(node: &WbblWebappNode) -> Node {
     let type_name = get_type_name(node.node_type);
-    let mut dot_node = node!(esc uuid::Uuid::from_u128(node.id).to_string();
-        attr!("label", esc type_name),
-        attr!("x", node.position.x.to_string()),
-        attr!("y", node.position.y.to_string())
-    );
     let mut data_attributes: Vec<Attribute> = node
         .data
         .iter()
         .map(|(k, v)| {
             let value = serde_json::to_string(v).unwrap();
-            let key = format!("data-{}", k);
-            attr!(key, esc value)
+            let key = format!("data{}", k);
+            let escaped: String = escape(&value).into();
+            attr!(key, esc escaped)
         })
         .collect();
+    let mut dot_node = node!(esc uuid::Uuid::from_u128(node.id).to_string();
+        attr!("label", esc type_name),
+        attr!("x", node.position.x.to_string()),
+        attr!("y", node.position.y.to_string())
+    );
+
     dot_node.attributes.append(&mut data_attributes);
     dot_node
 }

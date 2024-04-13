@@ -406,6 +406,9 @@ fn remove_node_from_group(
     if let Ok(group_id) = get_atomic_string("group_id", transaction, node) {
         if let Ok(group) = get_map(&group_id, transaction, node_groups) {
             group.remove(transaction, node_id);
+            if group.len(transaction) == 0 {
+                node_groups.remove(transaction, &group_id);
+            }
         }
     }
     Ok(())

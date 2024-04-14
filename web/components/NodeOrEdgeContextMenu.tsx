@@ -155,7 +155,11 @@ function NodeOrEdgeContextMenu(
       }
     },
     [graphStore, props.id, props.isEdge],
-    { disabled: !currentNodeOrEdgeExclusivelySelected },
+    {
+      disabled:
+        !currentNodeOrEdgeExclusivelySelected ||
+        (!props.isEdge && !props.deleteable),
+    },
   );
 
   const duplicateNodeOrSelection = useCallback(
@@ -254,6 +258,16 @@ function NodeOrEdgeContextMenu(
     preferencesStore,
     WbblWebappNodeType.Junction,
   );
+
+  // const groupNodesShortcut = useKeyBinding(
+  //   preferencesStore,
+  //   KeyboardShortcut.GroupNodes,
+  // );
+
+  // const ungroupNodesShortcut = useKeyBinding(
+  //   preferencesStore,
+  //   KeyboardShortcut.UngroupNodes,
+  // );
 
   const helpShortcut = useKeyBinding(preferencesStore, KeyboardShortcut.Help);
   const linkToPreviewShortcut = useKeyBinding(

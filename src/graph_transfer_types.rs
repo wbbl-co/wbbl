@@ -1,5 +1,5 @@
 use glam::Vec2;
-use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de::Error, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
@@ -302,6 +302,33 @@ where
     }
 }
 
+fn uuid_to_string_vec<S>(ids: &Vec<u128>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut seq = serializer.serialize_seq(Some(ids.len()))?;
+    for id in ids {
+        seq.serialize_element(&uuid::Uuid::from_u128(*id).to_string())?;
+    }
+    seq.end()
+}
+
+fn string_to_uuid_vec<'de, D>(deserializer: D) -> Result<Vec<u128>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let buf = Vec::<String>::deserialize(deserializer)?;
+    let mut result: Vec<u128> = Vec::new();
+    for i in buf {
+        let item = match uuid::Uuid::from_str(&i) {
+            Ok(t) => Ok(t.as_u128()),
+            Err(_) => Err(Error::custom("Malformed Id")),
+        }?;
+        result.push(item);
+    }
+    Ok(result)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WbblWebappNode {
     #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
@@ -413,11 +440,23 @@ impl WbblWebappEdge {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WbblWebappNodeGroup {
+    #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
+    pub id: u128,
+    #[serde(
+        serialize_with = "uuid_to_string_vec",
+        deserialize_with = "string_to_uuid_vec"
+    )]
+    pub nodes: Vec<u128>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WbblWebappGraphSnapshot {
     #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
     pub id: u128,
     pub nodes: Vec<WbblWebappNode>,
     pub edges: Vec<WbblWebappEdge>,
+    pub node_groups: Option<Vec<WbblWebappNodeGroup>>,
     pub computed_types: Option<HashMap<PortId, AbstractDataType>>,
 }
 
@@ -613,6 +652,20 @@ impl WbblWebappGraphSnapshot {
                 n.group_id = Some(*new_group_id);
             }
         }
+        self.node_groups = Some(
+            new_group_ids
+                .values()
+                .map(|group_id| WbblWebappNodeGroup {
+                    id: *group_id,
+                    nodes: self
+                        .nodes
+                        .iter()
+                        .filter(|n| n.group_id == Some(*group_id))
+                        .map(|n| n.id)
+                        .collect(),
+                })
+                .collect(),
+        );
         self.edges = self
             .edges
             .iter()

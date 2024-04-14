@@ -15,7 +15,8 @@ export const WbblSnapshotContext = createContext<
 
 export type WbblWebappGraphSnapshot = {
   edges: Edge[];
-  nodes: Node[];
+  nodes: (Node & { groupId?: string })[];
+  node_groups: { id: string; nodes: Array<String> };
   computed_types: Map<string, unknown>;
 };
 

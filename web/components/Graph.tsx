@@ -57,6 +57,7 @@ import { isHotkeyPressed } from "react-hotkeys-hook";
 import { transformKeybindingForReactFlow } from "../utils/transform-keybinding-for-react-flow";
 import { useElkJs } from "../hooks/use-elkjs";
 import { MousePositionContext } from "../hooks/use-card-wbbl";
+import { NodeGroupRenderer } from "./NodeGroupRenderer";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -492,44 +493,28 @@ function Graph() {
     },
   );
 
-  const reactFlowContents = useMemo(() => {
-    return (
-      <>
-        <Background variant={BackgroundVariant.Dots} />
-        <svg
-          id="edge-end-renderer"
-          style={{
-            width: width,
-            overflow: "visible",
-            height: height,
-            zIndex: 4,
-            pointerEvents: "none",
-            position: "absolute",
-            left: 0,
-            top: 0,
-            transformOrigin: "0 0",
-            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-          }}
-          ref={setEdgeRenderRef}
-        ></svg>
-        <MiniMap pannable zoomable nodeClassName={getMinimapNodeClassnames} />
-        <NodeMenu
-          open={nodeMenuOpen}
-          onClose={setNodeMenuOpen}
-          position={nodeMenuPosition}
-          addNode={addNode}
-        />
-      </>
-    );
-  }, [
-    nodeMenuOpen,
-    setNodeMenuOpen,
-    addNode,
-    setEdgeRenderRef,
-    viewport.x,
-    viewport.y,
-    viewport.zoom,
-  ]);
+  useScopedShortcut(
+    KeyboardShortcut.GroupNodes,
+    () => {
+      graphStore.group_selected_nodes();
+    },
+    [graphStore],
+    {
+      disabled: snapshot.nodes.every((x) => !x.selected),
+    },
+  );
+
+  useScopedShortcut(
+    KeyboardShortcut.UngroupNodes,
+    () => {
+      graphStore.ungroup_selected_nodes();
+    },
+    [graphStore],
+    {
+      disabled: snapshot.nodes.every((x) => !x.selected),
+    },
+  );
+
   const portRefStore = useMemo(() => new PortRefStore(), []);
   const sortedNodes = useMemo(() => {
     return snapshot.nodes.sort((a, b) =>
@@ -594,7 +579,39 @@ function Graph() {
                 fitView
                 onlyRenderVisibleElements
               >
-                {reactFlowContents}
+                <Background variant={BackgroundVariant.Dots} />
+                <NodeGroupRenderer
+                  groups={snapshot.node_groups ?? []}
+                  width={width}
+                  height={height}
+                />
+                <svg
+                  id="edge-end-renderer"
+                  style={{
+                    width: width,
+                    overflow: "visible",
+                    height: height,
+                    zIndex: 4,
+                    pointerEvents: "none",
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    transformOrigin: "0 0",
+                    transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+                  }}
+                  ref={setEdgeRenderRef}
+                ></svg>
+                <MiniMap
+                  pannable
+                  zoomable
+                  nodeClassName={getMinimapNodeClassnames}
+                />
+                <NodeMenu
+                  open={nodeMenuOpen}
+                  onClose={setNodeMenuOpen}
+                  position={nodeMenuPosition}
+                  addNode={addNode}
+                />
               </ReactFlow>
             </GraphCanvasContextMenu>
           </PortRefStoreContext.Provider>

@@ -84,6 +84,8 @@ pub enum KeyboardShortcut {
     SelectAll,
     SelectNone,
     AutoLayout,
+    GroupNodes,
+    UngroupNodes,
 }
 
 impl KeyboardShortcut {
@@ -105,6 +107,8 @@ impl KeyboardShortcut {
             KeyboardShortcut::SelectAll => "select_all",
             KeyboardShortcut::SelectNone => "select_none",
             KeyboardShortcut::AutoLayout => "auto_layout",
+            KeyboardShortcut::GroupNodes => "group_nodes",
+            KeyboardShortcut::UngroupNodes => "ungroup_nodes",
         }
         .to_owned()
     }
@@ -127,6 +131,8 @@ impl KeyboardShortcut {
             "select_all" => Some(KeyboardShortcut::SelectAll),
             "select_none" => Some(KeyboardShortcut::SelectNone),
             "auto_layout" => Some(KeyboardShortcut::AutoLayout),
+            "group_nodes" => Some(KeyboardShortcut::GroupNodes),
+            "ungroup_nodes" => Some(KeyboardShortcut::UngroupNodes),
             _ => None,
         }
     }
@@ -152,6 +158,11 @@ fn get_default_keybindings() -> HashMap<KeyboardShortcut, Option<String>> {
         (KeyboardShortcut::SelectAll, Some("mod+a".to_owned())),
         (KeyboardShortcut::SelectNone, Some("shift+a".to_owned())),
         (KeyboardShortcut::AutoLayout, Some("mod+shift+f".to_owned())),
+        (KeyboardShortcut::GroupNodes, Some("mod+g".to_owned())),
+        (
+            KeyboardShortcut::UngroupNodes,
+            Some("mod+shift+g".to_owned()),
+        ),
     ])
 }
 

@@ -74,7 +74,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                         for attribute in attributes {
                             match attribute {
                                 Attribute(Id::Plain(id), Id::Escaped(data))
-                                    if id.starts_with("data") =>
+                                    if id.starts_with("data_") =>
                                 {
                                     let decoded: String = unescape(&unquote_string(&data)).into();
                                     let value: Any =
@@ -82,7 +82,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                                             log!("json_err {:?}", err);
                                             DotFileError::MalformedData(data.to_owned())
                                         })?;
-                                    node_data.insert(id.replacen("data", "", 1).to_owned(), value);
+                                    node_data.insert(id.replacen("data_", "", 1).to_owned(), value);
                                 }
                                 Attribute(Id::Plain(id), Id::Escaped(group))
                                     if id.starts_with("group") =>
@@ -172,6 +172,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                 id,
                 nodes,
                 edges,
+                node_groups: None,
                 computed_types: None,
             })
         }
@@ -186,7 +187,7 @@ fn to_node(node: &WbblWebappNode) -> Node {
         .iter()
         .map(|(k, v)| {
             let value = serde_json::to_string(v).unwrap();
-            let key = format!("data{}", k);
+            let key = format!("data_{}", k);
             let escaped: String = escape(&value).into();
             attr!(key, esc escaped)
         })

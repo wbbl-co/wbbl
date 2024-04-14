@@ -14,4 +14,5 @@ pub enum WbblWebappStoreError {
     ClipboardNotFound,
     ClipboardContentsFailure,
     SerializationFailure,
+    CannotDeleteOutputNode,
 }

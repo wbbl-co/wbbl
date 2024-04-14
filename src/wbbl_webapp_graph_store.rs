@@ -7,6 +7,7 @@ use std::{
 };
 
 use glam::Vec2;
+use graphviz_rust::dot_generator::node_id;
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
 use yrs::{types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut, Value};
@@ -737,6 +738,11 @@ impl WbblWebappGraphStore {
     pub fn remove_node(&mut self, node_id: &str) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
+            let node = get_map(&node_id, &mut_transaction, &self.nodes)?;
+            let type_name = get_atomic_string(&"type", &mut_transaction, &node)?;
+            if let Some(WbblWebappNodeType::Output) = from_type_name(&type_name) {
+                return Err(WbblWebappStoreError::CannotDeleteOutputNode);
+            }
             delete_node(
                 &mut mut_transaction,
                 node_id,

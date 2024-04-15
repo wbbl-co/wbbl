@@ -38,9 +38,9 @@ pub fn get_convex_hull(points: &mut Vec<Vec2>) -> Vec<Vec2> {
         } else if dot_ap == dot_bp {
             // Furtherest points go first
             if delta_ap.x + delta_ap.y > delta_bp.x + delta_bp.y {
-                Ordering::Less
-            } else {
                 Ordering::Greater
+            } else {
+                Ordering::Less
             }
         } else {
             Ordering::Less

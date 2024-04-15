@@ -1,4 +1,4 @@
-import ELK, { ElkNode, ElkPort } from "elkjs/lib/elk-api.js";
+import ELK, { ElkNode, ElkPort, LayoutOptions } from "elkjs/lib/elk-api.js";
 import { useCallback, useContext } from "react";
 import {
   WbblGraphStoreContext,
@@ -81,7 +81,6 @@ async function elkLayout(
 
   let children: Map<String, ElkNode[]> = new Map();
   let noGroup: ElkNode[] = [];
-  children.set("noGroup", []);
   for (let node of nodes) {
     if (!!node.groupId) {
       if (!children.has(node.groupId)) {
@@ -97,7 +96,14 @@ async function elkLayout(
     layoutOptions,
     children: noGroup.concat(
       [...children.entries()].map(
-        ([k, v]) => ({ id: k, children: [...v] }) as ElkNode,
+        ([k, v]) =>
+          ({
+            id: k,
+            children: [...v],
+            layoutOptions: {
+              ...layoutOptions,
+            } as LayoutOptions,
+          }) as ElkNode,
       ),
     ),
     edges: edges
@@ -123,16 +129,19 @@ async function elkLayout(
   const nextNodes = nodes
     .filter((x) => x.selected)
     .map((node) => {
-      let elkNode: ElkNode;
+      let position = { x: 0, y: 0 };
       if (!!node.groupId) {
-        elkNode = layoutNodes
-          .get(node.groupId)!
-          .children!.find((x) => x.id === node.id)!;
+        let groupNode = layoutNodes.get(node.groupId)!;
+        const elkNode = groupNode.children!.find((x) => x.id === node.id)!;
+        position = {
+          x: elkNode.x! + groupNode.x!,
+          y: elkNode.y! + groupNode.y!,
+        };
       } else {
-        elkNode = layoutNodes.get(node.id)!;
+        const elkNode = layoutNodes.get(node.id)!;
+        position = { x: elkNode.x!, y: elkNode.y! };
       }
 
-      const position = { x: elkNode.x!, y: elkNode.y! };
       return {
         id: node.id,
         position,

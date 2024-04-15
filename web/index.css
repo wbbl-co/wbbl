@@ -467,7 +467,7 @@ path.react-flow__edge-path {
         &.file-name-breadcrumb:hover,
         &.file-name-breadcrumb:focus-within,
         &.file-name-breadcrumb:focus {
-            color: var(--accent-9);
+            color: var(--accent-11);
         }
         &.file-name-breadcrumb {
             outline: none;
@@ -518,78 +518,12 @@ path.react-flow__edge-path {
     }
 }
 
-.frame-title-button {
-    color: var(--gray-10);
-    font-family: var(--brand-font-family);
-    @supports (-webkit-text-stroke: 1px var(--gray-10)) {
-        -webkit-text-stroke: 1px var(--gray-10);
-        -webkit-text-fill-color: transparent;
-    }
-    cursor: text !important;
-    &:hover,
-    &:focus {
-        background: var(--gray-a3);
-    }
-
-    .frame-text-editable:focus-within {
-        border: 0;
-        outline: none;
-        text-decoration: underline;
-    }
-
-    &:focus-within {
-        .frame-text-editable {
-            color: var(--gray-4);
-            @supports (-webkit-text-stroke: 1px var(--gray-4)) {
-                -webkit-text-stroke: 1px var(--gray-4);
-                -webkit-text-fill-color: transparent;
-            }
-            caret-color: var(--gray-3);
-            &::selection {
-                color: var(--gray-contrast);
-                background: var(--gray-9);
-            }
-        }
-    }
-}
-
-.frame-subtitle-button {
-    font-family: var(--code-font-family);
-    color: var(--yellow-11);
-    margin-top: var(--space-2);
-    text-align: left;
-    display: flex;
-    cursor: text !important;
-    justify-content: flex-start;
-    &:hover,
-    &:focus,
-    &:active {
-        background-color: transparent;
-    }
-
-    .frame-subtitle-text {
-        white-space: pre;
-        &::before {
-            content: "/*\A";
-            white-space: pre;
-        }
-        &::after {
-            content: "*/";
-            white-space: pre;
-        }
-        &:focus-within {
-            border: 0;
-            outline: none;
-            text-decoration: underline;
-        }
-        &:focus,
-        &:hover {
-            color: var(--yellow-11);
-        }
-        caret-color: var(--yellow-9);
-        &::selection {
-            color: var(--yellow-contrast);
-            background: var(--yellow-9);
-        }
-    }
+.react-flow__node-output {
+    width: unset;
+    height: unset;
+    padding: unset;
+    border-radius: unset;
+    font-size: unset;
+    color: unset;
+    text-align: unset;
 }

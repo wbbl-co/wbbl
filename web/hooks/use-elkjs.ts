@@ -19,9 +19,43 @@ const elk = new ELK({
   },
 });
 
+function getNode(internalNodes: Map<String, InternalNode>, node: Node) {
+  let handleBounds = internalNodes.get(node.id)?.internals.handleBounds;
+  return {
+    id: node.id,
+    width: node.measured?.width ?? 0,
+    height: node.measured?.height ?? 0,
+    layoutOptions: node.selected
+      ? {}
+      : ({
+          "elk.algorithm": "fixed",
+        } as { [key: string]: string }),
+    x: node.position.x,
+    y: node.position.y,
+    ports: (handleBounds?.source ?? [])
+      .map<ElkPort>(
+        (x) =>
+          ({
+            ...x,
+          }) as ElkPort,
+      )
+      .concat(
+        (handleBounds?.target ?? []).map<ElkPort>(
+          (x) =>
+            ({
+              ...x,
+            }) as ElkPort,
+        ),
+      )
+      .map((x) => {
+        return { ...x, id: `${node.id}#${x.id}` };
+      }) as ElkPort[],
+  };
+}
+
 async function elkLayout(
   internalNodes: Map<String, InternalNode>,
-  nodes: Node[],
+  nodes: (Node & { groupId?: string })[],
   edges: Edge[],
   edgeStyle: EdgeStyle,
 ) {
@@ -45,42 +79,27 @@ async function elkLayout(
     "elk.hierarchyHandling": "INCLUDE_CHILDREN",
   };
 
+  let children: Map<String, ElkNode[]> = new Map();
+  let noGroup: ElkNode[] = [];
+  children.set("noGroup", []);
+  for (let node of nodes) {
+    if (!!node.groupId) {
+      if (!children.has(node.groupId)) {
+        children.set(node.groupId, []);
+      }
+      children.get(node.groupId)!.push(getNode(internalNodes, node));
+    } else {
+      noGroup.push(getNode(internalNodes, node));
+    }
+  }
   const graph: ElkNode = {
     id: "elk-root",
     layoutOptions,
-    children: nodes.map((node) => {
-      let handleBounds = internalNodes.get(node.id)?.internals.handleBounds;
-      return {
-        id: node.id,
-        width: node.measured?.width ?? 0,
-        height: node.measured?.height ?? 0,
-        layoutOptions: node.selected
-          ? {}
-          : ({
-              "elk.algorithm": "fixed",
-            } as { [key: string]: string }),
-        x: node.position.x,
-        y: node.position.y,
-        ports: (handleBounds?.source ?? [])
-          .map<ElkPort>(
-            (x) =>
-              ({
-                ...x,
-              }) as ElkPort,
-          )
-          .concat(
-            (handleBounds?.target ?? []).map<ElkPort>(
-              (x) =>
-                ({
-                  ...x,
-                }) as ElkPort,
-            ),
-          )
-          .map((x) => {
-            return { ...x, id: `${node.id}#${x.id}` };
-          }) as ElkPort[],
-      };
-    }),
+    children: noGroup.concat(
+      [...children.entries()].map(
+        ([k, v]) => ({ id: k, children: [...v] }) as ElkNode,
+      ),
+    ),
     edges: edges
       .filter((edge) => nodeMap.has(edge.source) && nodeMap.has(edge.target))
       .map((edge) => ({
@@ -104,7 +123,15 @@ async function elkLayout(
   const nextNodes = nodes
     .filter((x) => x.selected)
     .map((node) => {
-      const elkNode = layoutNodes.get(node.id)!;
+      let elkNode: ElkNode;
+      if (!!node.groupId) {
+        elkNode = layoutNodes
+          .get(node.groupId)!
+          .children!.find((x) => x.id === node.id)!;
+      } else {
+        elkNode = layoutNodes.get(node.id)!;
+      }
+
       const position = { x: elkNode.x!, y: elkNode.y! };
       return {
         id: node.id,

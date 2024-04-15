@@ -1,17 +1,18 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     rc::Rc,
     str::FromStr,
     sync::Arc,
 };
 
-use glam::Vec2;
+use glam::{Mat2, Vec2};
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
-use yrs::{types::ToJson, Map, MapPrelim, MapRef, Transact, TransactionMut, Value};
+use yrs::{types::ToJson, Map, MapPrelim, MapRef, ReadTxn, Transact, TransactionMut, Value};
 
 use crate::{
+    convex_hull::{get_convex_hull, get_line_line_intersection},
     data_types::AbstractDataType,
     graph_transfer_types::{
         from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
@@ -194,6 +195,7 @@ impl WbblWebappGraphSnapshot {
         node_selections_map: &yrs::MapRef,
         edge_selections_map: &yrs::MapRef,
         node_groups_map: &yrs::MapRef,
+        computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
         client_id: u64,
     ) -> Result<WbblWebappGraphSnapshot, WbblWebappStoreError> {
         let mut nodes: Vec<WbblWebappNode> = Vec::new();
@@ -249,8 +251,16 @@ impl WbblWebappGraphSnapshot {
                 prev.push(id);
                 Ok(prev)
             })?;
+            let path = get_group_path(
+                read_txn,
+                key,
+                nodes_map_ref,
+                &node_groups_map,
+                computed_node_sizes,
+            )?;
             groups.push(WbblWebappNodeGroup {
                 id: key_uuid.as_u128(),
+                path: Some(path),
                 nodes,
             })
         }
@@ -494,6 +504,170 @@ fn delete_node(
     Ok(())
 }
 
+pub fn get_group_bounds(
+    txn: &mut TransactionMut,
+    group_id: &str,
+    nodes: &MapRef,
+    node_groups: &mut MapRef,
+    computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
+) -> Result<Vec<f32>, WbblWebappStoreError> {
+    let mut min_position = Vec2::new(f32::MAX, f32::MAX);
+    let mut max_position = Vec2::new(f32::MIN, f32::MIN);
+
+    let group = get_map(group_id, txn, &node_groups)?;
+    let node_ids: Vec<String> = group.keys(txn).map(|k| k.to_owned()).collect();
+    for node_id in node_ids {
+        match get_map(&node_id, txn, nodes) {
+            Ok(map) => {
+                let node_id_u128 = uuid::Uuid::parse_str(&node_id)
+                    .map_err(|_| WbblWebappStoreError::MalformedId)?
+                    .as_u128();
+                if let Some(WbbleComputedNodeSize {
+                    width: Some(w),
+                    height: Some(h),
+                }) = computed_node_sizes.get(&node_id_u128)
+                {
+                    let min_pos_x = get_float_64("x", txn, &map)? as f32;
+                    let max_pos_x = min_pos_x + (*w as f32);
+                    if min_pos_x < min_position.x {
+                        min_position.x = min_pos_x;
+                    }
+                    if max_pos_x > max_position.x {
+                        max_position.x = max_pos_x;
+                    }
+                    let min_pos_y = get_float_64("y", txn, &map)? as f32;
+                    let max_pos_y = min_pos_y + (*h as f32);
+                    if min_pos_y < min_position.y {
+                        min_position.y = min_pos_y;
+                    }
+                    if max_pos_y > max_position.y {
+                        max_position.y = max_pos_y;
+                    }
+                }
+            }
+            Err(WbblWebappStoreError::NotFound) => {}
+            Err(err) => return Err(err),
+        };
+    }
+    Ok(Vec::from([
+        min_position.x,
+        min_position.y,
+        max_position.x,
+        min_position.y,
+        max_position.x,
+        max_position.y,
+        min_position.x,
+        max_position.y,
+    ]))
+}
+
+pub fn get_group_convex_hull<Txn: ReadTxn>(
+    txn: &Txn,
+    group_id: &str,
+    nodes: &MapRef,
+    node_groups: &MapRef,
+    computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
+) -> Result<Vec<Vec2>, WbblWebappStoreError> {
+    let mut positions: Vec<Vec2> = Vec::new();
+    let group = get_map(group_id, txn, &node_groups)?;
+    let node_ids: Vec<String> = group.keys(txn).map(|k| k.to_owned()).collect();
+    for node_id in node_ids {
+        match get_map(&node_id, txn, nodes) {
+            Ok(map) => {
+                let node_id_u128 = uuid::Uuid::parse_str(&node_id)
+                    .map_err(|_| WbblWebappStoreError::MalformedId)?
+                    .as_u128();
+                if let Some(WbbleComputedNodeSize {
+                    width: Some(w),
+                    height: Some(h),
+                }) = computed_node_sizes.get(&node_id_u128)
+                {
+                    let min_pos_x = get_float_64("x", txn, &map)? as f32;
+                    let max_pos_x = min_pos_x + (*w as f32);
+
+                    let min_pos_y = get_float_64("y", txn, &map)? as f32;
+                    let max_pos_y = min_pos_y + (*h as f32);
+                    positions.push(Vec2 {
+                        x: min_pos_x,
+                        y: min_pos_y,
+                    });
+
+                    positions.push(Vec2 {
+                        x: max_pos_x,
+                        y: max_pos_y,
+                    });
+
+                    positions.push(Vec2 {
+                        x: min_pos_x,
+                        y: max_pos_y,
+                    });
+
+                    positions.push(Vec2 {
+                        x: max_pos_x,
+                        y: min_pos_y,
+                    });
+                }
+            }
+            Err(WbblWebappStoreError::NotFound) => {}
+            Err(err) => return Err(err),
+        };
+    }
+
+    Ok(get_convex_hull(&mut positions))
+}
+
+const INFLATE_GROUP_PATH_BY: f32 = 25.0;
+
+pub fn get_group_path<Txn: ReadTxn>(
+    txn: &Txn,
+    group_id: &str,
+    nodes: &MapRef,
+    node_groups: &MapRef,
+    computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
+) -> Result<String, WbblWebappStoreError> {
+    let convex_hull =
+        get_group_convex_hull(txn, group_id, nodes, node_groups, computed_node_sizes)?;
+
+    if convex_hull.len() > 2 {
+        let first = convex_hull[0];
+        let second = convex_hull[1];
+        let delta_first_second = second - first;
+        let first_second_tangent = Vec2::new(-delta_first_second.y, delta_first_second.x)
+            .normalize()
+            * INFLATE_GROUP_PATH_BY;
+        let first_1 = first_second_tangent + first;
+        let mut result = format!("M {} {}", first_1.x, first_1.y);
+        let mut i = 1;
+        while i <= convex_hull.len() {
+            let prev = convex_hull[i - 1];
+            let current = convex_hull[i % convex_hull.len()];
+            let wrapped_index = (i + 1) % convex_hull.len();
+            let next = convex_hull[wrapped_index];
+            let delta_current_prev = current.clone() - prev.clone();
+            let delta_next_current = next - current.clone();
+            let tangent_prev = INFLATE_GROUP_PATH_BY
+                * Vec2::new(-delta_current_prev.y, delta_current_prev.x).normalize();
+            let tangent_next = INFLATE_GROUP_PATH_BY
+                * Vec2::new(-delta_next_current.y, delta_next_current.x).normalize();
+            let prev = prev + tangent_prev;
+            let current_1 = current + tangent_prev;
+            let current_2 = current + tangent_next;
+            let next = next + tangent_next;
+            let intersection = get_line_line_intersection(&prev, &current_1, &current_2, &next);
+            result.push_str(&format!("L {} {}", current_1.x, current_1.y));
+            result.push_str(&format!(
+                "Q {} {}, {} {}",
+                intersection.x, intersection.y, current_2.x, current_2.y
+            ));
+            i += 1;
+        }
+
+        result.push('Z');
+        return Ok(result);
+    }
+    return Ok("".to_owned());
+}
+
 impl WbblWebappEdge {
     pub(crate) fn decode<Txn: yrs::ReadTxn>(
         key: u128,
@@ -674,9 +848,6 @@ impl WbblWebappGraphStore {
             )
             .unwrap();
 
-        store.undo_manager.include_origin(store.graph.client_id()); // only track changes originating from local peer
-        store.undo_manager.expand_scope(&store.edges);
-        store.undo_manager.expand_scope(&store.node_groups);
         {
             let mut txn_mut = store.graph.transact_mut();
 
@@ -694,6 +865,10 @@ impl WbblWebappGraphStore {
             store.undo_manager.expand_scope(&local_node_selections);
             store.undo_manager.expand_scope(&local_edge_selections);
         }
+        store.undo_manager.include_origin(store.graph.client_id()); // only track changes originating from local peer
+        store.undo_manager.expand_scope(&store.edges);
+        store.undo_manager.expand_scope(&store.node_groups);
+
         store.initialized = true;
         store.emit(true).unwrap();
         store
@@ -884,6 +1059,7 @@ impl WbblWebappGraphStore {
             &self.node_selections,
             &self.edge_selections,
             &self.node_groups,
+            &self.computed_node_sizes,
             self.graph.client_id(),
         )?;
         for node in snapshot.nodes.iter_mut() {
@@ -1199,6 +1375,12 @@ impl WbblWebappGraphStore {
             for node_id in selected_nodes.iter() {
                 match get_map(&node_id, &mut_transaction, &self.nodes) {
                     Ok(node) => {
+                        remove_node_from_group(
+                            &mut mut_transaction,
+                            node_id,
+                            &node,
+                            &mut self.node_groups,
+                        )?;
                         node.insert(&mut mut_transaction, "group_id", group_id.clone());
                     }
                     Err(WbblWebappStoreError::NotFound) => {}
@@ -1246,47 +1428,6 @@ impl WbblWebappGraphStore {
         }
         self.emit(false)?;
         Ok(())
-    }
-
-    pub fn get_group_bounds(&self, group_id: &str) -> Result<Vec<f32>, WbblWebappStoreError> {
-        let mut min_position = Vec2::new(f32::MAX, f32::MAX);
-        let mut max_position = Vec2::new(f32::MIN, f32::MIN);
-        let txn = self.graph.transact();
-        let group = get_map(group_id, &txn, &self.node_groups)?;
-        let node_ids: Vec<String> = group.keys(&txn).map(|k| k.to_owned()).collect();
-        for node_id in node_ids {
-            match get_map(&node_id, &txn, &self.nodes) {
-                Ok(map) => {
-                    // let dimensions = self.computed_node_sizes.get(uuid::Uuid::parse_str(node_id).unwrap())
-                    let pos_x = get_float_64("x", &txn, &map)?;
-                    if (pos_x as f32) < min_position.x {
-                        min_position.x = pos_x as f32;
-                    }
-                    if (pos_x as f32) > max_position.x {
-                        max_position.x = pos_x as f32;
-                    }
-                    let pos_y = get_float_64("y", &txn, &map)?;
-                    if (pos_y as f32) < min_position.y {
-                        min_position.y = pos_y as f32;
-                    }
-                    if (pos_y as f32) > max_position.y {
-                        max_position.y = pos_y as f32;
-                    }
-                }
-                Err(WbblWebappStoreError::NotFound) => {}
-                Err(err) => return Err(err),
-            };
-        }
-        Ok(Vec::from([
-            min_position.x,
-            min_position.y,
-            max_position.x,
-            min_position.y,
-            max_position.x,
-            max_position.y,
-            min_position.x,
-            max_position.y,
-        ]))
     }
 
     #[cfg(web_sys_unstable_apis)]

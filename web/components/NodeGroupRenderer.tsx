@@ -1,9 +1,7 @@
 import { useViewport } from "@xyflow/react";
-import { useContext } from "react";
-import { WbblGraphStoreContext } from "../hooks/use-wbbl-graph-store";
 
 type NodeGroupRendererProps = {
-  groups: { id: string }[];
+  groups: { id: string; path?: string }[];
   width: number;
   height: number;
 };
@@ -13,7 +11,6 @@ export function NodeGroupRenderer({
   height,
 }: NodeGroupRendererProps) {
   const viewport = useViewport();
-  const graphStore = useContext(WbblGraphStoreContext);
   return (
     <svg
       id="group-renderer"
@@ -26,18 +23,37 @@ export function NodeGroupRenderer({
         left: 0,
         top: 0,
         transformOrigin: "0 0",
+        zIndex: -1,
         transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
       }}
     >
+      <defs>
+        <pattern
+          id="diagonalHatch"
+          patternUnits="userSpaceOnUse"
+          width="8"
+          height="8"
+          stroke="currentcolor"
+        >
+          <line
+            x1="0"
+            y1="0"
+            x2="8"
+            y2="8"
+            style={{ stroke: "var(--lime-a4)", strokeWidth: 1 }}
+          />
+        </pattern>
+      </defs>
       {groups.map((g) => {
-        let bounds = graphStore.get_group_bounds(g.id);
-        let path: string = `M ${bounds[0]} ${bounds[1]}`;
-        for (let i = 2; i < bounds.length - 1; i += 2) {
-          path += ` L ${bounds[i]} ${bounds[i + 1]}`;
-        }
-        path += ` Z`;
-
-        return <path key={g.id} fill="red" stroke="blue" d={path} />;
+        return (
+          <path
+            key={g.path ?? ""}
+            strokeWidth={"2"}
+            fill="url(#diagonalHatch)"
+            stroke="var(--lime-9)"
+            d={g.path ?? ""}
+          />
+        );
       })}
     </svg>
   );

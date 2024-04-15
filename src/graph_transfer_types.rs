@@ -448,6 +448,7 @@ pub struct WbblWebappNodeGroup {
         deserialize_with = "string_to_uuid_vec"
     )]
     pub nodes: Vec<u128>,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -663,6 +664,7 @@ impl WbblWebappGraphSnapshot {
                         .filter(|n| n.group_id == Some(*group_id))
                         .map(|n| n.id)
                         .collect(),
+                    path: None,
                 })
                 .collect(),
         );

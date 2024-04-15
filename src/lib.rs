@@ -6,6 +6,7 @@ pub mod compiler_constants;
 pub mod compute_rasterizer;
 pub mod constraint_solver;
 pub mod constraint_solver_constraints;
+pub(crate) mod convex_hull;
 pub mod data_types;
 pub(crate) mod dot_converter;
 pub mod gltf_encoder;

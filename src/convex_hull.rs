@@ -1,6 +1,9 @@
 use std::{cmp::Ordering, collections::VecDeque};
 
 use glam::{Mat2, Vec2};
+use wgpu::naga::front;
+
+use crate::log;
 
 fn ccw(a: &Vec2, b: &Vec2, c: &Vec2) -> f32 {
     let delta_ba = b.extend(0.0) - a.extend(0.0);
@@ -12,7 +15,7 @@ pub fn get_convex_hull(points: &mut Vec<Vec2>) -> Vec<Vec2> {
     if points.len() == 0 {
         return vec![];
     }
-    let mut lowest_point = points[0].clone();
+    let mut lowest_point = Vec2::MAX;
     for p in points.iter() {
         if p.y < lowest_point.y {
             lowest_point = p.clone();
@@ -24,23 +27,26 @@ pub fn get_convex_hull(points: &mut Vec<Vec2>) -> Vec<Vec2> {
     points.sort_unstable_by(|a, b| {
         let delta_ap = *a - lowest_point;
         let delta_bp = *b - lowest_point;
-        if delta_ap.x + delta_ap.y == 0.0 {
+        let manhattan_ap = f32::abs(delta_ap.x) + f32::abs(delta_ap.y);
+        let manhattan_bp = f32::abs(delta_bp.x) + f32::abs(delta_bp.y);
+        if manhattan_ap == 0.0 {
             return Ordering::Less;
         }
-        if delta_bp.x + delta_bp.y == 0.0 {
+        if manhattan_bp == 0.0 {
             return Ordering::Greater;
         }
         let dot_ap = delta_ap.normalize().dot(x_axis);
         let dot_bp = delta_bp.normalize().dot(x_axis);
-
         if dot_ap < dot_bp {
             Ordering::Greater
         } else if dot_ap == dot_bp {
             // Furtherest points go first
-            if delta_ap.x + delta_ap.y > delta_bp.x + delta_bp.y {
-                Ordering::Greater
-            } else {
+            if manhattan_ap > manhattan_bp {
                 Ordering::Less
+            } else if manhattan_ap == manhattan_bp {
+                Ordering::Equal
+            } else {
+                Ordering::Greater
             }
         } else {
             Ordering::Less
@@ -48,9 +54,12 @@ pub fn get_convex_hull(points: &mut Vec<Vec2>) -> Vec<Vec2> {
     });
 
     let mut stack = VecDeque::new();
-    for p in points {
+    for p in points.iter() {
         while stack.len() > 1 {
-            if ccw(stack.get(1).unwrap(), stack.front().unwrap(), p) > 0.0 {
+            let next = stack.get(1).unwrap();
+            let current = stack.front().unwrap();
+            let c = ccw(next, current, p);
+            if c > 0.0 || (c == 0.0 && p.length_squared() < current.length_squared()) {
                 break;
             }
             stack.pop_front();

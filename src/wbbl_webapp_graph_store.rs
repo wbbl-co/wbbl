@@ -639,10 +639,9 @@ pub fn get_group_path<Txn: ReadTxn>(
         let mut result = format!("M {} {}", first_1.x, first_1.y);
         let mut i = 1;
         while i <= convex_hull.len() {
-            let prev = convex_hull[i - 1];
+            let prev = convex_hull[(i - 1) % convex_hull.len()];
             let current = convex_hull[i % convex_hull.len()];
-            let wrapped_index = (i + 1) % convex_hull.len();
-            let next = convex_hull[wrapped_index];
+            let next = convex_hull[(i + 1) % convex_hull.len()];
             let delta_current_prev = current.clone() - prev.clone();
             let delta_next_current = next - current.clone();
             let tangent_prev = INFLATE_GROUP_PATH_BY

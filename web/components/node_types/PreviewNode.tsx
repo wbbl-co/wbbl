@@ -9,12 +9,12 @@ function PreviewNode(props: NodeProps) {
   const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
   useLayoutEffect(() => {
     if (canvasRef) {
-      let offscreenCanvas = canvasRef.transferControlToOffscreen();
-      let msg: RegisterCanvas = { nodeId: props.id, offscreenCanvas };
+      const offscreenCanvas = canvasRef.transferControlToOffscreen();
+      const msg: RegisterCanvas = { nodeId: props.id, offscreenCanvas };
       graphWorker.postMessage({ RegisterCanvas: msg }, [offscreenCanvas]);
 
       return () => {
-        let deregisterMessage: DeregisterCanvas = { nodeId: props.id };
+        const deregisterMessage: DeregisterCanvas = { nodeId: props.id };
         graphWorker.postMessage({ DeregisterCanvas: deregisterMessage });
       };
     }

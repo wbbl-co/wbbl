@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 export function useScreenDimensions(): { width: number; height: number } {
-  let [dimensions, setDimensions] = useState<{
+  const [dimensions, setDimensions] = useState<{
     width: number;
     height: number;
   }>({ width: window.innerWidth, height: window.innerHeight });

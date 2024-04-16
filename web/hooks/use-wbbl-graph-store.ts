@@ -16,17 +16,17 @@ export const WbblSnapshotContext = createContext<
 export type WbblWebappGraphSnapshot = {
   edges: Edge[];
   nodes: (Node & { groupId?: string })[];
-  node_groups: { id: string; nodes: Array<String> };
+  node_groups: { id: string; nodes: Array<string>; path?: string }[];
   computed_types: Map<string, unknown>;
 };
 
 export function useWbblGraphData(
   store: WbblWebappGraphStore,
 ): WbblWebappGraphSnapshot {
-  let data = useRef<WbblWebappGraphSnapshot>();
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
-  let subscribe = useCallback(
+  const data = useRef<WbblWebappGraphSnapshot>();
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
         cacheHandle.current = store.subscribe(() => {
@@ -34,7 +34,7 @@ export function useWbblGraphData(
         });
       }
       count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
+      const handle = store.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
@@ -46,9 +46,9 @@ export function useWbblGraphData(
     [store],
   );
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current == undefined) {
-      let snapshot = store.get_snapshot();
+      const snapshot = store.get_snapshot();
       data.current = snapshot;
     }
     return data.current!;
@@ -60,7 +60,7 @@ export function useWbblGraphData(
 export function useWbblGraphDataWithSelector<T>(
   selector: (snapshot: WbblWebappGraphSnapshot) => T,
 ): T | undefined {
-  let snapshot = useContext(WbblSnapshotContext);
+  const snapshot = useContext(WbblSnapshotContext);
   return useMemo(() => {
     if (snapshot) {
       return selector(snapshot);
@@ -93,7 +93,7 @@ export function areNodePropsEqual(
     data: any;
   },
 ) {
-  for (let prop of shallowProps) {
+  for (const prop of shallowProps) {
     if (oldProps[prop] !== newProps[prop]) {
       return false;
     }
@@ -102,13 +102,13 @@ export function areNodePropsEqual(
   if (oldProps.data.size !== newProps.data.size) {
     return false;
   }
-  for (let key of oldProps.data.keys()) {
-    let oldValue = oldProps.data.get(key);
-    let newValue = newProps.data.get(key);
+  for (const key of oldProps.data.keys()) {
+    const oldValue = oldProps.data.get(key);
+    const newValue = newProps.data.get(key);
     if (typeof oldValue == "object") {
-      for (let subkey of Object.keys(oldValue as object)) {
-        let oldSubValue = (oldValue as Record<string, unknown>)[subkey];
-        let newSubValue = (newValue as Record<string, unknown>)[subkey];
+      for (const subkey of Object.keys(oldValue as object)) {
+        const oldSubValue = (oldValue as Record<string, unknown>)[subkey];
+        const newSubValue = (newValue as Record<string, unknown>)[subkey];
         if (oldSubValue !== newSubValue) {
           return false;
         }

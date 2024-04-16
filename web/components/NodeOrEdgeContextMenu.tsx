@@ -1,12 +1,3 @@
-import {
-  ClipboardDocumentIcon,
-  DocumentDuplicateIcon,
-  EyeIcon,
-  LifebuoyIcon,
-  StarIcon,
-  TrashIcon,
-  ScissorsIcon,
-} from "@heroicons/react/24/solid";
 import { ContextMenu } from "@radix-ui/themes";
 import {
   MouseEventHandler,
@@ -20,7 +11,6 @@ import {
 } from "react";
 import { WbblGraphStoreContext } from "../hooks/use-wbbl-graph-store";
 import { nodeMetaData } from "./node_types";
-import { RectangleGroupIcon } from "@heroicons/react/16/solid";
 import {
   WbblPreferencesStoreContext,
   useIsFavouritePreference,
@@ -32,11 +22,20 @@ import formatKeybinding from "../utils/format-keybinding";
 import { useScopedShortcut } from "../hooks/use-shortcut";
 import { useElkJs } from "../hooks/use-elkjs";
 import keybindingDescriptors from "../keybind-descriptors";
-import { Squares2X2Icon } from "@heroicons/react/24/solid";
 import { useReactFlow } from "@xyflow/react";
-import { PlusIcon } from "@heroicons/react/24/solid";
 import { JUNCTION_HEIGHT, JUNCTION_WIDTH } from "./node_types/JunctionNode";
 import { isHotkeyPressed } from "react-hotkeys-hook";
+import MicroGroupIcon from "./icons/micro/MicroGroupIcon";
+import MicroCleanIcon from "./icons/micro/MicroCleanIcon";
+import MicroTrashIcon from "./icons/micro/MicroTrashIcon";
+import MicroHelpIcon from "./icons/micro/MicroHelpIcon";
+import MicroAddIcon from "./icons/micro/MicroAddIcon";
+import MicroUnbookmarkIcon from "./icons/micro/MicroUnbookmarkIcon";
+import MicroBookmarkIcon from "./icons/micro/MicroBookmarkIcon";
+import MicroCutIcon from "./icons/micro/MicroCutIcon";
+import MicroCopyPasteIcon from "./icons/micro/MicroCopyPasteIcon";
+import MicroDuplicateIcon from "./icons/micro/MicroDuplicateIcon";
+import MicroPreviewIcon from "./icons/micro/MicroPreviewIcon";
 
 function getSelectionCountLabel(edges: number, nodes: number) {
   if (nodes > 0 && edges > 0) {
@@ -103,8 +102,8 @@ function NodeOrEdgeContextMenu(
   ] = useState<[number, number, boolean]>([0, 0, false]);
   useEffect(() => {
     const handle = setTimeout(() => {
-      let selectedNodes = graphStore.get_locally_selected_nodes();
-      let selectedEdges = graphStore.get_locally_selected_edges();
+      const selectedNodes = graphStore.get_locally_selected_nodes();
+      const selectedEdges = graphStore.get_locally_selected_edges();
       if (props.isEdge) {
         setCounts([
           selectedEdges.length,
@@ -259,16 +258,6 @@ function NodeOrEdgeContextMenu(
     WbblWebappNodeType.Junction,
   );
 
-  // const groupNodesShortcut = useKeyBinding(
-  //   preferencesStore,
-  //   KeyboardShortcut.GroupNodes,
-  // );
-
-  // const ungroupNodesShortcut = useKeyBinding(
-  //   preferencesStore,
-  //   KeyboardShortcut.UngroupNodes,
-  // );
-
   const helpShortcut = useKeyBinding(preferencesStore, KeyboardShortcut.Help);
   const linkToPreviewShortcut = useKeyBinding(
     preferencesStore,
@@ -297,7 +286,7 @@ function NodeOrEdgeContextMenu(
   const flow = useReactFlow();
   const makeJunction = useCallback<MouseEventHandler>(
     (evt) => {
-      let pos = flow.screenToFlowPosition(
+      const pos = flow.screenToFlowPosition(
         {
           x: evt.clientX - JUNCTION_WIDTH / 2,
           y: evt.clientY - JUNCTION_HEIGHT / 2,
@@ -319,7 +308,7 @@ function NodeOrEdgeContextMenu(
         {!currentNodeOrEdgeExclusivelySelected && (
           <>
             <ContextMenu.Item disabled>
-              <RectangleGroupIcon width={"1em"} />
+              <MicroGroupIcon />
               {getSelectionCountLabel(selectedEdgesCount, selectedNodesCount)}
             </ContextMenu.Item>
             <ContextMenu.Separator />
@@ -333,7 +322,7 @@ function NodeOrEdgeContextMenu(
                       : undefined
                   }
                 >
-                  <Squares2X2Icon width={"1em"} />
+                  <MicroCleanIcon />
                   {keybindingDescriptors[KeyboardShortcut.AutoLayout]}
                 </ContextMenu.Item>
                 <ContextMenu.Separator />
@@ -353,7 +342,7 @@ function NodeOrEdgeContextMenu(
                 }
                 onClick={linkToPreview}
               >
-                <EyeIcon width={"1em"} /> Link to Preview
+                <MicroPreviewIcon /> Link to Preview
               </ContextMenu.Item>
               <ContextMenu.Separator />
             </>
@@ -369,7 +358,7 @@ function NodeOrEdgeContextMenu(
               }
               onClick={duplicateNodeOrSelection}
             >
-              <DocumentDuplicateIcon width={"1em"} /> Duplicate
+              <MicroDuplicateIcon /> Duplicate
             </ContextMenu.Item>
             <ContextMenu.Item
               onClick={copyNodeOrSelection}
@@ -377,13 +366,13 @@ function NodeOrEdgeContextMenu(
                 copyShortcut ? formatKeybinding(copyShortcut) : undefined
               }
             >
-              <ClipboardDocumentIcon width={"1em"} /> Copy
+              <MicroCopyPasteIcon /> Copy
             </ContextMenu.Item>
             <ContextMenu.Item
               onClick={cutNodeOrSelection}
               shortcut={cutShortcut ? formatKeybinding(cutShortcut) : undefined}
             >
-              <ScissorsIcon width={"1em"} /> Cut
+              <MicroCutIcon /> Cut
             </ContextMenu.Item>
           </>
         )}
@@ -394,8 +383,12 @@ function NodeOrEdgeContextMenu(
             <>
               <ContextMenu.Separator />
               <ContextMenu.Item onClick={toggleFavourites} color="yellow">
-                <StarIcon width={"1em"} />
-                {!isFavouriteDeferred ? "Favourite" : "Unfavourite"}
+                {isFavouriteDeferred ? (
+                  <MicroUnbookmarkIcon />
+                ) : (
+                  <MicroBookmarkIcon />
+                )}
+                {!isFavouriteDeferred ? "Bookmark" : "Unbookmark"}
               </ContextMenu.Item>
             </>
           )}
@@ -409,7 +402,7 @@ function NodeOrEdgeContextMenu(
                   : undefined
               }
             >
-              <PlusIcon width={"1em"} /> Make Junction
+              <MicroAddIcon /> Make Junction
             </ContextMenu.Item>
             <ContextMenu.Separator />
           </>
@@ -418,7 +411,7 @@ function NodeOrEdgeContextMenu(
           <ContextMenu.Item
             shortcut={helpShortcut ? formatKeybinding(helpShortcut) : undefined}
           >
-            <LifebuoyIcon width={"1em"} /> Help
+            <MicroHelpIcon /> Help
           </ContextMenu.Item>
         )}
 
@@ -434,7 +427,7 @@ function NodeOrEdgeContextMenu(
               }
               color="red"
             >
-              <TrashIcon width={"1em"} /> Delete
+              <MicroTrashIcon /> Delete
             </ContextMenu.Item>
           </>
         )}

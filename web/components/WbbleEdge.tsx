@@ -125,16 +125,16 @@ export default function WbbleEdge({
       let endPos = { x: targetX + HALF_PORT_SIZE, y: targetY };
       if (isWbblEffectEnabled) {
         const handleStart = portRefStore.get(`${source}#${sourceHandleId}`);
-        let rectStart = handleStart?.getBoundingClientRect();
+        const rectStart = handleStart?.getBoundingClientRect();
         if (rectStart && rectStart.width > 0) {
-          let startPos1 = flow.screenToFlowPosition(
+          const startPos1 = flow.screenToFlowPosition(
             {
               x: rectStart.left,
               y: rectStart.top,
             },
             { snapToGrid: false },
           );
-          let startPos2 = flow.screenToFlowPosition(
+          const startPos2 = flow.screenToFlowPosition(
             {
               x: rectStart.right,
               y: rectStart.bottom,
@@ -147,16 +147,16 @@ export default function WbbleEdge({
           };
         }
         const handleEnd = portRefStore.get(`${target}#${targetHandleId}`);
-        let rectEnd = handleEnd?.getBoundingClientRect();
+        const rectEnd = handleEnd?.getBoundingClientRect();
         if (rectEnd && rectEnd.width > 0) {
-          let endPos1 = flow.screenToFlowPosition(
+          const endPos1 = flow.screenToFlowPosition(
             {
               x: rectEnd.left,
               y: rectEnd.top,
             },
             { snapToGrid: false },
           );
-          let endPos2 = flow.screenToFlowPosition(
+          const endPos2 = flow.screenToFlowPosition(
             {
               x: rectEnd.right,
               y: rectEnd.bottom,

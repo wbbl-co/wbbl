@@ -1,6 +1,6 @@
-import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { Flex, Text, Link, Button } from "@radix-ui/themes";
 import { FocusEventHandler, useCallback, useRef, useState } from "react";
+import MicroChevronRight from "./icons/micro/MicroChevronRight";
 
 export default function Breadcrumb() {
   const [edit, setEdit] = useState(false);
@@ -50,8 +50,7 @@ export default function Breadcrumb() {
   const onBlur = useCallback<FocusEventHandler<HTMLDivElement>>(
     (evt) => {
       const value = (evt.target.innerText ?? "").trim();
-      if (value.length > 0) {
-      } else {
+      if (value.length <= 0) {
         if (documentTitleRef.current) {
           documentTitleRef.current.innerText = oldValue.current;
         }
@@ -68,7 +67,12 @@ export default function Breadcrumb() {
           Project Name
         </Text>
       </Link>
-      <ChevronRightIcon color="var(--gray-6)" strokeWidth={"4"} width={"2em"} />
+      <MicroChevronRight
+        color="var(--gray-6)"
+        strokeWidth={"4"}
+        width={"1.4em"}
+        height={"1.4em"}
+      />
       <Button
         variant="ghost"
         onClick={onEditStart}

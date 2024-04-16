@@ -48,7 +48,7 @@ function TargetPort(props: TargetPortProps) {
   });
 
   const isHandleConnectable = useMemo(() => {
-    let result =
+    const result =
       connections.length == 0 &&
       !!handlePortType &&
       !!portType &&
@@ -80,8 +80,8 @@ function TargetPort(props: TargetPortProps) {
     () => ({
       top: `calc(${props.top}px - 0.8em)`,
       left: 1.8 * PORT_SIZE,
-      position: "absolute" as "absolute",
-      textAlign: "left" as "left",
+      position: "absolute" as const,
+      textAlign: "left" as const,
       fontSize: "0.8em",
       fontFamily: "var(--code-font-family)",
       fontStyle: "italic",

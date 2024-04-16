@@ -43,7 +43,7 @@ export function useCardWbbl({
         Math.max(0.0, (time - lastUpdate.current) / 1000.0),
       );
       if (isWbblEffectEnabled) {
-        let pos = flow.screenToFlowPosition(
+        const pos = flow.screenToFlowPosition(
           { x: mousePosition.current[0], y: mousePosition.current[1] },
           { snapToGrid: false },
         );
@@ -54,7 +54,7 @@ export function useCardWbbl({
           selected ? new Float32Array([pos.x, pos.y]) : undefined,
         );
         if (contentsRef.current) {
-          let skew = box.get_skew(new Float32Array([w, h]));
+          const skew = box.get_skew(new Float32Array([w, h]));
           contentsRef.current.style.transform = skew;
         }
 

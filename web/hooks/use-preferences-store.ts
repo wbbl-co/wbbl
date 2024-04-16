@@ -26,11 +26,11 @@ export type ThemePreferences = {
 export function useThemePreferences(
   store: WbblWebappPreferencesStore,
 ): ThemePreferences {
-  let data = useRef<Omit<ThemePreferences, "currentTheme">>();
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
+  const data = useRef<Omit<ThemePreferences, "currentTheme">>();
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
 
-  let subscribe = useCallback(
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
         cacheHandle.current = store.subscribe(() => {
@@ -38,7 +38,7 @@ export function useThemePreferences(
         });
       }
       count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
+      const handle = store.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
@@ -50,9 +50,9 @@ export function useThemePreferences(
     [store],
   );
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      let baseTheme = store.get_base_theme();
+      const baseTheme = store.get_base_theme();
       data.current = { baseTheme, variables: {} };
     }
     return data.current;
@@ -71,7 +71,7 @@ export function useThemePreferences(
 
   useEffect(() => {
     if (snapshot.baseTheme === BaseTheme.System) {
-      let query = window.matchMedia("(prefers-color-scheme: dark)");
+      const query = window.matchMedia("(prefers-color-scheme: dark)");
       setEnrichedWithSystemThemeSnapshot({
         ...snapshot,
         currentTheme: query.matches ? BaseTheme.Dark : BaseTheme.Light,
@@ -107,11 +107,11 @@ export type KeyboardPreferences = {
 export function useKeyboardPreferences(
   store: WbblWebappPreferencesStore,
 ): KeyboardPreferences {
-  let data = useRef<KeyboardPreferences>();
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
+  const data = useRef<KeyboardPreferences>();
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
 
-  let subscribe = useCallback(
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
         cacheHandle.current = store.subscribe(() => {
@@ -119,7 +119,7 @@ export function useKeyboardPreferences(
         });
       }
       count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
+      const handle = store.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
@@ -131,13 +131,13 @@ export function useKeyboardPreferences(
     [store],
   );
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      let keys = store.get_keybindings() as Map<
+      const keys = store.get_keybindings() as Map<
         KeyboardShortcut,
         string | null | undefined
       >;
-      let node_keys = store.get_node_keybindings() as Map<
+      const node_keys = store.get_node_keybindings() as Map<
         string,
         string | null | undefined
       >;
@@ -154,11 +154,11 @@ export function useKeyboardPreferences(
 export function useFavouritesPreferences(
   store: WbblWebappPreferencesStore,
 ): WbblWebappNodeType[] {
-  let data = useRef<WbblWebappNodeType[]>();
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
+  const data = useRef<WbblWebappNodeType[]>();
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
 
-  let subscribe = useCallback(
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
         cacheHandle.current = store.subscribe(() => {
@@ -166,7 +166,7 @@ export function useFavouritesPreferences(
         });
       }
       count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
+      const handle = store.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
@@ -178,9 +178,9 @@ export function useFavouritesPreferences(
     [store],
   );
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      let favourites = store.get_favourites();
+      const favourites = store.get_favourites();
       data.current = favourites;
     }
     return data.current;
@@ -196,11 +196,11 @@ export function useIsFavouritePreference(
   type: WbblWebappNodeType | undefined,
   isOpen: boolean,
 ): boolean {
-  let data = useRef<boolean | undefined>(undefined);
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
+  const data = useRef<boolean | undefined>(undefined);
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
 
-  let subscribe = useCallback(
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (type) {
         if (count.current == 0) {
@@ -209,7 +209,7 @@ export function useIsFavouritePreference(
           });
         }
         count.current = count.current + 1;
-        let handle = store.subscribe(subscriber);
+        const handle = store.subscribe(subscriber);
         return () => {
           count.current = count.current - 1;
           if (count.current === 0) {
@@ -229,9 +229,9 @@ export function useIsFavouritePreference(
     }
   }, [type, isOpen]);
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current === undefined && type) {
-      let favourite = store.is_favourite(type);
+      const favourite = store.is_favourite(type);
       data.current = favourite;
     }
     return data.current;
@@ -246,11 +246,11 @@ export function useKeyBinding(
   store: WbblWebappPreferencesStore,
   shortcut: KeyboardShortcut,
 ): string | undefined | null {
-  let data = useRef<string | undefined | null>(undefined);
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
+  const data = useRef<string | undefined | null>(undefined);
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
 
-  let subscribe = useCallback(
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
         cacheHandle.current = store.subscribe(() => {
@@ -258,7 +258,7 @@ export function useKeyBinding(
         });
       }
       count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
+      const handle = store.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
@@ -274,7 +274,7 @@ export function useKeyBinding(
     data.current = store.get_keybinding(shortcut);
   }, [shortcut]);
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
       data.current = store.get_keybinding(shortcut);
     }
@@ -290,11 +290,11 @@ export function useNodeKeyBinding(
   store: WbblWebappPreferencesStore,
   node_type: WbblWebappNodeType,
 ): string | undefined | null {
-  let data = useRef<string | undefined | null>(undefined);
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
+  const data = useRef<string | undefined | null>(undefined);
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
 
-  let subscribe = useCallback(
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
         cacheHandle.current = store.subscribe(() => {
@@ -302,7 +302,7 @@ export function useNodeKeyBinding(
         });
       }
       count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
+      const handle = store.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
@@ -318,7 +318,7 @@ export function useNodeKeyBinding(
     data.current = store.get_node_keybinding(node_type);
   }, [node_type]);
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
       data.current = store.get_node_keybinding(node_type);
     }
@@ -331,11 +331,11 @@ export function useNodeKeyBinding(
 }
 
 export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
-  let data = useRef<EdgeStyle>();
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
+  const data = useRef<EdgeStyle>();
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
 
-  let subscribe = useCallback(
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
         cacheHandle.current = store.subscribe(() => {
@@ -343,7 +343,7 @@ export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
         });
       }
       count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
+      const handle = store.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
@@ -355,9 +355,9 @@ export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
     [store],
   );
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      let edgeStyle = store.get_edge_style();
+      const edgeStyle = store.get_edge_style();
       if (edgeStyle === EdgeStyle.Default) {
         data.current = EdgeStyle.Default;
       } else if (edgeStyle === EdgeStyle.Bezier) {
@@ -377,11 +377,11 @@ export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
 export function useIsWobbleEffectEnabledInPreferences(
   store: WbblWebappPreferencesStore,
 ): boolean {
-  let data = useRef<boolean>();
-  let count = useRef<number>(0);
-  let cacheHandle = useRef<number>(0);
+  const data = useRef<boolean>();
+  const count = useRef<number>(0);
+  const cacheHandle = useRef<number>(0);
 
-  let subscribe = useCallback(
+  const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
         cacheHandle.current = store.subscribe(() => {
@@ -389,7 +389,7 @@ export function useIsWobbleEffectEnabledInPreferences(
         });
       }
       count.current = count.current + 1;
-      let handle = store.subscribe(subscriber);
+      const handle = store.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
@@ -401,7 +401,7 @@ export function useIsWobbleEffectEnabledInPreferences(
     [store],
   );
 
-  let getSnapshot = useCallback(() => {
+  const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
       data.current = store.get_allow_wobble();
     }

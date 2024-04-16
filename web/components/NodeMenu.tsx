@@ -11,13 +11,14 @@ import {
 import { WbblWebappNodeType } from "../../pkg/wbbl";
 import { NodeCategory, nodeMetaData } from "./node_types";
 import { Text, DropdownMenu, Tooltip } from "@radix-ui/themes";
-import { StarIcon, PhotoIcon } from "@heroicons/react/24/solid";
 import {
   WbblPreferencesStoreContext,
   useFavouritesPreferences,
   useNodeKeyBinding,
 } from "../hooks/use-preferences-store";
 import formatKeybinding from "../utils/format-keybinding";
+import MicroLandscapeIcon from "./icons/micro/MicroLandscapeIcon";
+import MicroBookmarkIcon from "./icons/micro/MicroBookmarkIcon";
 
 function useTooltipOpen() {
   const [tooltipMaybeOpen, setTooltipMaybeOpen] = useState(false);
@@ -127,7 +128,7 @@ function PreviewNodeDropdownMenuItemImpl(
           className="category-utility preview-node-menu-item"
           onSelect={whenSelected}
         >
-          <PhotoIcon color="current" width={"1em"} height={"1em"} />
+          <MicroLandscapeIcon />
           Preview
         </DropdownMenu.Item>
       </Tooltip>
@@ -165,10 +166,10 @@ export default function NodeMenu(props: {
   }, [nodeMetaData]);
 
   const grouped = useMemo(() => {
-    let groups = sorted.reduce(
+    const groups = sorted.reduce(
       (prev, curr) => {
-        let category = curr[1].category;
-        let categoryItems = prev[category] ?? [];
+        const category = curr[1].category;
+        const categoryItems = prev[category] ?? [];
         prev[category] = categoryItems;
         categoryItems.push(
           curr as [
@@ -209,7 +210,7 @@ export default function NodeMenu(props: {
   const favourites = useFavouritesPreferences(preferencesStore);
   const mappedFavourites = useMemo(() => {
     return favourites.map((type) => {
-      let value = Object.entries(nodeMetaData).filter(
+      const value = Object.entries(nodeMetaData).filter(
         ([, v]) => v.type === type,
       )[0]!;
       return (
@@ -235,13 +236,13 @@ export default function NodeMenu(props: {
         <PreviewNodeDropdownMenuItem onSelect={onSelect} />
         <DropdownMenu.Sub>
           <DropdownMenu.SubTrigger className="favourites-node-menu-item">
-            <StarIcon color="current" width={"1em"} height={"1em"} />
-            Favourites
+            <MicroBookmarkIcon />
+            Bookmarks
           </DropdownMenu.SubTrigger>
           <DropdownMenu.SubContent>
             {favourites.length === 0 ? (
               <DropdownMenu.Item disabled={true}>
-                No Favourites
+                No Bookmarks
               </DropdownMenu.Item>
             ) : (
               mappedFavourites

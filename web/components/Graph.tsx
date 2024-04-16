@@ -143,15 +143,15 @@ function Graph() {
 
   const onPaneClick = useCallback(
     (evt: React.MouseEvent<Element, MouseEvent>) => {
-      let target = evt.target as HTMLElement;
-      let rect = target.getBoundingClientRect();
+      const target = evt.target as HTMLElement;
+      const rect = target.getBoundingClientRect();
       if (!isConnecting && !isSelecting) {
         let nodeAdded = false;
-        let nodeKeybindings = preferencesStore.get_node_keybindings() as Map<
+        const nodeKeybindings = preferencesStore.get_node_keybindings() as Map<
           string,
           string | null | undefined
         >;
-        for (let keybinding of nodeKeybindings.entries()) {
+        for (const keybinding of nodeKeybindings.entries()) {
           if (!!keybinding[1] && isHotkeyPressed(keybinding[1])) {
             nodeAdded = true;
             const pos = flow.screenToFlowPosition(
@@ -170,7 +170,7 @@ function Graph() {
         }
 
         if (nodeMenuOpen === false && !nodeAdded) {
-          let pos = flow.screenToFlowPosition(
+          const pos = flow.screenToFlowPosition(
             { x: evt.clientX, y: evt.clientY },
             { snapToGrid: false },
           );
@@ -208,7 +208,7 @@ function Graph() {
   );
   const onNodesChange = useCallback<OnNodesChange>(
     (changes) => {
-      for (let change of changes) {
+      for (const change of changes) {
         switch (change.type) {
           case "add":
             graphStore.add_node(
@@ -259,7 +259,7 @@ function Graph() {
 
   const onEdgesChange = useCallback<OnEdgesChange>(
     (changes) => {
-      for (let change of changes) {
+      for (const change of changes) {
         switch (change.type) {
           case "add":
             graphStore.add_edge(
@@ -346,7 +346,7 @@ function Graph() {
       x: number,
       y: number,
     ) => {
-      let pos = flow.screenToFlowPosition({ x, y }, { snapToGrid: false });
+      const pos = flow.screenToFlowPosition({ x, y }, { snapToGrid: false });
       graphStore.add_node(NewWbblWebappNode.new(pos.x, pos.y, type));
     };
     return () => {
@@ -371,8 +371,8 @@ function Graph() {
 
   const onBeforeDelete: OnBeforeDelete = useCallback(
     async ({ nodes, edges }) => {
-      let selectedNodes = graphStore.get_locally_selected_nodes();
-      let selectedEdges = graphStore.get_locally_selected_edges();
+      const selectedNodes = graphStore.get_locally_selected_nodes();
+      const selectedEdges = graphStore.get_locally_selected_edges();
       return {
         nodes: nodes.filter((x) => selectedNodes.includes(x.id)),
         edges: edges.filter((x) => selectedEdges.includes(x.id)),

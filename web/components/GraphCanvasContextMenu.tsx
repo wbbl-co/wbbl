@@ -1,4 +1,3 @@
-import { ArrowUturnRightIcon, LifebuoyIcon } from "@heroicons/react/24/solid";
 import { ContextMenu } from "@radix-ui/themes";
 import {
   MouseEventHandler,
@@ -14,11 +13,11 @@ import {
 } from "../hooks/use-preferences-store";
 import { KeyboardShortcut, WbblWebappGraphStore } from "../../pkg/wbbl";
 import formatKeybinding from "../utils/format-keybinding";
-import {
-  ArrowUturnLeftIcon,
-  ClipboardDocumentIcon,
-} from "@heroicons/react/24/solid";
 import { useReactFlow } from "@xyflow/react";
+import MicroUndoIcon from "./icons/micro/MicroUndoIcon";
+import MicroRedoIcon from "./icons/micro/MicroRedoIcon";
+import MicroCopyPasteIcon from "./icons/micro/MicroCopyPasteIcon";
+import MicroHelpIcon from "./icons/micro/MicroHelpIcon";
 
 export default function GraphCanvasContextMenu(
   props: PropsWithChildren<{
@@ -43,7 +42,7 @@ export default function GraphCanvasContextMenu(
           onClick={() => graphStore.undo()}
           shortcut={undoBinding ? formatKeybinding(undoBinding) : undefined}
         >
-          <ArrowUturnLeftIcon width={"1em"} />
+          <MicroUndoIcon />
           Undo
         </ContextMenu.Item>
         <ContextMenu.Item
@@ -51,7 +50,7 @@ export default function GraphCanvasContextMenu(
           onClick={() => graphStore.redo()}
           shortcut={redoBinding ? formatKeybinding(redoBinding) : undefined}
         >
-          <ArrowUturnRightIcon width={"1em"} />
+          <MicroRedoIcon />
           Redo
         </ContextMenu.Item>
         <ContextMenu.Separator />
@@ -72,14 +71,14 @@ export default function GraphCanvasContextMenu(
           }}
           shortcut={pasteBinding ? formatKeybinding(pasteBinding) : undefined}
         >
-          <ClipboardDocumentIcon width={"1em"} />
+          <MicroCopyPasteIcon />
           Paste
         </ContextMenu.Item>
         <ContextMenu.Separator />
         <ContextMenu.Item
           shortcut={helpBinding ? formatKeybinding(helpBinding) : undefined}
         >
-          <LifebuoyIcon width={"1em"} /> Help
+          <MicroHelpIcon /> Help
         </ContextMenu.Item>
       </ContextMenu.Content>
     );

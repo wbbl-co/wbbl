@@ -1,13 +1,16 @@
 import { useCallback } from "react";
 
-export function andThen<Func extends Function>(f: Func, g: Func): Func {
+export function andThen<Func extends (...args: any[]) => void>(
+  f: Func,
+  g: Func,
+): Func {
   return useCallback(
-    function combined() {
+    function combined(...rest: any[]) {
       if (f) {
-        f(...arguments);
+        f(...rest);
       }
       if (g) {
-        return g(...arguments);
+        return g(...rest);
       }
     } as unknown as Func,
     [f, g],

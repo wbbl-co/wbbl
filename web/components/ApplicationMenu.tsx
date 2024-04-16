@@ -7,9 +7,6 @@ import {
   useMemo,
   useState,
 } from "react";
-import { HomeIcon } from "@heroicons/react/24/solid";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/solid";
-import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/solid";
 import KeybindingDialogContents from "./KeybindingDialogContents";
 import React from "react";
 import {
@@ -23,6 +20,9 @@ import { BaseTheme, EdgeStyle, KeyboardShortcut } from "../../pkg/wbbl";
 import { useScopedShortcut } from "../hooks/use-shortcut";
 import formatKeybinding from "../utils/format-keybinding";
 import Breadcrumb from "./Breadcrumb";
+import MicroSearchIcon from "./icons/micro/MicroSearchIcon";
+import MicroHomeIcon from "./icons/micro/MicroHomeIcon";
+import MicroSettingsIcon from "./icons/micro/MicroSettingsIcon";
 
 export default function ApplicationMenu(props: {
   showNodesInActionMenu: boolean;
@@ -35,10 +35,11 @@ export default function ApplicationMenu(props: {
   const goHome = useCallback(() => {
     window.location.assign("/");
   }, []);
-  const [currentDialog, setCurrentDialog] =
-    useState<FunctionComponent<{}> | null>(null);
+  const [currentDialog, setCurrentDialog] = useState<FunctionComponent<
+    Record<string, never>
+  > | null>(null);
   const setKeybindingDialog = useCallback(() => {
-    setCurrentDialog(() => () => <KeybindingDialogContents />);
+    setCurrentDialog(() => KeybindingDialogContents);
   }, [setCurrentDialog]);
   const preferencesStore = useContext(WbblPreferencesStoreContext);
   const isWbblEnabledInPreferences =
@@ -142,15 +143,15 @@ export default function ApplicationMenu(props: {
             shortcut={homeShortcut ? formatKeybinding(homeShortcut) : undefined}
             onClick={goHome}
           >
-            <HomeIcon width={"1em"} /> Home
+            <MicroHomeIcon /> Home
           </DropdownMenu.Item>
           <DropdownMenu.Item onClick={openActionMenu} shortcut="␣">
-            <MagnifyingGlassIcon width={"1em"} /> Quick Actions
+            <MicroSearchIcon /> Quick Actions
           </DropdownMenu.Item>
           <DropdownMenu.Separator />
           <DropdownMenu.Sub>
             <DropdownMenu.SubTrigger>
-              <AdjustmentsHorizontalIcon width={"1em"} /> Preferences
+              <MicroSettingsIcon /> Preferences
             </DropdownMenu.SubTrigger>
             <DropdownMenu.SubContent>
               <Dialog.Trigger>

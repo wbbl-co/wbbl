@@ -14,11 +14,11 @@ import { KeyboardShortcut, WbblWebappNodeType } from "../../pkg/wbbl";
 import { nodeMetaData } from "./node_types";
 import { WbblPreferencesStoreContext } from "../hooks/use-preferences-store";
 import { Dialog, Text, Flex, TextField, ScrollArea } from "@radix-ui/themes";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 import formatKeybinding from "../utils/format-keybinding";
 import { Callout } from "@radix-ui/themes";
 import { useScopedShortcut } from "../hooks/use-shortcut";
-import { ExclamationCircleIcon } from "@heroicons/react/24/solid";
+import MicroWarniningIcon from "./icons/micro/MicroWarningIcon";
+import MicroSearchIcon from "./icons/micro/MicroSearchIcon";
 
 type ComboBoxItem =
   | {
@@ -45,7 +45,7 @@ function ActionMenuCombobox(props: {
   const availableActions = useContext(AvailableActionsContext);
   const data = useMemo<ComboBoxItem[]>(() => {
     let nodeItems: ComboBoxItem[] = [];
-    if (!!availableActions.addNode) {
+    if (availableActions.addNode) {
       const nodeBindings = preferencesStore.get_node_keybindings() as Map<
         string,
         string | null | undefined
@@ -56,7 +56,7 @@ function ActionMenuCombobox(props: {
             !nodeMetaData[k as keyof typeof nodeMetaData].hiddenFromNodeMenu,
         )
         .map(([k, v]) => ({
-          type: "add-node" as "add-node",
+          type: "add-node" as const,
           key: v.type,
           description: `Insert ${nodeMetaData[k as keyof typeof nodeMetaData].nodeMenuName ?? k} Node`,
           tooltip: nodeMetaData[k as keyof typeof nodeMetaData].description,
@@ -72,7 +72,7 @@ function ActionMenuCombobox(props: {
         return values[values.length - 1] !== undefined;
       })
       .map<ComboBoxItem>(([key, values]) => ({
-        type: "shortcut" as "shortcut",
+        type: "shortcut" as const,
         key,
         f: values[values.length - 1].f,
         description: keybindingDescriptors[key],
@@ -95,7 +95,7 @@ function ActionMenuCombobox(props: {
     }
     return index.search(query).map((x) => ({ ...x.item }));
   }, [query]);
-  let closing = useRef(false);
+  const closing = useRef(false);
 
   const comboBoxProps: UseComboboxProps<ComboBoxItem> = useMemo(
     () => ({
@@ -147,7 +147,7 @@ function ActionMenuCombobox(props: {
         value={query}
       >
         <TextField.Slot>
-          <MagnifyingGlassIcon width={"1em"} />
+          <MicroSearchIcon />
         </TextField.Slot>
       </TextField.Root>
       {items.length > 0 ? (
@@ -183,7 +183,7 @@ function ActionMenuCombobox(props: {
           {...getMenuProps()}
         >
           <Callout.Icon>
-            <ExclamationCircleIcon width={"1em"} />
+            <MicroWarniningIcon />
           </Callout.Icon>
           <Callout.Text>No actions were found for this query</Callout.Text>
         </Callout.Root>
@@ -237,7 +237,7 @@ export function ActionMenu(props: {
 
   useEffect(() => {
     if (props.open) {
-      let result: typeof position = {};
+      const result: typeof position = {};
       if (props.mousePosition.current.x > window.innerWidth - 400) {
         result.right = "1em";
       } else {

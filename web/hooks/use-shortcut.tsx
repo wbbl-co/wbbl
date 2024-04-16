@@ -34,7 +34,7 @@ function useShortcut(
   const keybinding = useKeyBinding(preferencesStore, shortcut);
   const f = useCallback(callback, dependencies);
   const guardedF = useCallback(() => {
-    let handlers = availableActions.actions.get(shortcut) ?? [];
+    const handlers = availableActions.actions.get(shortcut) ?? [];
     if (handlers[handlers.length - 1].f === f) {
       f();
     }
@@ -50,7 +50,7 @@ function useShortcut(
       entries.push({ f, scope });
       entries.sort((a, b) => (a.scope.startsWith(b.scope) ? 1 : -1));
       return () => {
-        let entries = availableActions.actions.get(shortcut);
+        const entries = availableActions.actions.get(shortcut);
         if (entries) {
           availableActions.actions.set(
             shortcut,

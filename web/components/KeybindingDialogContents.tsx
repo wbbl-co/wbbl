@@ -1,4 +1,3 @@
-import { MagnifyingGlassIcon, TrashIcon } from "@heroicons/react/24/solid";
 import {
   Kbd,
   Table,
@@ -29,6 +28,8 @@ import formatKeybinding from "../utils/format-keybinding";
 import normalizeKeybinding from "../utils/normalize-keybinding";
 import { nodeMetaData, nodeTypes } from "./node_types";
 import Fuse from "fuse.js";
+import MicroTrashIcon from "./icons/micro/MicroTrashIcon";
+import MicroSearchIcon from "./icons/micro/MicroSearchIcon";
 
 export default function KeybindingDialogContents() {
   const store = useContext(WbblPreferencesStoreContext);
@@ -55,10 +56,10 @@ export default function KeybindingDialogContents() {
   const keyboardBindingEntries = useMemo(() => {
     let shortcutMap: ShortcutMap[] = Object.entries(keybindingDescriptors).map(
       ([k, v]) => {
-        let shortcut = KeyboardShortcut[
+        const shortcut = KeyboardShortcut[
           Number(k) | 0
         ] as unknown as KeyboardShortcut;
-        let binding = keyboardPreferences.keys.get(shortcut);
+        const binding = keyboardPreferences.keys.get(shortcut);
 
         return {
           type: "general_shortcut",
@@ -68,7 +69,7 @@ export default function KeybindingDialogContents() {
         };
       },
     );
-    let nodeShortcutMap: ShortcutMap[] = Object.entries(nodeMetaData).map(
+    const nodeShortcutMap: ShortcutMap[] = Object.entries(nodeMetaData).map(
       ([k, v]) => ({
         key: k as keyof typeof nodeTypes,
         type: "add_node",
@@ -167,7 +168,7 @@ export default function KeybindingDialogContents() {
               : undefined
           }
         >
-          <TrashIcon width={"1em"} /> Remove Binding
+          <MicroTrashIcon /> Remove Binding
         </DropdownMenu.Item>
       </DropdownMenu.Content>
     );
@@ -281,7 +282,7 @@ export default function KeybindingDialogContents() {
           )}
         >
           <TextField.Slot>
-            <MagnifyingGlassIcon width={"1em"} />
+            <MicroSearchIcon />
           </TextField.Slot>
         </TextField.Root>
       </Flex>

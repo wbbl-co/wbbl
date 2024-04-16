@@ -25,7 +25,7 @@ import { ShortcutScope } from "./hooks/use-shortcut";
 import { ActionMenu } from "./components/SearchMenu";
 
 function App() {
-  let [ready, setReady] = useState<boolean>(false);
+  const [ready, setReady] = useState<boolean>(false);
   useEffect(() => {
     let timeout_handle: any = 0;
     const listener = (msg: MessageEvent) => {

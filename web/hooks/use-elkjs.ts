@@ -10,7 +10,7 @@ import { WbblPreferencesStoreContext } from "./use-preferences-store";
 
 const elk = new ELK({
   algorithms: ["layered", "fixed"],
-  workerFactory: function (_) {
+  workerFactory: function () {
     // the value of 'url' is irrelevant here
     return new Worker("/node_modules/elkjs/lib/elk-worker.js", {
       type: "module",
@@ -19,8 +19,8 @@ const elk = new ELK({
   },
 });
 
-function getNode(internalNodes: Map<String, InternalNode>, node: Node) {
-  let handleBounds = internalNodes.get(node.id)?.internals.handleBounds;
+function getNode(internalNodes: Map<string, InternalNode>, node: Node) {
+  const handleBounds = internalNodes.get(node.id)?.internals.handleBounds;
   return {
     id: node.id,
     width: node.measured?.width ?? 0,
@@ -54,7 +54,7 @@ function getNode(internalNodes: Map<String, InternalNode>, node: Node) {
 }
 
 async function elkLayout(
-  internalNodes: Map<String, InternalNode>,
+  internalNodes: Map<string, InternalNode>,
   nodes: (Node & { groupId?: string })[],
   edges: Edge[],
   edgeStyle: EdgeStyle,
@@ -79,10 +79,10 @@ async function elkLayout(
     "elk.hierarchyHandling": "INCLUDE_CHILDREN",
   };
 
-  let children: Map<String, ElkNode[]> = new Map();
-  let noGroup: ElkNode[] = [];
-  for (let node of nodes) {
-    if (!!node.groupId) {
+  const children: Map<string, ElkNode[]> = new Map();
+  const noGroup: ElkNode[] = [];
+  for (const node of nodes) {
+    if (node.groupId) {
       if (!children.has(node.groupId)) {
         children.set(node.groupId, []);
       }
@@ -130,8 +130,8 @@ async function elkLayout(
     .filter((x) => x.selected)
     .map((node) => {
       let position = { x: 0, y: 0 };
-      if (!!node.groupId) {
-        let groupNode = layoutNodes.get(node.groupId)!;
+      if (node.groupId) {
+        const groupNode = layoutNodes.get(node.groupId)!;
         const elkNode = groupNode.children!.find((x) => x.id === node.id)!;
         position = {
           x: elkNode.x! + groupNode.x!,
@@ -157,14 +157,14 @@ export function useElkJs() {
   const preferencesStore = useContext(WbblPreferencesStoreContext);
 
   return useCallback(async () => {
-    let thisSnapshot = graphStore.get_snapshot() as WbblWebappGraphSnapshot;
+    const thisSnapshot = graphStore.get_snapshot() as WbblWebappGraphSnapshot;
     const results = await elkLayout(
       storeApi.getState().nodeLookup,
       thisSnapshot.nodes,
       thisSnapshot.edges,
       preferencesStore.get_edge_style(),
     );
-    for (let node of results.nodes) {
+    for (const node of results.nodes) {
       graphStore.set_node_position(
         node.id,
         node.position.x,

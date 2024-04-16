@@ -167,10 +167,13 @@ pub fn is_axis_aligned_rect_intersecting_convex_hull(
         return true;
     }
 
+    let top_right = Vec2::new(bottom_right.x, top_left.y);
+    let bottom_left = Vec2::new(top_left.x, bottom_right.y);
+
     for i in 1..hull.len() {
         let prev = hull[i - 1];
         let current = hull[i];
-        if get_line_line_intersection(&bottom_right, &Vec2::, &prev, &current).is_some() {
+        if get_line_line_intersection(&bottom_right, &top_right, &prev, &current).is_some() {
             return true;
         }
         if get_line_line_intersection(&bottom_left, &top_left, &prev, &current).is_some() {
@@ -183,5 +186,19 @@ pub fn is_axis_aligned_rect_intersecting_convex_hull(
             return true;
         }
     }
+    // Code to test whether inside shape
+    // hull.push(top_left.clone());
+    // hull.push(bottom_right.clone());
+    // hull.push(top_right.clone());
+    // hull.push(bottom_left.clone());
+    // let hull = get_convex_hull(&mut hull);
+    // if hull.contains(&top_left)
+    //     || hull.contains(&top_right)
+    //     || hull.contains(&top_left)
+    //     || hull.contains(&bottom_left)
+    // {
+    //     return false;
+    // }
+
     false
 }

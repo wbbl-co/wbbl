@@ -21,6 +21,7 @@ export type WbblWebappGraphSnapshot = {
     nodes: string[];
     path?: string;
     edges: string[];
+    bounds: Float32Array;
   }[];
   computed_types: Map<string, unknown>;
 };

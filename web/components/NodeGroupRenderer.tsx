@@ -2,7 +2,13 @@ import { ViewportPortal } from "@xyflow/react";
 import NodeGroup from "./NodeGroup";
 
 type NodeGroupRendererProps = {
-  groups: { id: string; path?: string; nodes: string[]; edges: string[] }[];
+  groups: {
+    id: string;
+    path?: string;
+    nodes: string[];
+    edges: string[];
+    bounds: Float32Array;
+  }[];
   width: number;
   height: number;
 };
@@ -35,6 +41,7 @@ export function NodeGroupRenderer({
               path={g.path}
               nodes={g.nodes}
               edges={g.edges}
+              bounds={g.bounds}
             />
           );
         })}

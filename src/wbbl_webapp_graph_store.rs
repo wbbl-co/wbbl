@@ -12,7 +12,7 @@ use web_sys::{js_sys, MessageEvent, Worker};
 use yrs::{types::ToJson, Map, MapPrelim, MapRef, ReadTxn, Transact, TransactionMut, Value};
 
 use crate::{
-    convex_hull::{get_convex_hull, get_line_line_intersection},
+    convex_hull::{get_convex_hull, get_ray_ray_intersection},
     data_types::AbstractDataType,
     graph_transfer_types::{
         from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
@@ -251,12 +251,13 @@ fn decode_node_group<Txn: ReadTxn>(
         })?;
 
     let mutual_edges = get_mutual_edges(txn, &node_ids, nodes_map)?;
-    let path = get_group_path(txn, key, nodes_map, nodes_group_map, computed_node_sizes)?;
+    let (path, bounds) = get_group_path(txn, key, nodes_map, nodes_group_map, computed_node_sizes)?;
     Ok(WbblWebappNodeGroup {
         id: key_uuid.as_u128(),
         path: Some(path),
         nodes: node_ids,
         edges: mutual_edges,
+        bounds: bounds.into_iter().flat_map(|p| [p.x, p.y]).collect(),
     })
 }
 
@@ -681,10 +682,10 @@ pub fn get_group_path<Txn: ReadTxn>(
     nodes: &MapRef,
     node_groups: &MapRef,
     computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
-) -> Result<String, WbblWebappStoreError> {
+) -> Result<(String, Vec<Vec2>), WbblWebappStoreError> {
     let convex_hull =
         get_group_convex_hull(txn, group_id, nodes, node_groups, computed_node_sizes)?;
-
+    let mut inflated_convex_hull = vec![];
     if convex_hull.len() > 2 {
         let first = convex_hull[0];
         let second = convex_hull[1];
@@ -693,6 +694,7 @@ pub fn get_group_path<Txn: ReadTxn>(
             .normalize()
             * INFLATE_GROUP_PATH_BY;
         let first_1 = first_second_tangent + first;
+        inflated_convex_hull.push(first_1);
         let mut result = format!("M {} {}", first_1.x, first_1.y);
         let mut i = 1;
         while i <= convex_hull.len() {
@@ -709,9 +711,10 @@ pub fn get_group_path<Txn: ReadTxn>(
             let current_1 = current + tangent_prev;
             let current_2 = current + tangent_next;
             let next = next + tangent_next;
-            let intersection = get_line_line_intersection(&prev, &current_1, &current_2, &next);
+            let intersection = get_ray_ray_intersection(&prev, &current_1, &current_2, &next);
             result.push_str(&format!("L {} {}", current_1.x, current_1.y));
             if let Some(intersection) = intersection {
+                inflated_convex_hull.push(intersection);
                 result.push_str(&format!(
                     "Q {} {}, {} {}",
                     intersection.x, intersection.y, current_2.x, current_2.y
@@ -720,9 +723,9 @@ pub fn get_group_path<Txn: ReadTxn>(
             i += 1;
         }
         result.push('Z');
-        return Ok(result);
+        return Ok((result, inflated_convex_hull));
     }
-    return Ok("".to_owned());
+    return Ok(("".to_owned(), vec![]));
 }
 
 impl WbblWebappEdge {
@@ -1758,6 +1761,35 @@ impl WbblWebappGraphStore {
             let edge_ids = get_mutual_edges(&txn, &node_ids, &self.nodes)?;
             for e in edge_ids {
                 edge_selections.insert(&mut txn, uuid::Uuid::from_u128(e).to_string(), true);
+            }
+        }
+        self.emit(false)?;
+        Ok(())
+    }
+
+    pub fn deselect_group(&mut self, group_id: &str) -> Result<(), WbblWebappStoreError> {
+        let id = self.graph.client_id().to_string();
+        {
+            let mut txn = self.graph.transact_mut_with(self.graph.client_id());
+            let node_ids: HashSet<String> = get_map(group_id, &txn, &self.node_groups)?
+                .keys(&txn)
+                .map(|x| x.to_owned())
+                .collect();
+            let node_selections = get_map(&id, &txn, &self.node_selections)?;
+            let edge_selections = get_map(&id, &txn, &self.edge_selections)?;
+            for n in node_ids.iter() {
+                node_selections.remove(&mut txn, n);
+            }
+            let node_ids = node_ids.iter().try_fold(Vec::new(), |mut prev, n| {
+                let id = uuid::Uuid::from_str(n)
+                    .map_err(|_| WbblWebappStoreError::MalformedId)?
+                    .as_u128();
+                prev.push(id);
+                Ok(prev)
+            })?;
+            let edge_ids = get_mutual_edges(&txn, &node_ids, &self.nodes)?;
+            for e in edge_ids {
+                edge_selections.remove(&mut txn, &uuid::Uuid::from_u128(e).to_string());
             }
         }
         self.emit(false)?;

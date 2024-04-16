@@ -15,8 +15,8 @@
     "lint": "npm run typecheck && eslint .",
     "preview": "vite preview"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Natalie Cuthbert",
+  "license": "agpl-3.0",
   "dependencies": {
     "@fontsource/dm-mono": "^5.0.19",
     "@fontsource/dm-sans": "^5.0.19",

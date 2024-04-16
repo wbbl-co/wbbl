@@ -540,6 +540,7 @@ function Graph() {
                 deleteKeyCode={[]}
                 maxZoom={1.4}
                 minZoom={0.25}
+                draggable={false}
                 snapToGrid={false}
                 onEdgeMouseMove={connectingHandlers.onPointerDown}
                 onPaneClick={onPaneClick}

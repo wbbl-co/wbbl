@@ -527,3 +527,7 @@ path.react-flow__edge-path {
     color: unset;
     text-align: unset;
 }
+
+.react-flow__viewport-portal {
+    z-index: -100;
+}

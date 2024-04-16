@@ -2,6 +2,7 @@ import {
   HTMLProps,
   PropsWithChildren,
   createContext,
+  createElement,
   useCallback,
   useContext,
   useEffect,
@@ -83,12 +84,13 @@ export const ShortcutScopeContext = createContext<{ scope: string[] }>({
   scope: [],
 });
 
-export function ShortcutScope(
+export function ShortcutScope<Type extends keyof JSX.IntrinsicElements = "div">(
   props: PropsWithChildren<
     {
       scope: string;
+      as?: Type;
       mode?: "hover" | "focus" | "both";
-    } & HTMLProps<HTMLDivElement>
+    } & HTMLProps<JSX.IntrinsicElements[Type]>
   >,
 ) {
   const { enableScope: enableHotkeysScope, disableScope: disableHotkeysScope } =
@@ -118,36 +120,34 @@ export function ShortcutScope(
 
   return (
     <ShortcutScopeContext.Provider value={newScope}>
-      <div
-        id={`shortcut-scope-${newScope.scope.join("/")}`}
-        onBlur={
-          props.mode === "both" || props.mode === "focus"
-            ? deactivateScope
-            : undefined
-        }
-        onMouseEnter={
-          props.mode === "both" || props.mode === "hover"
-            ? activateScope
-            : undefined
-        }
-        onMouseLeave={
-          props.mode === "both" || props.mode === "hover"
-            ? deactivateScope
-            : undefined
-        }
-        onFocus={
-          props.mode === "both" || props.mode === "focus"
-            ? activateScope
-            : undefined
-        }
-        tabIndex={
-          props.mode === "both" || props.mode === "focus" ? -1 : undefined
-        }
-        className="wrapper-div"
-        {...props}
-      >
-        {props.children}
-      </div>
+      {createElement(
+        props.as ?? "div",
+        {
+          id: `shortcut-scope-${newScope.scope.join("/")}`,
+          onBlur:
+            props.mode === "both" || props.mode === "focus"
+              ? deactivateScope
+              : undefined,
+
+          onMouseEnter:
+            props.mode === "both" || props.mode === "hover"
+              ? activateScope
+              : undefined,
+          onMouseLeave:
+            props.mode === "both" || props.mode === "hover"
+              ? deactivateScope
+              : undefined,
+          onFocus:
+            props.mode === "both" || props.mode === "focus"
+              ? activateScope
+              : undefined,
+          tabIndex:
+            props.mode === "both" || props.mode === "focus" ? -1 : undefined,
+          className: "wrapper-div",
+          ...props,
+        },
+        props.children,
+      )}
     </ShortcutScopeContext.Provider>
   );
 }

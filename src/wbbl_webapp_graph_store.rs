@@ -1,12 +1,12 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     rc::Rc,
     str::FromStr,
     sync::Arc,
 };
 
-use glam::{Mat2, Vec2};
+use glam::Vec2;
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
 use yrs::{types::ToJson, Map, MapPrelim, MapRef, ReadTxn, Transact, TransactionMut, Value};
@@ -186,6 +186,80 @@ impl NewWbblWebappNode {
     }
 }
 
+fn get_mutual_edges<Txn: ReadTxn>(
+    txn: &Txn,
+    node_ids: &Vec<u128>,
+    nodes_map: &yrs::MapRef,
+) -> Result<Vec<u128>, WbblWebappStoreError> {
+    let mut mutual_edges: Vec<u128> = vec![];
+    let mut edges_map: HashSet<u128> = HashSet::new();
+    for node_id in node_ids.iter() {
+        let node = get_map(&uuid::Uuid::from_u128(*node_id).to_string(), txn, nodes_map)?;
+        let in_edge_ids = get_map("in_edges", txn, &node)?.keys(txn).try_fold(
+            HashSet::new(),
+            |mut prev, key| {
+                let id = uuid::Uuid::parse_str(key)
+                    .map_err(|_| WbblWebappStoreError::MalformedId)?
+                    .as_u128();
+                prev.insert(id);
+                Ok(prev)
+            },
+        )?;
+        let out_edge_ids = get_map("out_edges", txn, &node)?.keys(txn).try_fold(
+            HashSet::new(),
+            |mut prev, key| {
+                let id = uuid::Uuid::parse_str(key)
+                    .map_err(|_| WbblWebappStoreError::MalformedId)?
+                    .as_u128();
+                prev.insert(id);
+                Ok(prev)
+            },
+        )?;
+        let mut in_intersection: Vec<u128> =
+            edges_map.intersection(&in_edge_ids).cloned().collect();
+        let mut out_intersection: Vec<u128> =
+            edges_map.intersection(&out_edge_ids).cloned().collect();
+        mutual_edges.append(&mut in_intersection);
+        mutual_edges.append(&mut out_intersection);
+        edges_map = edges_map.union(&in_edge_ids).cloned().collect();
+        edges_map = edges_map.union(&out_edge_ids).cloned().collect();
+    }
+    Ok(mutual_edges)
+}
+fn decode_node_group<Txn: ReadTxn>(
+    txn: &Txn,
+    key: &str,
+    node_group: &yrs::Value,
+    nodes_map: &yrs::MapRef,
+    nodes_group_map: &yrs::MapRef,
+    computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
+) -> Result<WbblWebappNodeGroup, WbblWebappStoreError> {
+    let key_uuid = uuid::Uuid::from_str(key).map_err(|_| WbblWebappStoreError::MalformedId)?;
+    let node_ids: Vec<String> = match node_group {
+        Value::YMap(group) => Ok(group.keys(txn).map(|k| k.to_owned()).collect()),
+        _ => Err(WbblWebappStoreError::UnexpectedStructure),
+    }?;
+
+    let node_ids = node_ids
+        .iter()
+        .try_fold(Vec::<u128>::new(), |mut prev, n| {
+            let id = uuid::Uuid::from_str(n)
+                .map_err(|_| WbblWebappStoreError::MalformedId)?
+                .as_u128();
+            prev.push(id);
+            Ok(prev)
+        })?;
+
+    let mutual_edges = get_mutual_edges(txn, &node_ids, nodes_map)?;
+    let path = get_group_path(txn, key, nodes_map, nodes_group_map, computed_node_sizes)?;
+    Ok(WbblWebappNodeGroup {
+        id: key_uuid.as_u128(),
+        path: Some(path),
+        nodes: node_ids,
+        edges: mutual_edges,
+    })
+}
+
 impl WbblWebappGraphSnapshot {
     pub(crate) fn get_full_snapshot<Transaction: yrs::ReadTxn>(
         read_txn: &Transaction,
@@ -237,32 +311,15 @@ impl WbblWebappGraphSnapshot {
         }
 
         for group in node_groups_map.iter(read_txn) {
-            let key = group.0;
-            let key_uuid =
-                uuid::Uuid::from_str(key).map_err(|_| WbblWebappStoreError::MalformedId)?;
-            let nodes: Vec<String> = match group.1 {
-                Value::YMap(group) => Ok(group.keys(read_txn).map(|k| k.to_owned()).collect()),
-                _ => Err(WbblWebappStoreError::UnexpectedStructure),
-            }?;
-            let nodes = nodes.iter().try_fold(Vec::<u128>::new(), |mut prev, n| {
-                let id = uuid::Uuid::from_str(n)
-                    .map_err(|_| WbblWebappStoreError::MalformedId)?
-                    .as_u128();
-                prev.push(id);
-                Ok(prev)
-            })?;
-            let path = get_group_path(
+            let group = decode_node_group(
                 read_txn,
-                key,
+                group.0,
+                &group.1,
                 nodes_map_ref,
-                &node_groups_map,
+                node_groups_map,
                 computed_node_sizes,
             )?;
-            groups.push(WbblWebappNodeGroup {
-                id: key_uuid.as_u128(),
-                path: Some(path),
-                nodes,
-            })
+            groups.push(group);
         }
 
         nodes.sort_by_key(|n| n.id.clone());
@@ -654,13 +711,14 @@ pub fn get_group_path<Txn: ReadTxn>(
             let next = next + tangent_next;
             let intersection = get_line_line_intersection(&prev, &current_1, &current_2, &next);
             result.push_str(&format!("L {} {}", current_1.x, current_1.y));
-            result.push_str(&format!(
-                "Q {} {}, {} {}",
-                intersection.x, intersection.y, current_2.x, current_2.y
-            ));
+            if let Some(intersection) = intersection {
+                result.push_str(&format!(
+                    "Q {} {}, {} {}",
+                    intersection.x, intersection.y, current_2.x, current_2.y
+                ));
+            }
             i += 1;
         }
-
         result.push('Z');
         return Ok(result);
     }
@@ -1016,6 +1074,44 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
+    pub fn remove_node_group_and_contents(
+        &mut self,
+        group_id: &str,
+    ) -> Result<(), WbblWebappStoreError> {
+        {
+            let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
+            let group = get_map(group_id, &mut_transaction, &self.node_groups)?;
+            let nodes_in_group: Vec<String> =
+                group.keys(&mut_transaction).map(|x| x.to_owned()).collect();
+            for node_id in nodes_in_group {
+                match get_map(&node_id, &mut_transaction, &self.nodes) {
+                    Ok(node) => {
+                        let type_name: String = get_atomic_string("type", &mut_transaction, &node)?;
+                        if let Some(WbblWebappNodeType::Output) = from_type_name(&type_name) {
+                            Ok(())
+                        } else {
+                            delete_node(
+                                &mut mut_transaction,
+                                &node_id,
+                                &mut self.nodes,
+                                &mut self.edges,
+                                &mut self.node_selections,
+                                &mut self.edge_selections,
+                                &mut self.computed_node_sizes,
+                                &mut self.node_groups,
+                            )?;
+                            Ok(())
+                        }
+                    }
+                    Err(WbblWebappStoreError::NotFound) => Ok(()),
+                    Err(err) => Err(err),
+                }?;
+            }
+        }
+        self.emit(true)?;
+        Ok(())
+    }
+
     pub fn remove_edge(&mut self, edge_id: &str) -> Result<(), WbblWebappStoreError> {
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
@@ -1257,6 +1353,70 @@ impl WbblWebappGraphStore {
         })
     }
 
+    fn get_group_snapshot(
+        &self,
+        group_id: &str,
+    ) -> Result<WbblWebappGraphSnapshot, WbblWebappStoreError> {
+        let mut nodes: Vec<WbblWebappNode> = Vec::new();
+        let mut edges: Vec<WbblWebappEdge> = Vec::new();
+        {
+            let txn = self.graph.transact();
+            let node_ids: HashSet<String> = get_map(group_id, &txn, &self.node_groups)?
+                .keys(&txn)
+                .map(|x| x.to_owned())
+                .collect();
+            let node_ids = node_ids.iter().try_fold(Vec::new(), |mut prev, n| {
+                let id = uuid::Uuid::from_str(n)
+                    .map_err(|_| WbblWebappStoreError::MalformedId)?
+                    .as_u128();
+                prev.push(id);
+                Ok(prev)
+            })?;
+            let edge_ids = get_mutual_edges(&txn, &node_ids, &self.nodes)?;
+            let read_txn = self.graph.transact();
+            for node_id in node_ids.iter() {
+                let node_values = get_map(
+                    &uuid::Uuid::from_u128(node_id.clone()).to_string(),
+                    &read_txn,
+                    &self.nodes,
+                )?;
+                let node = WbblWebappNode::decode(
+                    &node_id,
+                    &read_txn,
+                    &node_values,
+                    &self.node_selections,
+                    self.graph.client_id(),
+                )?;
+                nodes.push(node);
+            }
+
+            for edge_id in edge_ids.iter() {
+                let edge_values = get_map(
+                    &uuid::Uuid::from_u128(edge_id.clone()).to_string(),
+                    &read_txn,
+                    &self.edges,
+                )?;
+                let edge: WbblWebappEdge = WbblWebappEdge::decode(
+                    edge_id.clone(),
+                    &read_txn,
+                    &edge_values,
+                    &self.edge_selections,
+                    self.graph.client_id(),
+                )?;
+                edges.push(edge);
+            }
+        }
+        nodes.sort_by_key(|n| n.id.clone());
+        edges.sort_by_key(|e| e.id.clone());
+        Ok(WbblWebappGraphSnapshot {
+            id: self.id,
+            nodes,
+            edges,
+            node_groups: None,
+            computed_types: None,
+        })
+    }
+
     fn get_node_snapshot(
         &self,
         node_id: &str,
@@ -1293,6 +1453,13 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
+    pub fn duplicate_group(&mut self, group_id: &str) -> Result<(), WbblWebappStoreError> {
+        let mut snapshot = self.get_group_snapshot(group_id)?;
+        snapshot.offset(&Vec2::new(200.0, 200.0));
+        self.integrate_snapshot(None, &mut snapshot)?;
+        Ok(())
+    }
+
     pub fn duplicate_node(&mut self, node_id: &str) -> Result<(), WbblWebappStoreError> {
         let mut snapshot = self.get_node_snapshot(node_id)?;
         snapshot.offset(&Vec2::new(200.0, 200.0));
@@ -1305,6 +1472,21 @@ impl WbblWebappGraphStore {
         use crate::dot_converter::to_dot;
         let clipboard_contents: String = {
             let snapshot = self.get_node_snapshot(node_id)?;
+            to_dot(&snapshot)
+        };
+        let window = web_sys::window().expect("Missing Window");
+        if let Some(clipboard) = window.navigator().clipboard() {
+            Ok(clipboard.write_text(&clipboard_contents))
+        } else {
+            Err(WbblWebappStoreError::ClipboardFailure)
+        }
+    }
+
+    #[cfg(web_sys_unstable_apis)]
+    pub fn copy_group(&mut self, group_id: &str) -> Result<js_sys::Promise, WbblWebappStoreError> {
+        use crate::dot_converter::to_dot;
+        let clipboard_contents: String = {
+            let snapshot = self.get_group_snapshot(group_id)?;
             to_dot(&snapshot)
         };
         let window = web_sys::window().expect("Missing Window");
@@ -1429,6 +1611,34 @@ impl WbblWebappGraphStore {
         Ok(())
     }
 
+    pub fn ungroup(&mut self, group_id: &str) -> Result<(), WbblWebappStoreError> {
+        {
+            let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
+            let group = get_map(group_id, &mut_transaction, &self.node_groups)?;
+            let nodes_in_group: Vec<String> =
+                group.keys(&mut_transaction).map(|x| x.to_owned()).collect();
+            for node_id in nodes_in_group {
+                match get_map(&node_id, &mut_transaction, &self.nodes) {
+                    Ok(node) => {
+                        remove_node_from_group(
+                            &mut mut_transaction,
+                            &node_id,
+                            &node,
+                            &mut self.node_groups,
+                        )?;
+                        node.remove(&mut mut_transaction, "group_id");
+                    }
+                    Err(WbblWebappStoreError::NotFound) => {}
+                    Err(err) => {
+                        return Err(err);
+                    }
+                };
+            }
+        }
+        self.emit(false)?;
+        Ok(())
+    }
+
     #[cfg(web_sys_unstable_apis)]
     pub async fn get_clipboard_snapshot() -> Result<JsValue, WbblWebappStoreError> {
         use web_sys::js_sys::JsString;
@@ -1503,10 +1713,52 @@ impl WbblWebappGraphStore {
                 .iter(&txn)
                 .map(|(k, _)| (k.to_owned(), true))
                 .collect();
-            self.edge_selections
-                .insert(&mut txn, id.clone(), MapPrelim::from(edge_ids));
-            self.node_selections
-                .insert(&mut txn, id.clone(), MapPrelim::from(node_ids));
+            let edge_selections = get_map(&id, &txn, &self.edge_selections)?;
+            for (k, v) in edge_ids {
+                edge_selections.insert(&mut txn, k, v);
+            }
+            let node_selections = get_map(&id, &txn, &self.node_selections)?;
+            for (k, v) in node_ids {
+                node_selections.insert(&mut txn, k, v);
+            }
+        }
+        self.emit(false)?;
+        Ok(())
+    }
+
+    pub fn select_group(
+        &mut self,
+        group_id: &str,
+        additive: bool,
+    ) -> Result<(), WbblWebappStoreError> {
+        let id = self.graph.client_id().to_string();
+        {
+            let mut txn = self.graph.transact_mut_with(self.graph.client_id());
+            let node_ids: HashSet<String> = get_map(group_id, &txn, &self.node_groups)?
+                .keys(&txn)
+                .map(|x| x.to_owned())
+                .collect();
+            let node_selections = get_map(&id, &txn, &self.node_selections)?;
+            let edge_selections = get_map(&id, &txn, &self.edge_selections)?;
+            if !additive {
+                node_selections.clear(&mut txn);
+                edge_selections.clear(&mut txn);
+            }
+
+            for n in node_ids.iter() {
+                node_selections.insert(&mut txn, n.clone(), true);
+            }
+            let node_ids = node_ids.iter().try_fold(Vec::new(), |mut prev, n| {
+                let id = uuid::Uuid::from_str(n)
+                    .map_err(|_| WbblWebappStoreError::MalformedId)?
+                    .as_u128();
+                prev.push(id);
+                Ok(prev)
+            })?;
+            let edge_ids = get_mutual_edges(&txn, &node_ids, &self.nodes)?;
+            for e in edge_ids {
+                edge_selections.insert(&mut txn, uuid::Uuid::from_u128(e).to_string(), true);
+            }
         }
         self.emit(false)?;
         Ok(())

@@ -156,31 +156,45 @@ export function useElkJs() {
   const storeApi = useStoreApi();
   const preferencesStore = useContext(WbblPreferencesStoreContext);
 
-  return useCallback(async () => {
-    const thisSnapshot = graphStore.get_snapshot() as WbblWebappGraphSnapshot;
-    const results = await elkLayout(
-      storeApi.getState().nodeLookup,
-      thisSnapshot.nodes,
-      thisSnapshot.edges,
-      preferencesStore.get_edge_style(),
-    );
-    for (const node of results.nodes) {
-      graphStore.set_node_position(
-        node.id,
-        node.position.x,
-        node.position.y,
-        false,
+  return useCallback(
+    async (nodes?: Set<string>, edges?: Set<string>) => {
+      const thisSnapshot = graphStore.get_snapshot() as WbblWebappGraphSnapshot;
+      if (nodes !== undefined) {
+        thisSnapshot.nodes.forEach((x) => {
+          x.selected = nodes.has(x.id);
+        });
+      }
+      if (edges !== undefined) {
+        thisSnapshot.edges.forEach((x) => {
+          x.selected = edges.has(x.id);
+        });
+      }
+
+      const results = await elkLayout(
+        storeApi.getState().nodeLookup,
+        thisSnapshot.nodes,
+        thisSnapshot.edges,
+        preferencesStore.get_edge_style(),
       );
-    }
-    setTimeout(() => {
-      const state = storeApi.getState();
-      const zoom = state.panZoom?.getViewport().zoom;
-      state.fitView({
-        nodes: results.nodes,
-        duration: 1000,
-        minZoom: zoom,
-        maxZoom: zoom,
-      });
-    }, 30);
-  }, [graphStore, storeApi, preferencesStore]);
+      for (const node of results.nodes) {
+        graphStore.set_node_position(
+          node.id,
+          node.position.x,
+          node.position.y,
+          false,
+        );
+      }
+      setTimeout(() => {
+        const state = storeApi.getState();
+        const zoom = state.panZoom?.getViewport().zoom;
+        state.fitView({
+          nodes: results.nodes,
+          duration: 1000,
+          minZoom: zoom,
+          maxZoom: zoom,
+        });
+      }, 30);
+    },
+    [graphStore, storeApi, preferencesStore],
+  );
 }

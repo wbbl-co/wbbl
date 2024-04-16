@@ -1,9 +1,6 @@
 use std::{cmp::Ordering, collections::VecDeque};
 
 use glam::{Mat2, Vec2};
-use wgpu::naga::front;
-
-use crate::log;
 
 fn ccw(a: &Vec2, b: &Vec2, c: &Vec2) -> f32 {
     let delta_ba = b.extend(0.0) - a.extend(0.0);
@@ -74,7 +71,7 @@ pub fn get_line_line_intersection(
     current: &Vec2,
     next: &Vec2,
     next_next: &Vec2,
-) -> Vec2 {
+) -> Option<Vec2> {
     let current_line_mat = Mat2::from_cols(prev.clone(), current.clone())
         .transpose()
         .determinant();
@@ -109,5 +106,11 @@ pub fn get_line_line_intersection(
     )
     .determinant();
 
-    Vec2::new(x_numerator / denominator, y_numerator / denominator)
+    if denominator != 0.0 {
+        return Some(Vec2::new(
+            x_numerator / denominator,
+            y_numerator / denominator,
+        ));
+    }
+    None
 }

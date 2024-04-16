@@ -36,6 +36,7 @@ import MicroCutIcon from "./icons/micro/MicroCutIcon";
 import MicroCopyPasteIcon from "./icons/micro/MicroCopyPasteIcon";
 import MicroDuplicateIcon from "./icons/micro/MicroDuplicateIcon";
 import MicroPreviewIcon from "./icons/micro/MicroPreviewIcon";
+import MicroUngroupIcon from "./icons/micro/MicroUngroupIcon";
 
 function getSelectionCountLabel(edges: number, nodes: number) {
   if (nodes > 0 && edges > 0) {
@@ -143,6 +144,9 @@ function NodeOrEdgeContextMenu(
   );
 
   const elkJs = useElkJs();
+  const onElkJs = useCallback(() => {
+    elkJs();
+  }, [elkJs]);
 
   useScopedShortcut(
     KeyboardShortcut.Delete,
@@ -283,6 +287,21 @@ function NodeOrEdgeContextMenu(
     evt.stopPropagation();
   }, []);
 
+  const groupNodesShortcut = useKeyBinding(
+    preferencesStore,
+    KeyboardShortcut.GroupNodes,
+  );
+  const groupNodes = useCallback(() => {
+    graphStore.group_selected_nodes();
+  }, [graphStore]);
+  const ungroupNodesShortcut = useKeyBinding(
+    preferencesStore,
+    KeyboardShortcut.UngroupNodes,
+  );
+  const ungroupNodes = useCallback(() => {
+    graphStore.ungroup_selected_nodes();
+  }, [graphStore]);
+
   const flow = useReactFlow();
   const makeJunction = useCallback<MouseEventHandler>(
     (evt) => {
@@ -315,7 +334,7 @@ function NodeOrEdgeContextMenu(
             {selectedNodesCount > 1 ? (
               <>
                 <ContextMenu.Item
-                  onClick={elkJs}
+                  onClick={onElkJs}
                   shortcut={
                     autoLayoutShortcut
                       ? formatKeybinding(autoLayoutShortcut)
@@ -324,6 +343,26 @@ function NodeOrEdgeContextMenu(
                 >
                   <MicroCleanIcon />
                   {keybindingDescriptors[KeyboardShortcut.AutoLayout]}
+                </ContextMenu.Item>
+                <ContextMenu.Item
+                  shortcut={
+                    groupNodesShortcut
+                      ? formatKeybinding(groupNodesShortcut)
+                      : undefined
+                  }
+                  onClick={groupNodes}
+                >
+                  <MicroGroupIcon /> Group
+                </ContextMenu.Item>
+                <ContextMenu.Item
+                  shortcut={
+                    ungroupNodesShortcut
+                      ? formatKeybinding(ungroupNodesShortcut)
+                      : undefined
+                  }
+                  onClick={ungroupNodes}
+                >
+                  <MicroUngroupIcon /> Ungroup
                 </ContextMenu.Item>
                 <ContextMenu.Separator />
               </>
@@ -451,6 +490,7 @@ function NodeOrEdgeContextMenu(
     deleteShortcut,
     duplicateShortcut,
     makeJunctionShortcut,
+    onElkJs,
   ]);
 
   const onClick = useCallback<MouseEventHandler>(

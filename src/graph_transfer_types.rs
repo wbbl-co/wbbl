@@ -448,6 +448,11 @@ pub struct WbblWebappNodeGroup {
         deserialize_with = "string_to_uuid_vec"
     )]
     pub nodes: Vec<u128>,
+    #[serde(
+        serialize_with = "uuid_to_string_vec",
+        deserialize_with = "string_to_uuid_vec"
+    )]
+    pub edges: Vec<u128>,
     pub path: Option<String>,
 }
 
@@ -656,15 +661,19 @@ impl WbblWebappGraphSnapshot {
         self.node_groups = Some(
             new_group_ids
                 .values()
-                .map(|group_id| WbblWebappNodeGroup {
-                    id: *group_id,
-                    nodes: self
+                .map(|group_id| {
+                    let nodes = self
                         .nodes
                         .iter()
                         .filter(|n| n.group_id == Some(*group_id))
                         .map(|n| n.id)
-                        .collect(),
-                    path: None,
+                        .collect();
+                    WbblWebappNodeGroup {
+                        id: *group_id,
+                        nodes,
+                        edges: vec![],
+                        path: None,
+                    }
                 })
                 .collect(),
         );
@@ -695,6 +704,23 @@ impl WbblWebappGraphSnapshot {
         });
         self.edges
             .retain_mut(|e| !output_node_ids.contains(&e.target));
+        if let Some(groups) = self.node_groups.as_mut() {
+            for group in groups.iter_mut() {
+                group.nodes = group
+                    .nodes
+                    .iter()
+                    .filter(|x| !output_node_ids.contains(x))
+                    .cloned()
+                    .collect();
+            }
+            self.node_groups = Some(
+                groups
+                    .iter()
+                    .filter(|x| x.nodes.len() > 0)
+                    .cloned()
+                    .collect(),
+            );
+        }
     }
 
     pub(crate) fn offset(&mut self, offset: &Vec2) {

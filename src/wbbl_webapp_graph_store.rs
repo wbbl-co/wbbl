@@ -7,13 +7,19 @@ use std::{
 };
 
 use glam::Vec2;
+use graphviz_rust::dot_generator::node_id;
+use rstar::RTree;
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
-use yrs::{types::ToJson, Map, MapPrelim, MapRef, ReadTxn, Transact, TransactionMut, Value};
+use yrs::{
+    types::{EntryChange, PathSegment, ToJson},
+    DeepObservable, Map, MapPrelim, MapRef, ReadTxn, Transact, TransactionMut, Value,
+};
 
 use crate::{
     convex_hull::{get_convex_hull, get_ray_ray_intersection},
     data_types::AbstractDataType,
+    graph_spatial_lookup_types::GraphSpatialLookupType,
     graph_transfer_types::{
         from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
         WbblWebappNode, WbblWebappNodeGroup, WbblWebappNodeType, WbbleComputedNodeSize,
@@ -35,6 +41,7 @@ const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
 const GRAPH_YRS_EDGES_MAP_KEY: &str = "edges";
 
 #[wasm_bindgen]
+#[allow(unused)]
 pub struct WbblWebappGraphStore {
     id: u128,
     next_listener_handle: u32,
@@ -47,11 +54,15 @@ pub struct WbblWebappGraphStore {
     node_group_selections: yrs::MapRef,
     node_groups: yrs::MapRef,
     edges: yrs::MapRef,
-    computed_node_sizes: HashMap<u128, WbbleComputedNodeSize>,
+    computed_node_sizes: Arc<RefCell<HashMap<u128, WbbleComputedNodeSize>>>,
     graph_worker: Worker,
     worker_responder: Closure<dyn FnMut(MessageEvent) -> ()>,
     computed_types: Arc<RefCell<HashMap<PortId, AbstractDataType>>>,
+    spatial_index: Arc<RefCell<RTree<GraphSpatialLookupType>>>,
+    spatial_values: Arc<RefCell<HashMap<u128, GraphSpatialLookupType>>>,
     initialized: bool,
+    nodes_subscription: yrs::Subscription,
+    edges_subscription: yrs::Subscription,
 }
 
 #[wasm_bindgen]
@@ -336,6 +347,9 @@ impl WbblWebappGraphSnapshot {
 
         nodes.sort_by_key(|n| n.id.clone());
         edges.sort_by_key(|e| e.id.clone());
+        for node in nodes.iter_mut() {
+            node.measured = computed_node_sizes.get(&node.id).map(|s| s.clone());
+        }
         Ok(WbblWebappGraphSnapshot {
             id: graph_id,
             nodes,
@@ -832,6 +846,42 @@ impl WbblWebappEdge {
     }
 }
 
+fn get_spatial_structure_node<Txn: ReadTxn>(
+    txn: &Txn,
+    id: &u128,
+    node: &MapRef,
+    computed_nodes_sizes: &HashMap<u128, WbbleComputedNodeSize>,
+) -> Option<GraphSpatialLookupType> {
+    let x = get_float_64("x", txn, node);
+    let y = get_float_64("y", txn, node);
+    let size = computed_nodes_sizes.get(&id);
+    match (x, y, size) {
+        (Ok(x), Ok(y), Some(size)) => {
+            let top_left = Vec2::new(x as f32, y as f32);
+            let width_height = Vec2::new(
+                size.width.unwrap_or_default() as f32,
+                size.height.unwrap_or_default() as f32,
+            );
+            let node = GraphSpatialLookupType::Node(id.clone(), top_left, top_left + width_height);
+            return Some(node);
+        }
+        _ => {}
+    };
+    None
+}
+
+fn get_node_position<Txn: ReadTxn>(
+    txn: &Txn,
+    node: &yrs::Value,
+) -> Result<Vec2, WbblWebappStoreError> {
+    if let yrs::Value::YMap(node) = node {
+        let x = get_float_64("x", txn, node)?;
+        let y = get_float_64("y", txn, node)?;
+        return Ok(Vec2::new(x as f32, y as f32));
+    }
+    Err(WbblWebappStoreError::UnexpectedStructure)
+}
+
 #[wasm_bindgen]
 impl WbblWebappGraphStore {
     pub fn empty(graph_worker: Worker) -> Self {
@@ -888,6 +938,99 @@ impl WbblWebappGraphStore {
             .add_event_listener_with_callback("message", worker_responder.as_ref().unchecked_ref())
             .unwrap();
 
+        let computed_node_sizes: Arc<RefCell<HashMap<u128, WbbleComputedNodeSize>>> =
+            Arc::new(RefCell::new(HashMap::new()));
+        let spatial_index = Arc::new(RefCell::new(RTree::new()));
+        let spatial_values: Arc<RefCell<HashMap<u128, GraphSpatialLookupType>>> =
+            Arc::new(RefCell::new(HashMap::new()));
+
+        let nodes_subscription = nodes.observe_deep({
+            let spatial_index = spatial_index.clone();
+            let spatial_values = spatial_values.clone();
+            let computed_node_sizes = computed_node_sizes.clone();
+            move |mut txn, evts| {
+                for evt in evts.iter() {
+                    match evt {
+                        yrs::types::Event::Map(m) => {
+                            let keys = m.keys(&mut txn);
+                            let path = evt.path();
+                            if path.len() == 1 {
+                                if let Some(PathSegment::Key(id)) = path.get(0) {
+                                    if let Ok(id) = uuid::Uuid::parse_str(id) {
+                                        if keys.contains_key("x") || keys.contains_key("y") {
+                                            let x = keys.get("x");
+                                            let y = keys.get("y");
+                                            let spatial_values = spatial_values.borrow_mut();
+                                            if let Some(GraphSpatialLookupType::Node(
+                                                id,
+                                                top_left,
+                                                bottom_right,
+                                            )) = spatial_values.get(&id.as_u128())
+                                            {
+                                                let mut index = spatial_index.borrow_mut();
+                                                index.remove(&GraphSpatialLookupType::Node(
+                                                    id.clone(),
+                                                    top_left.clone(),
+                                                    bottom_right.clone(),
+                                                ));
+                                                let mut top_left = top_left.clone();
+                                                let mut bottom_right = bottom_right.clone();
+                                                let size = bottom_right - top_left;
+                                                if let EntryChange::Updated(, )
+
+                                                spatial_values.insert(id, v)
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if path.len() == 0 {
+                                for k in keys.iter() {
+                                    let key = k.0.clone().to_string();
+                                    match k.1 {
+                                        yrs::types::EntryChange::Inserted(node) => {
+                                            if let Ok(id) = uuid::Uuid::parse_str(&key) {
+                                                if let yrs::Value::YMap(node) = node {
+                                                    if let Some(node) = get_spatial_structure_node(
+                                                        txn,
+                                                        &id.as_u128(),
+                                                        node,
+                                                        &computed_node_sizes.borrow(),
+                                                    ) {
+                                                        spatial_index.borrow_mut().insert(node);
+                                                    };
+                                                }
+                                            }
+                                        }
+                                        yrs::types::EntryChange::Removed(node) => {
+                                            if let Ok(id) = uuid::Uuid::parse_str(&key) {
+                                                if let yrs::Value::YMap(node) = node {
+                                                    if let Some(node) = get_spatial_structure_node(
+                                                        txn,
+                                                        &id.as_u128(),
+                                                        node,
+                                                        &computed_node_sizes.borrow(),
+                                                    ) {
+                                                        log!("Node {:?}", node);
+                                                        spatial_index.borrow_mut().remove(&node);
+                                                    };
+                                                }
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        });
+        let edges_subscription = edges.observe_deep({
+            let spatial_index = spatial_index.clone();
+            move |txn, evts| {}
+        });
+
         let mut store = WbblWebappGraphStore {
             id: uuid::Uuid::new_v4().as_u128(),
             next_listener_handle: 0,
@@ -900,11 +1043,15 @@ impl WbblWebappGraphStore {
             node_selections,
             edge_selections,
             node_group_selections,
-            computed_node_sizes: HashMap::new(),
+            computed_node_sizes: computed_node_sizes.clone(),
             computed_types: computed_types.clone(),
             graph_worker: graph_worker.clone(),
             worker_responder,
             initialized: false,
+            spatial_index,
+            spatial_values,
+            nodes_subscription,
+            edges_subscription,
         };
 
         let output_node = NewWbblWebappNode::new(600.0, 500.0, WbblWebappNodeType::Output).unwrap();
@@ -972,6 +1119,7 @@ impl WbblWebappGraphStore {
 
             self.graph_worker.post_message(&snapshot_js_value).unwrap();
         }
+
         Ok(())
     }
 
@@ -1045,7 +1193,7 @@ impl WbblWebappGraphStore {
                 &mut self.edges,
                 &mut self.node_selections,
                 &mut self.edge_selections,
-                &mut self.computed_node_sizes,
+                &mut self.computed_node_sizes.borrow_mut(),
                 &mut self.node_groups,
             )?;
         }
@@ -1076,7 +1224,7 @@ impl WbblWebappGraphStore {
                                 &mut self.edges,
                                 &mut self.node_selections,
                                 &mut self.edge_selections,
-                                &mut self.computed_node_sizes,
+                                &mut self.computed_node_sizes.borrow_mut(),
                                 &mut self.node_groups,
                             )?;
                             Ok(())
@@ -1123,7 +1271,7 @@ impl WbblWebappGraphStore {
                                 &mut self.edges,
                                 &mut self.node_selections,
                                 &mut self.edge_selections,
-                                &mut self.computed_node_sizes,
+                                &mut self.computed_node_sizes.borrow_mut(),
                                 &mut self.node_groups,
                             )?;
                             Ok(())
@@ -1172,7 +1320,7 @@ impl WbblWebappGraphStore {
 
     fn get_snapshot_raw(&self) -> Result<WbblWebappGraphSnapshot, WbblWebappStoreError> {
         let read_txn = self.graph.transact();
-        let mut snapshot = WbblWebappGraphSnapshot::get_full_snapshot(
+        let snapshot = WbblWebappGraphSnapshot::get_full_snapshot(
             &read_txn,
             self.id,
             &self.nodes,
@@ -1181,12 +1329,10 @@ impl WbblWebappGraphStore {
             &self.edge_selections,
             &self.node_group_selections,
             &self.node_groups,
-            &self.computed_node_sizes,
+            &self.computed_node_sizes.borrow(),
             self.graph.client_id(),
         )?;
-        for node in snapshot.nodes.iter_mut() {
-            node.measured = self.computed_node_sizes.get(&node.id).map(|s| s.clone());
-        }
+
         Ok(snapshot)
     }
 
@@ -1197,31 +1343,56 @@ impl WbblWebappGraphStore {
         height: Option<f64>,
         resizing: Option<bool>,
     ) -> Result<(), WbblWebappStoreError> {
-        {
-            let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
-            match self.nodes.get(&mut_transaction, node_id) {
-                Some(yrs::Value::YMap(node_ref)) => {
-                    node_ref.insert(
-                        &mut mut_transaction,
-                        "resizing",
-                        yrs::Any::Bool(resizing.unwrap_or(false)),
-                    );
-                    Ok(())
-                }
-                _ => Err(WbblWebappStoreError::UnexpectedStructure),
-            }?;
-        }
+        let mut sizes = self.computed_node_sizes.borrow_mut();
 
-        let node_id = uuid::Uuid::from_str(node_id)
+        let node_id_uuid = uuid::Uuid::from_str(node_id)
             .map(|id| id.as_u128())
             .map_err(|_| WbblWebappStoreError::MalformedId)?;
+        {
+            let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
+            let node = get_map(node_id, &mut_transaction, &self.nodes)?;
+            node.insert(
+                &mut mut_transaction,
+                "resizing",
+                yrs::Any::Bool(resizing.unwrap_or(false)),
+            );
+            let current_position = get_node_position(&mut_transaction, &yrs::Value::YMap(node))?;
+            let old_size = if let Some(size) = sizes.get(&node_id_uuid) {
+                Vec2::new(
+                    size.width.unwrap_or_default() as f32,
+                    size.height.unwrap_or_default() as f32,
+                )
+            } else {
+                Vec2::ZERO
+            };
+            let old_node = GraphSpatialLookupType::Node(
+                node_id_uuid.clone(),
+                current_position,
+                current_position + old_size,
+            );
+            let mut index = self.spatial_index.borrow_mut();
+            index.remove(&old_node);
+            let new_node = GraphSpatialLookupType::Node(
+                node_id_uuid.clone(),
+                current_position,
+                current_position
+                    + Vec2::new(
+                        width.unwrap_or_default() as f32,
+                        height.unwrap_or_default() as f32,
+                    ),
+            );
+            index.insert(new_node);
+            log!("index size: {}", index.iter().count());
+        }
 
-        if let Some(maybe_computed) = self.computed_node_sizes.get_mut(&node_id) {
+        if let Some(maybe_computed) = sizes.get_mut(&node_id_uuid) {
             maybe_computed.width = width;
             maybe_computed.height = height;
         } else {
-            self.computed_node_sizes
-                .insert(node_id.to_owned(), WbbleComputedNodeSize { width, height });
+            sizes.insert(
+                node_id_uuid.to_owned(),
+                WbbleComputedNodeSize { width, height },
+            );
         }
 
         // Important that emit is called here. Rather than before the drop

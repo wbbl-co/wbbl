@@ -20,7 +20,6 @@ const colors = [
   "orange",
   "violet",
   "green",
-  "gray",
 ] as const;
 
 function uuidToColor(id: string) {

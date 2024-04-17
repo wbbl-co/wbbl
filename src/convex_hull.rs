@@ -186,19 +186,5 @@ pub fn is_axis_aligned_rect_intersecting_convex_hull(
             return true;
         }
     }
-    // Code to test whether inside shape
-    // hull.push(top_left.clone());
-    // hull.push(bottom_right.clone());
-    // hull.push(top_right.clone());
-    // hull.push(bottom_left.clone());
-    // let hull = get_convex_hull(&mut hull);
-    // if hull.contains(&top_left)
-    //     || hull.contains(&top_right)
-    //     || hull.contains(&top_left)
-    //     || hull.contains(&bottom_left)
-    // {
-    //     return false;
-    // }
-
     false
 }

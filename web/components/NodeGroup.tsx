@@ -1,16 +1,16 @@
-import {
-  MouseEventHandler,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { WbblGraphStoreContext } from "../hooks/use-wbbl-graph-store";
 import { ShortcutScope } from "../hooks/use-shortcut";
 import GroupContextMenu from "./GroupContextMenu";
-import { ReactFlowStore, useReactFlow, useStore } from "@xyflow/react";
+import {
+  ReactFlowStore,
+  useReactFlow,
+  useStore,
+  useStoreApi,
+} from "@xyflow/react";
 import { is_axis_aligned_rect_intersecting_convex_hull } from "../../pkg/wbbl";
+import { useGroupDrag } from "../hooks/use-group-drag";
+import { handleGroupClick } from "../hooks/use-group-drag/utils";
 
 const colors = [
   "red",
@@ -40,6 +40,7 @@ export default function NodeGroup(props: {
   path?: string;
   nodes: string[];
   edges: string[];
+  selected: boolean;
   bounds: Float32Array;
 }) {
   const graphStore = useContext(WbblGraphStoreContext);
@@ -75,17 +76,34 @@ export default function NodeGroup(props: {
     }
   }, [selectionRect, graphStore, props.id, flow]);
 
-  const onClick = useCallback<MouseEventHandler<SVGPathElement>>(() => {
-    graphStore.select_group(props.id, true);
-  }, [graphStore]);
+  const groupRef = useRef<SVGPathElement>(null);
+  useGroupDrag({
+    groupRef,
+    groupId: props.id,
+    disabled: false,
+    isSelectable: true,
+    selected: props.selected,
+  });
   const color = useMemo(() => {
     return uuidToColor(props.id);
   }, [props.id]);
+  const store = useStoreApi();
+
+  const onDrag = useCallback(() => {
+    handleGroupClick({
+      groupId: props.id,
+      store,
+      groupRef,
+      selected: props.selected,
+      graphStore,
+    });
+  }, [props.id, store, props.selected, graphStore]);
 
   return (
     <ShortcutScope scope={`group-${props.id}`} as="g" mode="hover">
       <GroupContextMenu
         nodes={props.nodes}
+        selected={props.selected}
         edges={props.edges}
         id={props.id}
         color={color}
@@ -110,11 +128,17 @@ export default function NodeGroup(props: {
           </pattern>
         </defs>
         <path
-          onClick={onClick}
+          ref={groupRef}
+          onPointerDown={onDrag}
+          data-selected={`${props.selected}`}
+          className="node-group"
           strokeWidth={"2"}
           fill={`url(#diagonalHatch-${props.id})`}
           stroke={`var(--${color}-9)`}
-          style={{ pointerEvents: selectionRect ? "none" : "visible" }}
+          style={{
+            color: `var(--${color}-9)`,
+            pointerEvents: selectionRect ? "none" : "visible",
+          }}
           d={props.path ?? ""}
         />
       </GroupContextMenu>

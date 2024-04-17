@@ -43,6 +43,7 @@ function GroupContextMenu(
     color: (typeof contextMenuContentPropDefs)["color"]["default"];
     nodes: string[];
     edges: string[];
+    selected: boolean;
   }>,
 ) {
   const preferencesStore = useContext(WbblPreferencesStoreContext);
@@ -79,42 +80,70 @@ function GroupContextMenu(
 
   const elkJs = useElkJs();
   const onElkJs = useCallback(() => {
-    elkJs(new Set(props.nodes), new Set(props.edges));
-  }, [elkJs, props.nodes, props.edges]);
+    if (props.selected) {
+      elkJs();
+    } else {
+      elkJs(new Set(props.nodes), new Set(props.edges));
+    }
+  }, [elkJs, props.nodes, props.edges, props.selected]);
 
   const graphStore = useContext(WbblGraphStoreContext);
 
   const deleteGroup = useCallback(() => {
-    graphStore.remove_node_group_and_contents(props.id);
+    if (props.selected) {
+      graphStore.remove_selected_nodes_and_edges();
+    } else {
+      graphStore.remove_node_group_and_contents(props.id);
+    }
   }, [graphStore, props.id]);
   useScopedShortcut(KeyboardShortcut.Delete, deleteGroup, [
     graphStore,
     props.id,
+    props.selected,
   ]);
 
   const ungroup = useCallback(() => {
-    graphStore.ungroup(props.id);
-  }, [graphStore, props.id]);
+    if (props.selected) {
+      graphStore.ungroup_selected_nodes();
+    } else {
+      graphStore.ungroup(props.id);
+    }
+  }, [graphStore, props.id, props.selected]);
   useScopedShortcut(KeyboardShortcut.UngroupNodes, ungroup, [
     graphStore,
     props.id,
+    props.selected,
   ]);
 
   const cut = useCallback(() => {
-    graphStore.copy_group(props.id).then(() => {
-      graphStore.remove_node_group_and_contents(props.id);
-    });
-  }, [graphStore, props.id]);
+    if (props.selected) {
+      graphStore.copy().then(() => {
+        graphStore.remove_selected_nodes_and_edges();
+      });
+    } else {
+      graphStore.copy_group(props.id).then(() => {
+        graphStore.remove_node_group_and_contents(props.id);
+      });
+    }
+  }, [graphStore, props.id, props.selected]);
   useScopedShortcut(KeyboardShortcut.Cut, cut, [graphStore, props.id]);
 
   const copy = useCallback(() => {
-    graphStore.copy_group(props.id);
-  }, [graphStore, props.id]);
+    if (props.selected) {
+      graphStore.copy();
+    } else {
+      graphStore.copy_group(props.id);
+    }
+  }, [graphStore, props.id, props.selected]);
   useScopedShortcut(KeyboardShortcut.Copy, copy, [graphStore, props.id]);
 
   const duplicate = useCallback(() => {
-    graphStore.duplicate_group(props.id);
-  }, [graphStore, props.id]);
+    if (props.selected) {
+      graphStore.duplicate();
+    } else {
+      graphStore.duplicate_group(props.id);
+    }
+  }, [graphStore, props.id, props.selected]);
   useScopedShortcut(KeyboardShortcut.Duplicate, duplicate, [
     graphStore,
     props.id,

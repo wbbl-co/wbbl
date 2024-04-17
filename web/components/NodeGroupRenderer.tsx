@@ -8,6 +8,7 @@ type NodeGroupRendererProps = {
     nodes: string[];
     edges: string[];
     bounds: Float32Array;
+    selected: boolean;
   }[];
   width: number;
   height: number;
@@ -42,6 +43,7 @@ export function NodeGroupRenderer({
               nodes={g.nodes}
               edges={g.edges}
               bounds={g.bounds}
+              selected={g.selected}
             />
           );
         })}

@@ -455,6 +455,7 @@ pub struct WbblWebappNodeGroup {
     pub edges: Vec<u128>,
     pub path: Option<String>,
     pub bounds: Vec<f32>,
+    pub selected: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -675,6 +676,7 @@ impl WbblWebappGraphSnapshot {
                         edges: vec![],
                         path: None,
                         bounds: vec![],
+                        selected: false,
                     }
                 })
                 .collect(),

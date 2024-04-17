@@ -528,6 +528,21 @@ path.react-flow__edge-path {
     text-align: unset;
 }
 
+.react-flow__viewport {
+    &:active,
+    &:focus-within,
+    &:focus-visible {
+        outline: none;
+        border: none;
+    }
+}
+
 .react-flow__viewport-portal {
     z-index: -100;
+}
+
+.node-group {
+    &[data-selected="true"] {
+        filter: drop-shadow(0px 0px 7px currentColor);
+    }
 }

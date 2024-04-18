@@ -57,9 +57,7 @@ pub struct WbblWebappGraphStore {
     computed_types: Arc<RefCell<HashMap<PortId, AbstractDataType>>>,
     spatial_index: Arc<RefCell<RTree<WbblWebappGraphEntity>>>,
     entities: Arc<RefCell<HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>>>,
-    initialized: bool,
-    nodes_subscription: yrs::Subscription,
-    edges_subscription: yrs::Subscription,
+    subscriptions: Vec<yrs::Subscription>,
 }
 
 #[wasm_bindgen]
@@ -843,18 +841,6 @@ impl WbblWebappEdge {
     }
 }
 
-fn get_node_position<Txn: ReadTxn>(
-    txn: &Txn,
-    node: &yrs::Value,
-) -> Result<Vec2, WbblWebappStoreError> {
-    if let yrs::Value::YMap(node) = node {
-        let x = get_float_64("x", txn, node)?;
-        let y = get_float_64("y", txn, node)?;
-        return Ok(Vec2::new(x as f32, y as f32));
-    }
-    Err(WbblWebappStoreError::UnexpectedStructure)
-}
-
 #[wasm_bindgen]
 impl WbblWebappGraphStore {
     pub fn empty(graph_worker: Worker) -> Self {
@@ -921,7 +907,20 @@ impl WbblWebappGraphStore {
             let spatial_index = spatial_index.clone();
             let entities = entities.clone();
             let computed_node_sizes = computed_node_sizes.clone();
+            let listeners = listeners.clone();
             move |mut txn, evts| {
+                // TODO: Update modified nodes
+                // TODO: Update edges for each modified Node if moved/resized
+                // TODO: Update node groups for each modified node if moved/resized
+
+                // Emitting change to listeners. Do this at end as we need to first update our
+                // domain representation
+                for (_, listener) in listeners.borrow().iter() {
+                    let _ = listener
+                        .call0(&JsValue::UNDEFINED)
+                        .inspect_err(|err| log!("Publish error: {:?}", err));
+                }
+
                 // for evt in evts.iter() {
                 //     match evt {
                 //         yrs::types::Event::Map(m) => {
@@ -1001,8 +1000,87 @@ impl WbblWebappGraphStore {
         });
         let edges_subscription = edges.observe_deep({
             let spatial_index = spatial_index.clone();
-            move |txn, evts| {}
+            let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
+            move |txn: &TransactionMut<'_>, evts| {
+                // TODO: Update modified edges
+                // TODO: Update nodes if edges changed
+
+                // Emitting change to listeners. Do this at end as we need to first update our
+                // domain representation
+                for (_, listener) in listeners.borrow().iter() {
+                    let _ = listener
+                        .call0(&JsValue::UNDEFINED)
+                        .inspect_err(|err| log!("Publish error: {:?}", err));
+                }
+            }
         });
+
+        let node_groups_subscription = node_group_selections.observe_deep({
+            let spatial_index = spatial_index.clone();
+            let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
+            move |txn, evts| {
+                // TODO: Update modified node_groups
+                // Emitting change to listeners. Do this at end as we need to first update our
+                // domain representation
+                for (_, listener) in listeners.borrow().iter() {
+                    let _ = listener
+                        .call0(&JsValue::UNDEFINED)
+                        .inspect_err(|err| log!("Publish error: {:?}", err));
+                }
+            }
+        });
+
+        let node_selections_subscription = node_selections.observe_deep({
+            let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
+            move |txn, evts| {
+                // TODO: Update node selection state if modified
+                // Emitting change to listeners. Do this at end as we need to first update our
+                // domain representation
+                for (_, listener) in listeners.borrow().iter() {
+                    let _ = listener
+                        .call0(&JsValue::UNDEFINED)
+                        .inspect_err(|err| log!("Publish error: {:?}", err));
+                }
+            }
+        });
+
+        let node_group_selections_subscription = node_group_selections.observe_deep({
+            let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
+            move |txn, evts| {
+                // TODO: Update node group selection state if modified
+                // Emitting change to listeners. Do this at end as we need to first update our
+                // domain representation
+                for (_, listener) in listeners.borrow().iter() {
+                    let _ = listener
+                        .call0(&JsValue::UNDEFINED)
+                        .inspect_err(|err| log!("Publish error: {:?}", err));
+                }
+            }
+        });
+
+        let edge_selections_subscription = edge_selections.observe_deep({
+            let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
+            move |txn, evts| {
+                // TODO: Update edge group selection state if modified
+
+                // Emitting change to listeners. Do this at end as we need to first update our
+                // domain representation
+                for (_, listener) in listeners.borrow().iter() {
+                    let _ = listener
+                        .call0(&JsValue::UNDEFINED)
+                        .inspect_err(|err| log!("Publish error: {:?}", err));
+                }
+            }
+        });
+
+        let subscriptions = vec![
+            nodes_subscription,
+            edges_subscription,
+            node_groups_subscription,
+            node_selections_subscription,
+            node_group_selections_subscription,
+            edge_selections_subscription,
+        ];
 
         let mut store = WbblWebappGraphStore {
             id: uuid::Uuid::new_v4().as_u128(),
@@ -1020,11 +1098,9 @@ impl WbblWebappGraphStore {
             computed_types: computed_types.clone(),
             graph_worker: graph_worker.clone(),
             worker_responder,
-            initialized: false,
             spatial_index,
             entities,
-            nodes_subscription,
-            edges_subscription,
+            subscriptions,
         };
 
         let output_node = NewWbblWebappNode::new(600.0, 500.0, WbblWebappNodeType::Output).unwrap();
@@ -1072,29 +1148,27 @@ impl WbblWebappGraphStore {
         store.undo_manager.expand_scope(&store.edges);
         store.undo_manager.expand_scope(&store.node_groups);
 
-        store.initialized = true;
-        store.emit(true).unwrap();
         store
     }
 
-    pub fn emit(&self, should_publish_to_worker: bool) -> Result<(), WbblWebappStoreError> {
-        for (_, listener) in self.listeners.borrow().iter() {
-            listener
-                .call0(&JsValue::UNDEFINED)
-                .map_err(|_| WbblWebappStoreError::FailedToEmit)?;
-        }
-        if should_publish_to_worker && self.initialized {
-            let snapshot = self.get_snapshot_raw()?;
-            let snapshot_js_value = serde_wasm_bindgen::to_value(
-                &WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot),
-            )
-            .map_err(|_| WbblWebappStoreError::UnexpectedStructure)?;
+    // pub fn emit(&self, should_publish_to_worker: bool) -> Result<(), WbblWebappStoreError> {
+    //     for (_, listener) in self.listeners.borrow().iter() {
+    //         listener
+    //             .call0(&JsValue::UNDEFINED)
+    //             .map_err(|_| WbblWebappStoreError::FailedToEmit)?;
+    //     }
+    //     if should_publish_to_worker && self.initialized {
+    //         let snapshot = self.get_snapshot_raw()?;
+    //         let snapshot_js_value = serde_wasm_bindgen::to_value(
+    //             &WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot),
+    //         )
+    //         .map_err(|_| WbblWebappStoreError::UnexpectedStructure)?;
 
-            self.graph_worker.post_message(&snapshot_js_value).unwrap();
-        }
+    //         self.graph_worker.post_message(&snapshot_js_value).unwrap();
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub fn subscribe(&mut self, subscriber: js_sys::Function) -> u32 {
         let handle = self.next_listener_handle;
@@ -1119,9 +1193,7 @@ impl WbblWebappGraphStore {
             .undo_manager
             .undo()
             .map_err(|_| WbblWebappStoreError::FailedToUndo)?;
-        if result {
-            self.emit(true)?;
-        }
+
         Ok(result)
     }
 
@@ -1130,9 +1202,6 @@ impl WbblWebappGraphStore {
             .undo_manager
             .redo()
             .map_err(|_| WbblWebappStoreError::FailedToRedo)?;
-        if result {
-            self.emit(true)?;
-        }
         Ok(result)
     }
 
@@ -1170,11 +1239,6 @@ impl WbblWebappGraphStore {
                 &mut self.node_groups,
             )?;
         }
-
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(true)?;
-
         Ok(())
     }
 
@@ -1217,7 +1281,6 @@ impl WbblWebappGraphStore {
                 )?;
             }
         }
-        self.emit(true)?;
         Ok(())
     }
 
@@ -1255,7 +1318,6 @@ impl WbblWebappGraphStore {
                 }?;
             }
         }
-        self.emit(true)?;
         Ok(())
     }
 
@@ -1270,11 +1332,6 @@ impl WbblWebappGraphStore {
                 &mut self.edge_selections,
             )?;
         }
-
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(true)?;
-
         Ok(())
     }
 
@@ -1283,11 +1340,6 @@ impl WbblWebappGraphStore {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             node.encode(&mut mut_transaction, &mut self.nodes)
         }?;
-
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(true)?;
-
         Ok(())
     }
 
@@ -1340,11 +1392,6 @@ impl WbblWebappGraphStore {
                 WbbleComputedNodeSize { width, height },
             );
         }
-
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(false)?;
-
         Ok(())
     }
 
@@ -1366,10 +1413,6 @@ impl WbblWebappGraphStore {
                 yrs::Any::Bool(dragging.unwrap_or(false)),
             );
         }
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(false)?;
-
         Ok(())
     }
 
@@ -1395,10 +1438,6 @@ impl WbblWebappGraphStore {
                 }
             }
         }
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(false)?;
-
         Ok(())
     }
 
@@ -1407,11 +1446,6 @@ impl WbblWebappGraphStore {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             node.encode(&mut mut_transaction, &mut self.nodes)
         }?;
-
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(true)?;
-
         Ok(())
     }
 
@@ -1438,11 +1472,6 @@ impl WbblWebappGraphStore {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             edge.encode(&mut mut_transaction, &mut self.edges, &self.nodes)?;
         }
-
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(true)?;
-
         Ok(())
     }
 
@@ -1684,7 +1713,6 @@ impl WbblWebappGraphStore {
                 }
             }
         }
-        self.emit(true)?;
         Ok(())
     }
 
@@ -1721,7 +1749,6 @@ impl WbblWebappGraphStore {
                 ),
             );
         }
-        self.emit(false)?;
         Ok(())
     }
 
@@ -1747,7 +1774,6 @@ impl WbblWebappGraphStore {
                 };
             }
         }
-        self.emit(false)?;
         Ok(())
     }
 
@@ -1775,7 +1801,6 @@ impl WbblWebappGraphStore {
                 };
             }
         }
-        self.emit(false)?;
         Ok(())
     }
 
@@ -1832,10 +1857,6 @@ impl WbblWebappGraphStore {
                 map.remove(&mut mut_transaction, edge_id);
             }
         }
-        // Important that emit is called here. Rather than before the drop
-        // as this could trigger a panic as the store value may be read
-        self.emit(false)?;
-
         Ok(())
     }
 
@@ -1872,7 +1893,6 @@ impl WbblWebappGraphStore {
                 node_group_selections.insert(&mut txn, k, v);
             }
         }
-        self.emit(false)?;
         Ok(())
     }
 
@@ -1914,7 +1934,6 @@ impl WbblWebappGraphStore {
                 edge_selections.insert(&mut txn, uuid::Uuid::from_u128(e).to_string(), true);
             }
         }
-        self.emit(false)?;
         Ok(())
     }
 
@@ -1945,7 +1964,6 @@ impl WbblWebappGraphStore {
                 edge_selections.remove(&mut txn, &uuid::Uuid::from_u128(e).to_string());
             }
         }
-        self.emit(false)?;
         Ok(())
     }
 
@@ -1970,7 +1988,6 @@ impl WbblWebappGraphStore {
                 Err(err) => Err(err),
             }?;
         }
-        self.emit(false)?;
         Ok(())
     }
 
@@ -2072,7 +2089,6 @@ impl WbblWebappGraphStore {
             let edge = WbblWebappEdge::new(&(source.as_u128()), &preview_node.id, 0, 0);
             edge.encode(mut_transaction, &mut self.edges, &self.nodes)?;
         }
-        self.emit(true)?;
         Ok(())
     }
 
@@ -2109,7 +2125,6 @@ impl WbblWebappGraphStore {
                 &mut self.edge_selections,
             )?;
         }
-        self.emit(true)?;
         Ok(())
     }
 }

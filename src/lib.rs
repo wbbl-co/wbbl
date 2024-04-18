@@ -11,7 +11,6 @@ pub mod data_types;
 pub(crate) mod dot_converter;
 pub mod gltf_encoder;
 pub mod graph_functions;
-pub(crate) mod graph_spatial_lookup_types;
 pub mod graph_transfer_types;
 pub mod graph_types;
 pub mod intermediate_compiler_types;

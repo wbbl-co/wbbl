@@ -7,23 +7,20 @@ use std::{
 };
 
 use glam::Vec2;
-use graphviz_rust::dot_generator::node_id;
 use rstar::RTree;
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
 use yrs::{
-    types::{EntryChange, PathSegment, ToJson},
-    DeepObservable, Map, MapPrelim, MapRef, ReadTxn, Transact, TransactionMut, Value,
+    types::ToJson, DeepObservable, Map, MapPrelim, MapRef, ReadTxn, Transact, TransactionMut, Value,
 };
 
 use crate::{
     convex_hull::{get_convex_hull, get_ray_ray_intersection},
     data_types::AbstractDataType,
-    graph_spatial_lookup_types::GraphSpatialLookupType,
     graph_transfer_types::{
-        from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
-        WbblWebappNode, WbblWebappNodeGroup, WbblWebappNodeType, WbbleComputedNodeSize,
-        WbblePosition,
+        from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphEntity,
+        WbblWebappGraphEntityId, WbblWebappGraphSnapshot, WbblWebappNode, WbblWebappNodeGroup,
+        WbblWebappNodeType, WbbleComputedNodeSize, WbblePosition,
     },
     graph_types::PortId,
     log,
@@ -58,8 +55,8 @@ pub struct WbblWebappGraphStore {
     graph_worker: Worker,
     worker_responder: Closure<dyn FnMut(MessageEvent) -> ()>,
     computed_types: Arc<RefCell<HashMap<PortId, AbstractDataType>>>,
-    spatial_index: Arc<RefCell<RTree<GraphSpatialLookupType>>>,
-    spatial_values: Arc<RefCell<HashMap<u128, GraphSpatialLookupType>>>,
+    spatial_index: Arc<RefCell<RTree<WbblWebappGraphEntity>>>,
+    entities: Arc<RefCell<HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>>>,
     initialized: bool,
     nodes_subscription: yrs::Subscription,
     edges_subscription: yrs::Subscription,
@@ -846,30 +843,6 @@ impl WbblWebappEdge {
     }
 }
 
-fn get_spatial_structure_node<Txn: ReadTxn>(
-    txn: &Txn,
-    id: &u128,
-    node: &MapRef,
-    computed_nodes_sizes: &HashMap<u128, WbbleComputedNodeSize>,
-) -> Option<GraphSpatialLookupType> {
-    let x = get_float_64("x", txn, node);
-    let y = get_float_64("y", txn, node);
-    let size = computed_nodes_sizes.get(&id);
-    match (x, y, size) {
-        (Ok(x), Ok(y), Some(size)) => {
-            let top_left = Vec2::new(x as f32, y as f32);
-            let width_height = Vec2::new(
-                size.width.unwrap_or_default() as f32,
-                size.height.unwrap_or_default() as f32,
-            );
-            let node = GraphSpatialLookupType::Node(id.clone(), top_left, top_left + width_height);
-            return Some(node);
-        }
-        _ => {}
-    };
-    None
-}
-
 fn get_node_position<Txn: ReadTxn>(
     txn: &Txn,
     node: &yrs::Value,
@@ -941,89 +914,89 @@ impl WbblWebappGraphStore {
         let computed_node_sizes: Arc<RefCell<HashMap<u128, WbbleComputedNodeSize>>> =
             Arc::new(RefCell::new(HashMap::new()));
         let spatial_index = Arc::new(RefCell::new(RTree::new()));
-        let spatial_values: Arc<RefCell<HashMap<u128, GraphSpatialLookupType>>> =
+        let entities: Arc<RefCell<HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>>> =
             Arc::new(RefCell::new(HashMap::new()));
 
         let nodes_subscription = nodes.observe_deep({
             let spatial_index = spatial_index.clone();
-            let spatial_values = spatial_values.clone();
+            let entities = entities.clone();
             let computed_node_sizes = computed_node_sizes.clone();
             move |mut txn, evts| {
-                for evt in evts.iter() {
-                    match evt {
-                        yrs::types::Event::Map(m) => {
-                            let keys = m.keys(&mut txn);
-                            let path = evt.path();
-                            if path.len() == 1 {
-                                if let Some(PathSegment::Key(id)) = path.get(0) {
-                                    if let Ok(id) = uuid::Uuid::parse_str(id) {
-                                        if keys.contains_key("x") || keys.contains_key("y") {
-                                            let x = keys.get("x");
-                                            let y = keys.get("y");
-                                            let spatial_values = spatial_values.borrow_mut();
-                                            if let Some(GraphSpatialLookupType::Node(
-                                                id,
-                                                top_left,
-                                                bottom_right,
-                                            )) = spatial_values.get(&id.as_u128())
-                                            {
-                                                let mut index = spatial_index.borrow_mut();
-                                                index.remove(&GraphSpatialLookupType::Node(
-                                                    id.clone(),
-                                                    top_left.clone(),
-                                                    bottom_right.clone(),
-                                                ));
-                                                let mut top_left = top_left.clone();
-                                                let mut bottom_right = bottom_right.clone();
-                                                let size = bottom_right - top_left;
-                                                if let EntryChange::Updated(, )
+                // for evt in evts.iter() {
+                //     match evt {
+                //         yrs::types::Event::Map(m) => {
+                //             let keys = m.keys(&mut txn);
+                //             let path = evt.path();
+                //             if path.len() == 1 {
+                //                 if let Some(PathSegment::Key(id)) = path.get(0) {
+                //                     if let Ok(id) = uuid::Uuid::parse_str(id) {
+                //                         if keys.contains_key("x") || keys.contains_key("y") {
+                //                             let x = keys.get("x");
+                //                             let y = keys.get("y");
+                //                             let spatial_values = spatial_values.borrow_mut();
+                //                             if let Some(GraphSpatialLookupType::Node(
+                //                                 id,
+                //                                 top_left,
+                //                                 bottom_right,
+                //                             )) = spatial_values.get(&id.as_u128())
+                //                             {
+                //                                 let mut index = spatial_index.borrow_mut();
+                //                                 index.remove(&GraphSpatialLookupType::Node(
+                //                                     id.clone(),
+                //                                     top_left.clone(),
+                //                                     bottom_right.clone(),
+                //                                 ));
+                //                                 let mut top_left = top_left.clone();
+                //                                 let mut bottom_right = bottom_right.clone();
+                //                                 let size = bottom_right - top_left;
+                //                                 if let EntryChange::Updated(, )
 
-                                                spatial_values.insert(id, v)
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if path.len() == 0 {
-                                for k in keys.iter() {
-                                    let key = k.0.clone().to_string();
-                                    match k.1 {
-                                        yrs::types::EntryChange::Inserted(node) => {
-                                            if let Ok(id) = uuid::Uuid::parse_str(&key) {
-                                                if let yrs::Value::YMap(node) = node {
-                                                    if let Some(node) = get_spatial_structure_node(
-                                                        txn,
-                                                        &id.as_u128(),
-                                                        node,
-                                                        &computed_node_sizes.borrow(),
-                                                    ) {
-                                                        spatial_index.borrow_mut().insert(node);
-                                                    };
-                                                }
-                                            }
-                                        }
-                                        yrs::types::EntryChange::Removed(node) => {
-                                            if let Ok(id) = uuid::Uuid::parse_str(&key) {
-                                                if let yrs::Value::YMap(node) = node {
-                                                    if let Some(node) = get_spatial_structure_node(
-                                                        txn,
-                                                        &id.as_u128(),
-                                                        node,
-                                                        &computed_node_sizes.borrow(),
-                                                    ) {
-                                                        log!("Node {:?}", node);
-                                                        spatial_index.borrow_mut().remove(&node);
-                                                    };
-                                                }
-                                            }
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
+                //                                 spatial_values.insert(id, v)
+                //                             }
+                //                         }
+                //                     }
+                //                 }
+                //             } else if path.len() == 0 {
+                //                 for k in keys.iter() {
+                //                     let key = k.0.clone().to_string();
+                //                     match k.1 {
+                //                         yrs::types::EntryChange::Inserted(node) => {
+                //                             if let Ok(id) = uuid::Uuid::parse_str(&key) {
+                //                                 if let yrs::Value::YMap(node) = node {
+                //                                     if let Some(node) = get_spatial_structure_node(
+                //                                         txn,
+                //                                         &id.as_u128(),
+                //                                         node,
+                //                                         &computed_node_sizes.borrow(),
+                //                                     ) {
+                //                                         spatial_index.borrow_mut().insert(node);
+                //                                     };
+                //                                 }
+                //                             }
+                //                         }
+                //                         yrs::types::EntryChange::Removed(node) => {
+                //                             if let Ok(id) = uuid::Uuid::parse_str(&key) {
+                //                                 if let yrs::Value::YMap(node) = node {
+                //                                     if let Some(node) = get_spatial_structure_node(
+                //                                         txn,
+                //                                         &id.as_u128(),
+                //                                         node,
+                //                                         &computed_node_sizes.borrow(),
+                //                                     ) {
+                //                                         log!("Node {:?}", node);
+                //                                         spatial_index.borrow_mut().remove(&node);
+                //                                     };
+                //                                 }
+                //                             }
+                //                         }
+                //                         _ => {}
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //         _ => {}
+                //     }
+                // }
             }
         });
         let edges_subscription = edges.observe_deep({
@@ -1049,7 +1022,7 @@ impl WbblWebappGraphStore {
             worker_responder,
             initialized: false,
             spatial_index,
-            spatial_values,
+            entities,
             nodes_subscription,
             edges_subscription,
         };
@@ -1356,33 +1329,6 @@ impl WbblWebappGraphStore {
                 "resizing",
                 yrs::Any::Bool(resizing.unwrap_or(false)),
             );
-            let current_position = get_node_position(&mut_transaction, &yrs::Value::YMap(node))?;
-            let old_size = if let Some(size) = sizes.get(&node_id_uuid) {
-                Vec2::new(
-                    size.width.unwrap_or_default() as f32,
-                    size.height.unwrap_or_default() as f32,
-                )
-            } else {
-                Vec2::ZERO
-            };
-            let old_node = GraphSpatialLookupType::Node(
-                node_id_uuid.clone(),
-                current_position,
-                current_position + old_size,
-            );
-            let mut index = self.spatial_index.borrow_mut();
-            index.remove(&old_node);
-            let new_node = GraphSpatialLookupType::Node(
-                node_id_uuid.clone(),
-                current_position,
-                current_position
-                    + Vec2::new(
-                        width.unwrap_or_default() as f32,
-                        height.unwrap_or_default() as f32,
-                    ),
-            );
-            index.insert(new_node);
-            log!("index size: {}", index.iter().count());
         }
 
         if let Some(maybe_computed) = sizes.get_mut(&node_id_uuid) {

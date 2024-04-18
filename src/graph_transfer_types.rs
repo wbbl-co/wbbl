@@ -1,4 +1,6 @@
 use glam::Vec2;
+use mint::Point2;
+use rstar::{RTreeObject, AABB};
 use serde::{de::Error, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     collections::{HashMap, HashSet},
@@ -16,13 +18,13 @@ use crate::{
     },
 };
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Default, Copy, Clone, Serialize, Deserialize)]
 pub struct WbbleComputedNodeSize {
     pub width: Option<f64>,
     pub height: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Any {
     Null,
     Undefined,
@@ -235,10 +237,25 @@ pub fn from_type_name(type_name: &str) -> Option<WbblWebappNodeType> {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Default, Copy, Clone, Serialize, Deserialize)]
 pub struct WbblePosition {
     pub x: f64,
     pub y: f64,
+}
+
+impl Into<Vec2> for WbblePosition {
+    fn into(self) -> Vec2 {
+        Vec2::new(self.x as f32, self.y as f32)
+    }
+}
+
+impl Into<Point2<f32>> for WbblePosition {
+    fn into(self) -> Point2<f32> {
+        Point2 {
+            x: self.x as f32,
+            y: self.y as f32,
+        }
+    }
 }
 
 fn type_to_string<S>(node_type: &WbblWebappNodeType, serializer: S) -> Result<S::Ok, S::Error>
@@ -329,7 +346,7 @@ where
     Ok(result)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct WbblWebappNode {
     #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
     pub id: u128,
@@ -392,7 +409,7 @@ where
         .map_err(|_| Error::custom("Malformed target handle id"))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct WbblWebappEdge {
     #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
     pub id: u128,
@@ -439,7 +456,7 @@ impl WbblWebappEdge {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct WbblWebappNodeGroup {
     #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
     pub id: u128,
@@ -753,6 +770,77 @@ impl WbblWebappGraphSnapshot {
                 x: final_position.x as f64,
                 y: final_position.y as f64,
             };
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum WbblWebappGraphEntity {
+    Node(WbblWebappNode),
+    Edge(WbblWebappEdge),
+    Group(WbblWebappNodeGroup),
+}
+
+#[derive(Debug, PartialEq, Hash, PartialOrd)]
+pub enum WbblWebappGraphEntityId {
+    NodeId(u128),
+    EdgeId(u128),
+    GroupId(u128),
+}
+
+impl WbblWebappGraphEntity {
+    pub fn id(&self) -> WbblWebappGraphEntityId {
+        match self {
+            WbblWebappGraphEntity::Node(node) => WbblWebappGraphEntityId::NodeId(node.id),
+            WbblWebappGraphEntity::Edge(edge) => WbblWebappGraphEntityId::EdgeId(edge.id),
+            WbblWebappGraphEntity::Group(group) => WbblWebappGraphEntityId::GroupId(group.id),
+        }
+    }
+}
+
+impl From<WbblWebappEdge> for WbblWebappGraphEntity {
+    fn from(value: WbblWebappEdge) -> Self {
+        WbblWebappGraphEntity::Edge(value)
+    }
+}
+
+impl From<WbblWebappNode> for WbblWebappGraphEntity {
+    fn from(value: WbblWebappNode) -> Self {
+        WbblWebappGraphEntity::Node(value)
+    }
+}
+
+impl From<WbblWebappNodeGroup> for WbblWebappGraphEntity {
+    fn from(value: WbblWebappNodeGroup) -> Self {
+        WbblWebappGraphEntity::Group(value)
+    }
+}
+
+impl RTreeObject for WbblWebappGraphEntity {
+    type Envelope = AABB<Point2<f32>>;
+    fn envelope(&self) -> Self::Envelope {
+        match self {
+            WbblWebappGraphEntity::Node(node) => {
+                let top_left: Vec2 = node.position.clone().into();
+                let meaasured = node.measured.unwrap_or_default();
+                let size = Vec2::new(
+                    meaasured.width.unwrap_or_default() as f32,
+                    meaasured.height.unwrap_or_default() as f32,
+                );
+                AABB::from_corners(top_left.into(), (top_left + size).into())
+            }
+            WbblWebappGraphEntity::Edge(_) => {
+                AABB::from_corners(Point2 { x: 0.0, y: 0.0 }, Point2 { x: 0.0, y: 0.0 })
+            }
+            WbblWebappGraphEntity::Group(group) => {
+                let points: Vec<Point2<f32>> = group
+                    .bounds
+                    .iter()
+                    .zip(group.bounds.iter().skip(1))
+                    .map(|(a, b)| Point2 { x: *a, y: *b })
+                    .collect();
+                AABB::from_points(&points)
+            }
         }
     }
 }

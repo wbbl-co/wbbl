@@ -139,7 +139,7 @@ function NodeOrEdgeContextMenu(
             graphStore.remove_node(props.id);
           }
         }
-      : () => graphStore.remove_selected_nodes_and_edges(),
+      : () => graphStore.remove_selected_entities(),
     [props.id, graphStore, currentNodeOrEdgeExclusivelySelected, props.isEdge],
   );
 
@@ -192,7 +192,7 @@ function NodeOrEdgeContextMenu(
         }
       : () => {
           graphStore.copy().then(() => {
-            graphStore.remove_selected_nodes_and_edges();
+            graphStore.remove_selected_entities();
           });
         },
     [props.id, graphStore, currentNodeOrEdgeExclusivelySelected],

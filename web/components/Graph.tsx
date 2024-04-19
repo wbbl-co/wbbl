@@ -10,7 +10,6 @@ import {
   ReactFlowProvider,
   useReactFlow,
   OnSelectionChangeFunc,
-  OnBeforeDelete,
   useViewport,
   OnNodesChange,
   OnEdgesChange,
@@ -222,24 +221,6 @@ function Graph() {
           case "remove":
             graphStore.remove_node(change.id);
             break;
-          case "replace":
-            graphStore.replace_node(
-              NewWbblWebappNode.new_with_data(
-                change.item.position.x,
-                change.item.position.x,
-                from_type_name(change.item.type ?? "slab")!,
-                change.item.data,
-              ),
-            );
-            break;
-          case "dimensions":
-            graphStore.set_computed_node_dimension(
-              change.id,
-              change.dimensions?.width ?? 0,
-              change.dimensions?.height ?? 0,
-              change.resizing ?? false,
-            );
-            break;
           case "position":
             graphStore.set_node_position(
               change.id,
@@ -250,6 +231,10 @@ function Graph() {
             break;
           case "select":
             graphStore.set_node_selection(change.id, change.selected);
+            break;
+          case "dimensions":
+          case "replace":
+            // Ignore the other events here. We don't need them
             break;
         }
       }
@@ -431,7 +416,7 @@ function Graph() {
       graphStore
         .copy()
         .then(() => {
-          graphStore.remove_selected_nodes_and_edges();
+          graphStore.remove_selected_entities();
         })
         .catch(console.error);
     },
@@ -471,7 +456,7 @@ function Graph() {
   useScopedShortcut(
     KeyboardShortcut.Delete,
     () => {
-      graphStore.remove_selected_nodes_and_edges();
+      graphStore.remove_selected_entities();
     },
     [graphStore],
     {

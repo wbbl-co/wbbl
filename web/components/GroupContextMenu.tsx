@@ -91,7 +91,7 @@ function GroupContextMenu(
 
   const deleteGroup = useCallback(() => {
     if (props.selected) {
-      graphStore.remove_selected_nodes_and_edges();
+      graphStore.remove_selected_entities();
     } else {
       graphStore.remove_node_group_and_contents(props.id);
     }
@@ -118,7 +118,7 @@ function GroupContextMenu(
   const cut = useCallback(() => {
     if (props.selected) {
       graphStore.copy().then(() => {
-        graphStore.remove_selected_nodes_and_edges();
+        graphStore.remove_selected_entities();
       });
     } else {
       graphStore.copy_group(props.id).then(() => {

@@ -1,3 +1,5 @@
+use im::HashSet;
+use std::vec;
 use std::{collections::HashMap, str::FromStr};
 use web_sys::js_sys::escape;
 use web_sys::js_sys::unescape;
@@ -172,8 +174,8 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                 id,
                 nodes,
                 edges,
-                node_groups: None,
-                computed_types: None,
+                node_groups: vec![],
+                computed_types: HashMap::new(),
             })
         }
         _ => Err(DotFileError::NotDigraph),

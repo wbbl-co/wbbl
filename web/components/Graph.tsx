@@ -369,18 +369,6 @@ function Graph() {
 
   const { width, height } = useScreenDimensions();
 
-  const onBeforeDelete: OnBeforeDelete = useCallback(
-    async ({ nodes, edges }) => {
-      const selectedNodes = graphStore.get_locally_selected_nodes();
-      const selectedEdges = graphStore.get_locally_selected_edges();
-      return {
-        nodes: nodes.filter((x) => selectedNodes.includes(x.id)),
-        edges: edges.filter((x) => selectedEdges.includes(x.id)),
-      };
-    },
-    [graphStore],
-  );
-
   useScopedShortcut(
     KeyboardShortcut.Paste,
     () => {
@@ -547,7 +535,6 @@ function Graph() {
                 onEdgeDoubleClick={removeEdge}
                 onConnectStart={onConnectStart}
                 onConnectEnd={onConnectEnd}
-                onBeforeDelete={onBeforeDelete}
                 multiSelectionKeyCode={useMemo(
                   () =>
                     selectionKeybinding

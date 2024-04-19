@@ -16,6 +16,7 @@ use crate::{
     graph_types::{
         Edge, Graph, InputPort, InputPortId, Node, NodeType, OutputPort, OutputPortId, PortId,
     },
+    store_errors::WbblWebappStoreError,
 };
 
 #[derive(Debug, PartialEq, Default, Copy, Clone, Serialize, Deserialize)]
@@ -362,6 +363,7 @@ pub struct WbblWebappNode {
     pub dragging: bool,
     pub resizing: bool,
     pub selected: bool,
+    pub selections: Vec<String>,
     pub selectable: bool,
     pub connectable: bool,
     pub deletable: bool,
@@ -371,6 +373,18 @@ pub struct WbblWebappNode {
         deserialize_with = "string_to_option_uuid"
     )]
     pub group_id: Option<u128>,
+
+    #[serde(
+        serialize_with = "uuid_to_string_vec",
+        deserialize_with = "string_to_uuid_vec"
+    )]
+    pub in_edges: Vec<u128>,
+
+    #[serde(
+        serialize_with = "uuid_to_string_vec",
+        deserialize_with = "string_to_uuid_vec"
+    )]
+    pub out_edges: Vec<u128>,
 }
 
 fn target_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::Error>
@@ -481,8 +495,8 @@ pub struct WbblWebappGraphSnapshot {
     pub id: u128,
     pub nodes: Vec<WbblWebappNode>,
     pub edges: Vec<WbblWebappEdge>,
-    pub node_groups: Option<Vec<WbblWebappNodeGroup>>,
-    pub computed_types: Option<HashMap<PortId, AbstractDataType>>,
+    pub node_groups: Vec<WbblWebappNodeGroup>,
+    pub computed_types: HashMap<PortId, AbstractDataType>,
 }
 
 impl From<WbblWebappEdge> for Edge {
@@ -677,27 +691,25 @@ impl WbblWebappGraphSnapshot {
                 n.group_id = Some(*new_group_id);
             }
         }
-        self.node_groups = Some(
-            new_group_ids
-                .values()
-                .map(|group_id| {
-                    let nodes = self
-                        .nodes
-                        .iter()
-                        .filter(|n| n.group_id == Some(*group_id))
-                        .map(|n| n.id)
-                        .collect();
-                    WbblWebappNodeGroup {
-                        id: *group_id,
-                        nodes,
-                        edges: vec![],
-                        path: None,
-                        bounds: vec![],
-                        selected: false,
-                    }
-                })
-                .collect(),
-        );
+        self.node_groups = new_group_ids
+            .values()
+            .map(|group_id| {
+                let nodes = self
+                    .nodes
+                    .iter()
+                    .filter(|n| n.group_id == Some(*group_id))
+                    .map(|n| n.id)
+                    .collect();
+                WbblWebappNodeGroup {
+                    id: *group_id,
+                    nodes,
+                    edges: vec![],
+                    path: None,
+                    bounds: vec![],
+                    selected: false,
+                }
+            })
+            .collect();
         self.edges = self
             .edges
             .iter()
@@ -725,23 +737,21 @@ impl WbblWebappGraphSnapshot {
         });
         self.edges
             .retain_mut(|e| !output_node_ids.contains(&e.target));
-        if let Some(groups) = self.node_groups.as_mut() {
-            for group in groups.iter_mut() {
-                group.nodes = group
-                    .nodes
-                    .iter()
-                    .filter(|x| !output_node_ids.contains(x))
-                    .cloned()
-                    .collect();
-            }
-            self.node_groups = Some(
-                groups
-                    .iter()
-                    .filter(|x| x.nodes.len() > 0)
-                    .cloned()
-                    .collect(),
-            );
+
+        for group in self.node_groups.iter_mut() {
+            group.nodes = group
+                .nodes
+                .iter()
+                .filter(|x| !output_node_ids.contains(x))
+                .cloned()
+                .collect();
         }
+        self.node_groups = self
+            .node_groups
+            .iter()
+            .filter(|x| x.nodes.len() > 0)
+            .cloned()
+            .collect();
     }
 
     pub(crate) fn offset(&mut self, offset: &Vec2) {
@@ -774,14 +784,50 @@ impl WbblWebappGraphSnapshot {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum WbblWebappGraphEntity {
     Node(WbblWebappNode),
     Edge(WbblWebappEdge),
     Group(WbblWebappNodeGroup),
 }
 
-#[derive(Debug, PartialEq, Hash, PartialOrd)]
+impl TryFrom<WbblWebappGraphEntity> for WbblWebappNode {
+    type Error = WbblWebappStoreError;
+
+    fn try_from(value: WbblWebappGraphEntity) -> Result<Self, Self::Error> {
+        match value {
+            WbblWebappGraphEntity::Node(node) => Ok(node),
+            WbblWebappGraphEntity::Edge(_) => Err(WbblWebappStoreError::UnexpectedStructure),
+            WbblWebappGraphEntity::Group(_) => Err(WbblWebappStoreError::UnexpectedStructure),
+        }
+    }
+}
+
+impl TryFrom<WbblWebappGraphEntity> for WbblWebappEdge {
+    type Error = WbblWebappStoreError;
+
+    fn try_from(value: WbblWebappGraphEntity) -> Result<Self, Self::Error> {
+        match value {
+            WbblWebappGraphEntity::Node(_) => Err(WbblWebappStoreError::UnexpectedStructure),
+            WbblWebappGraphEntity::Edge(edge) => Ok(edge),
+            WbblWebappGraphEntity::Group(_) => Err(WbblWebappStoreError::UnexpectedStructure),
+        }
+    }
+}
+
+impl TryFrom<WbblWebappGraphEntity> for WbblWebappNodeGroup {
+    type Error = WbblWebappStoreError;
+
+    fn try_from(value: WbblWebappGraphEntity) -> Result<Self, Self::Error> {
+        match value {
+            WbblWebappGraphEntity::Node(_) => Err(WbblWebappStoreError::UnexpectedStructure),
+            WbblWebappGraphEntity::Edge(_) => Err(WbblWebappStoreError::UnexpectedStructure),
+            WbblWebappGraphEntity::Group(group) => Ok(group),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Ord, Hash, PartialOrd)]
 pub enum WbblWebappGraphEntityId {
     NodeId(u128),
     EdgeId(u128),

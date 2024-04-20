@@ -23,8 +23,8 @@ function getNode(internalNodes: Map<string, InternalNode>, node: Node) {
   const handleBounds = internalNodes.get(node.id)?.internals.handleBounds;
   return {
     id: node.id,
-    width: node.measured?.width ?? 0,
-    height: node.measured?.height ?? 0,
+    width: node.width ?? 0,
+    height: node.height ?? 0,
     layoutOptions: node.selected
       ? {}
       : ({

@@ -15,6 +15,7 @@ pub mod graph_transfer_types;
 pub mod graph_types;
 pub mod intermediate_compiler_types;
 pub mod model_scene_file_abstractions;
+pub(crate) mod node_display_data;
 pub mod preview_renderer;
 pub mod shader_layouts;
 pub mod store_errors;

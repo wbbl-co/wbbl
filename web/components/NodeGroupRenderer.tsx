@@ -7,7 +7,7 @@ type NodeGroupRendererProps = {
     path?: string;
     nodes: string[];
     edges: string[];
-    bounds: Float32Array;
+    bounds: [number, number][];
     selected: boolean;
   }[];
   width: number;

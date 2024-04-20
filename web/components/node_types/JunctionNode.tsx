@@ -19,7 +19,9 @@ function JunctionNode({
   positionAbsoluteX,
   positionAbsoluteY,
   dragging,
-}: Omit<NodeProps, "width" | "height">) {
+  width,
+  height,
+}: NodeProps) {
   const contentsRef = useCardWbbl({
     w: JUNCTION_WIDTH,
     h: JUNCTION_HEIGHT,
@@ -52,8 +54,8 @@ function JunctionNode({
       >
         <Box
           style={{
-            width: JUNCTION_WIDTH,
-            height: JUNCTION_HEIGHT,
+            width: width,
+            height: height,
             overflow: "visible",
             padding: 0,
             margin: 0,

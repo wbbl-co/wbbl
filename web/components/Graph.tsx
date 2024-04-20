@@ -489,10 +489,13 @@ function Graph() {
   );
 
   const portRefStore = useMemo(() => new PortRefStore(), []);
-  const sortedNodes = useMemo(() => {
-    return snapshot.nodes.sort((a, b) =>
-      a.type === b.type ? 0 : a.type === "frame" ? -1 : 1,
-    );
+  const processedNodes = useMemo(() => {
+    return snapshot.nodes
+      .sort((a, b) => (a.type === b.type ? 0 : a.type === "frame" ? -1 : 1))
+      .map((x) => {
+        x.measured = { height: x.height, width: x.width };
+        return x;
+      });
   }, [snapshot.nodes]);
 
   return (
@@ -504,7 +507,7 @@ function Graph() {
               <ReactFlow
                 width={width}
                 height={height}
-                nodes={sortedNodes}
+                nodes={processedNodes}
                 onNodesChange={onNodesChange}
                 edges={snapshot.edges}
                 edgeTypes={edgeTypes}

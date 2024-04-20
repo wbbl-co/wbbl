@@ -16,8 +16,8 @@ function WbblNode({
   dragging,
   positionAbsoluteX,
   positionAbsoluteY,
-  w,
-  h,
+  width,
+  height,
   children,
   inputPortLabels,
   outputPortLabels,
@@ -25,19 +25,17 @@ function WbblNode({
   deleteable,
   copyable,
   selected,
-}: Omit<NodeProps, "width" | "height" | "data"> & {
+}: Omit<NodeProps, "data"> & {
   inputPortLabels: (null | string)[];
   outputPortLabels: (null | string)[];
-  w: number;
-  h: number;
   children?: ReactElement;
   previewable: boolean;
   deleteable: boolean;
   copyable: boolean;
 }) {
   const contentsRef = useCardWbbl({
-    w,
-    h,
+    w: width!,
+    h: height!,
     positionAbsoluteX,
     positionAbsoluteY,
     dragging,
@@ -73,8 +71,8 @@ function WbblNode({
     () => (
       <Box
         style={{
-          width: w,
-          height: h,
+          width: width!,
+          height: height!,
           overflow: "visible",
           padding: 0,
           margin: 0,
@@ -85,8 +83,8 @@ function WbblNode({
           aria-selected={selected}
           className={`node-contents ${selected ? "selected" : ""} category-${nodeMetaData[type as keyof typeof nodeMetaData].category}`}
           style={{
-            width: w,
-            height: h,
+            width: width!,
+            height: height!,
           }}
         >
           <Heading

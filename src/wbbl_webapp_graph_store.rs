@@ -8,11 +8,11 @@ use std::{
 };
 
 use glam::Vec2;
-use rstar::RTree;
 use wasm_bindgen::prelude::*;
 use web_sys::{js_sys, MessageEvent, Worker};
 use yrs::{
-    types::ToJson, DeepObservable, Map, MapPrelim, MapRef, ReadTxn, Transact, TransactionMut,
+    types::{PathSegment, ToJson},
+    DeepObservable, Map, MapPrelim, MapRef, Transact, TransactionMut,
 };
 
 use crate::{
@@ -21,18 +21,17 @@ use crate::{
     graph_transfer_types::{
         from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphEntity,
         WbblWebappGraphEntityId, WbblWebappGraphSnapshot, WbblWebappNode, WbblWebappNodeGroup,
-        WbblWebappNodeType, WbbleComputedNodeSize, WbblePosition,
+        WbblWebappNodeType, WbblePosition,
     },
     graph_types::PortId,
     log,
+    node_display_data::{get_in_port_position, get_node_dimensions, get_out_port_position},
     store_errors::WbblWebappStoreError,
     wbbl_graph_web_worker::WbblGraphWebWorkerResponseMessage,
     yrs_utils::*,
 };
 
-const GRAPH_YRS_NODE_GROUPS_MAP_KEY: &str = "node_groups";
 const GRAPH_YRS_NODE_GROUP_SELECTIONS_MAP_KEY: &str = "node_group_selections";
-
 const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
 const GRAPH_YRS_EDGES_MAP_KEY: &str = "edges";
 
@@ -50,7 +49,6 @@ pub struct WbblWebappGraphStore {
     graph_worker: Worker,
     worker_responder: Closure<dyn FnMut(MessageEvent) -> ()>,
     computed_types: Arc<RefCell<HashMap<PortId, AbstractDataType>>>,
-    spatial_index: Arc<RefCell<RTree<WbblWebappGraphEntity>>>,
     entities: Arc<RefCell<HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>>>,
     subscriptions: Vec<yrs::Subscription>,
     locally_selected_entities: Arc<RefCell<HashSet<WbblWebappGraphEntityId>>>,
@@ -98,9 +96,9 @@ fn encode_selection(
     let entity = get_map(&uuid::Uuid::from_u128(id).to_string(), txn, root_map)?;
     let selections = get_map("selections", txn, &entity)?;
     if selected {
-        selections.remove(txn, &client_id.to_string());
-    } else {
         selections.insert(txn, client_id.to_string(), true);
+    } else {
+        selections.remove(txn, &client_id.to_string());
     }
     Ok(())
 }
@@ -110,40 +108,21 @@ impl NewWbblWebappNode {
         &self,
         transaction: &mut TransactionMut,
         nodes: &yrs::MapRef,
-    ) -> Result<WbblWebappNode, WbblWebappStoreError> {
-        let data = {
-            let prelim_map: yrs::MapPrelim<yrs::Any> = yrs::MapPrelim::new();
-            let mut node_ref = nodes.insert(
-                transaction,
-                uuid::Uuid::from_u128(self.id).to_string(),
-                prelim_map,
-            );
-            node_ref.insert(transaction, "type", get_type_name(self.node_type));
-            node_ref.insert(transaction, "x", self.position.x);
-            node_ref.insert(transaction, "y", self.position.y);
-            node_ref.insert(transaction, "dragging", false);
-            node_ref.insert(transaction, "resizing", false);
-            node_ref.insert(transaction, "selections", MapPrelim::<bool>::new());
-            encode_data(&self.data, transaction, &mut node_ref)
-        }?;
-
-        Ok(WbblWebappNode {
-            id: self.id,
-            position: self.position,
-            node_type: self.node_type,
-            data,
-            measured: None,
-            dragging: false,
-            resizing: false,
-            selected: false,
-            selections: vec![],
-            selectable: true,
-            deletable: self.node_type != WbblWebappNodeType::Output,
-            connectable: true,
-            group_id: None,
-            in_edges: vec![],
-            out_edges: vec![],
-        })
+    ) -> Result<(), WbblWebappStoreError> {
+        let prelim_map: yrs::MapPrelim<yrs::Any> = yrs::MapPrelim::new();
+        let mut node_ref = nodes.insert(
+            transaction,
+            uuid::Uuid::from_u128(self.id).to_string(),
+            prelim_map,
+        );
+        node_ref.insert(transaction, "type", get_type_name(self.node_type));
+        node_ref.insert(transaction, "x", self.position.x);
+        node_ref.insert(transaction, "y", self.position.y);
+        node_ref.insert(transaction, "dragging", false);
+        node_ref.insert(transaction, "resizing", false);
+        node_ref.insert(transaction, "selections", MapPrelim::<bool>::new());
+        encode_data(&self.data, transaction, &mut node_ref)?;
+        Ok(())
     }
 }
 
@@ -214,45 +193,27 @@ impl NewWbblWebappNode {
     }
 }
 
-fn get_mutual_edges<Txn: ReadTxn>(
-    txn: &Txn,
-    node_ids: &Vec<u128>,
-    nodes_map: &yrs::MapRef,
-) -> Result<Vec<u128>, WbblWebappStoreError> {
+fn get_mutual_edges(
+    node_ids: &HashSet<u128>,
+    entities: &HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>,
+) -> Vec<u128> {
     let mut mutual_edges: Vec<u128> = vec![];
     let mut edges_map: HashSet<u128> = HashSet::new();
     for node_id in node_ids.iter() {
-        let node = get_map(&uuid::Uuid::from_u128(*node_id).to_string(), txn, nodes_map)?;
-        let in_edge_ids = get_map("in_edges", txn, &node)?.keys(txn).try_fold(
-            HashSet::new(),
-            |mut prev, key| {
-                let id = uuid::Uuid::parse_str(key)
-                    .map_err(|_| WbblWebappStoreError::MalformedId)?
-                    .as_u128();
-                prev.insert(id);
-                Ok(prev)
-            },
-        )?;
-        let out_edge_ids = get_map("out_edges", txn, &node)?.keys(txn).try_fold(
-            HashSet::new(),
-            |mut prev, key| {
-                let id = uuid::Uuid::parse_str(key)
-                    .map_err(|_| WbblWebappStoreError::MalformedId)?
-                    .as_u128();
-                prev.insert(id);
-                Ok(prev)
-            },
-        )?;
-        let mut in_intersection: Vec<u128> =
-            edges_map.intersection(&in_edge_ids).cloned().collect();
-        let mut out_intersection: Vec<u128> =
-            edges_map.intersection(&out_edge_ids).cloned().collect();
-        mutual_edges.append(&mut in_intersection);
-        mutual_edges.append(&mut out_intersection);
-        edges_map = edges_map.union(&in_edge_ids).cloned().collect();
-        edges_map = edges_map.union(&out_edge_ids).cloned().collect();
+        if let Some(WbblWebappGraphEntity::Node(node)) =
+            entities.get(&WbblWebappGraphEntityId::NodeId(*node_id))
+        {
+            let mut in_intersection: Vec<u128> =
+                edges_map.intersection(&node.in_edges).cloned().collect();
+            let mut out_intersection: Vec<u128> =
+                edges_map.intersection(&node.out_edges).cloned().collect();
+            mutual_edges.append(&mut in_intersection);
+            mutual_edges.append(&mut out_intersection);
+            edges_map = edges_map.union(&node.in_edges).cloned().collect();
+            edges_map = edges_map.union(&node.out_edges).cloned().collect();
+        }
     }
-    Ok(mutual_edges)
+    mutual_edges
 }
 
 impl WbblWebappNode {
@@ -285,27 +246,32 @@ impl WbblWebappNode {
             Some(typ) => Ok(typ),
             None => Err(WbblWebappStoreError::UnknownNodeType),
         }?;
-        let key_str = uuid::Uuid::from_u128(*key).to_string();
         let selected = selections.contains_key(txn, &client_id.to_string());
+        let (width, height) = get_node_dimensions(node_type.clone(), None, None);
         Ok(WbblWebappNode {
             id: *key,
             position: WbblePosition { x, y },
-            measured: None,
             node_type,
             dragging,
             resizing,
             selected,
+            width,
+            height,
             data: data
                 .iter()
                 .map(|(k, v)| (k.to_owned(), v.into()))
                 .collect::<HashMap<String, Any>>(),
             connectable: true,
             selectable: true,
-            selections: selections.keys(txn).map(|x| x.to_string()).collect(),
+            selections: selections
+                .keys(txn)
+                .flat_map(|x| uuid::Uuid::from_str(x))
+                .map(|x| x.as_u128())
+                .collect(),
             deletable: node_type != WbblWebappNodeType::Output,
             group_id,
-            in_edges: vec![],
-            out_edges: vec![],
+            in_edges: HashSet::new(),
+            out_edges: HashSet::new(),
         })
     }
 
@@ -324,10 +290,6 @@ impl WbblWebappNode {
         node_ref.insert(transaction, "y", self.position.y);
         node_ref.insert(transaction, "dragging", false);
         node_ref.insert(transaction, "resizing", false);
-        let prelim_in_edges: MapPrelim<yrs::Any> = yrs::MapPrelim::new();
-        node_ref.insert(transaction, "in_edges", prelim_in_edges);
-        let prelim_out_edges: MapPrelim<yrs::Any> = yrs::MapPrelim::new();
-        node_ref.insert(transaction, "out_edges", prelim_out_edges);
         if let Some(group_id) = self.group_id {
             let group_id = uuid::Uuid::from_u128(group_id).to_string();
             node_ref.insert(transaction, "group_id", group_id.clone());
@@ -352,6 +314,7 @@ fn delete_node_group_and_associated_nodes_and_edges(
     group_id: u128,
     nodes: &MapRef,
     edges: &MapRef,
+    node_groups_selections: &MapRef,
     entities: &HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>,
 ) -> Result<(), WbblWebappStoreError> {
     if let Some(WbblWebappGraphEntity::Group(group)) =
@@ -373,6 +336,8 @@ fn delete_node_group_and_associated_nodes_and_edges(
                 Err(err) => Err(err),
             }?;
         }
+        node_groups_selections.remove(txn, &uuid::Uuid::from_u128(group_id).to_string());
+
         Ok(())
     } else {
         Err(WbblWebappStoreError::NotFound)
@@ -393,182 +358,95 @@ fn clear_local_selections(
         for entity_id in locally_selected_entities.iter() {
             match entity_id {
                 WbblWebappGraphEntityId::NodeId(node_id) => {
-                    encode_selection(txn, node_id.clone(), nodes, client_id.clone(), false);
+                    encode_selection(txn, node_id.clone(), nodes, client_id.clone(), false)?;
                 }
                 WbblWebappGraphEntityId::EdgeId(edge_id) => {
-                    encode_selection(txn, edge_id.clone(), edges, client_id.clone(), false);
+                    encode_selection(txn, edge_id.clone(), edges, client_id.clone(), false)?;
                 }
-                WbblWebappGraphEntityId::GroupId(group_id) => {}
+                WbblWebappGraphEntityId::GroupId(_) => {}
             }
         }
         Ok(())
     }
 }
-
-pub fn get_group_bounds(
-    txn: &mut TransactionMut,
-    group_id: &str,
-    nodes: &MapRef,
-    node_groups: &mut MapRef,
-    computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
-) -> Result<Vec<f32>, WbblWebappStoreError> {
-    let mut min_position = Vec2::new(f32::MAX, f32::MAX);
-    let mut max_position = Vec2::new(f32::MIN, f32::MIN);
-
-    let group = get_map(group_id, txn, &node_groups)?;
-    let node_ids: Vec<String> = group.keys(txn).map(|k| k.to_owned()).collect();
-    for node_id in node_ids {
-        match get_map(&node_id, txn, nodes) {
-            Ok(map) => {
-                let node_id_u128 = uuid::Uuid::parse_str(&node_id)
-                    .map_err(|_| WbblWebappStoreError::MalformedId)?
-                    .as_u128();
-                if let Some(WbbleComputedNodeSize {
-                    width: Some(w),
-                    height: Some(h),
-                }) = computed_node_sizes.get(&node_id_u128)
-                {
-                    let min_pos_x = get_float_64("x", txn, &map)? as f32;
-                    let max_pos_x = min_pos_x + (*w as f32);
-                    if min_pos_x < min_position.x {
-                        min_position.x = min_pos_x;
-                    }
-                    if max_pos_x > max_position.x {
-                        max_position.x = max_pos_x;
-                    }
-                    let min_pos_y = get_float_64("y", txn, &map)? as f32;
-                    let max_pos_y = min_pos_y + (*h as f32);
-                    if min_pos_y < min_position.y {
-                        min_position.y = min_pos_y;
-                    }
-                    if max_pos_y > max_position.y {
-                        max_position.y = max_pos_y;
-                    }
-                }
-            }
-            Err(WbblWebappStoreError::NotFound) => {}
-            Err(err) => return Err(err),
-        };
-    }
-    Ok(Vec::from([
-        min_position.x,
-        min_position.y,
-        max_position.x,
-        min_position.y,
-        max_position.x,
-        max_position.y,
-        min_position.x,
-        max_position.y,
-    ]))
-}
-
-pub fn get_group_convex_hull<Txn: ReadTxn>(
-    txn: &Txn,
-    group_id: &str,
-    nodes: &MapRef,
-    node_groups: &MapRef,
-    computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
-) -> Result<Vec<Vec2>, WbblWebappStoreError> {
-    let mut positions: Vec<Vec2> = Vec::new();
-    let group = get_map(group_id, txn, &node_groups)?;
-    let node_ids: Vec<String> = group.keys(txn).map(|k| k.to_owned()).collect();
-    for node_id in node_ids {
-        match get_map(&node_id, txn, nodes) {
-            Ok(map) => {
-                let node_id_u128 = uuid::Uuid::parse_str(&node_id)
-                    .map_err(|_| WbblWebappStoreError::MalformedId)?
-                    .as_u128();
-                if let Some(WbbleComputedNodeSize {
-                    width: Some(w),
-                    height: Some(h),
-                }) = computed_node_sizes.get(&node_id_u128)
-                {
-                    let min_pos_x = get_float_64("x", txn, &map)? as f32;
-                    let max_pos_x = min_pos_x + (*w as f32);
-
-                    let min_pos_y = get_float_64("y", txn, &map)? as f32;
-                    let max_pos_y = min_pos_y + (*h as f32);
-                    positions.push(Vec2 {
-                        x: min_pos_x,
-                        y: min_pos_y,
-                    });
-
-                    positions.push(Vec2 {
-                        x: max_pos_x,
-                        y: max_pos_y,
-                    });
-
-                    positions.push(Vec2 {
-                        x: min_pos_x,
-                        y: max_pos_y,
-                    });
-
-                    positions.push(Vec2 {
-                        x: max_pos_x,
-                        y: min_pos_y,
-                    });
-                }
-            }
-            Err(WbblWebappStoreError::NotFound) => {}
-            Err(err) => return Err(err),
-        };
-    }
-
-    Ok(get_convex_hull(&mut positions))
-}
-
 const INFLATE_GROUP_PATH_BY: f32 = 25.0;
 
-pub fn get_group_path<Txn: ReadTxn>(
-    txn: &Txn,
-    group_id: &str,
-    nodes: &MapRef,
-    node_groups: &MapRef,
-    computed_node_sizes: &HashMap<u128, WbbleComputedNodeSize>,
-) -> Result<(String, Vec<Vec2>), WbblWebappStoreError> {
-    let convex_hull =
-        get_group_convex_hull(txn, group_id, nodes, node_groups, computed_node_sizes)?;
-    let mut inflated_convex_hull = vec![];
-    if convex_hull.len() > 2 {
-        let first = convex_hull[0];
-        let second = convex_hull[1];
-        let delta_first_second = second - first;
-        let first_second_tangent = Vec2::new(-delta_first_second.y, delta_first_second.x)
-            .normalize()
-            * INFLATE_GROUP_PATH_BY;
-        let first_1 = first_second_tangent + first;
-        inflated_convex_hull.push(first_1);
-        let mut result = format!("M {} {}", first_1.x, first_1.y);
-        let mut i = 1;
-        while i <= convex_hull.len() {
-            let prev = convex_hull[(i - 1) % convex_hull.len()];
-            let current = convex_hull[i % convex_hull.len()];
-            let next = convex_hull[(i + 1) % convex_hull.len()];
-            let delta_current_prev = current.clone() - prev.clone();
-            let delta_next_current = next - current.clone();
-            let tangent_prev = INFLATE_GROUP_PATH_BY
-                * Vec2::new(-delta_current_prev.y, delta_current_prev.x).normalize();
-            let tangent_next = INFLATE_GROUP_PATH_BY
-                * Vec2::new(-delta_next_current.y, delta_next_current.x).normalize();
-            let prev = prev + tangent_prev;
-            let current_1 = current + tangent_prev;
-            let current_2 = current + tangent_next;
-            let next = next + tangent_next;
-            let intersection = get_ray_ray_intersection(&prev, &current_1, &current_2, &next);
-            result.push_str(&format!("L {} {}", current_1.x, current_1.y));
-            if let Some(intersection) = intersection {
-                inflated_convex_hull.push(intersection);
-                result.push_str(&format!(
-                    "Q {} {}, {} {}",
-                    intersection.x, intersection.y, current_2.x, current_2.y
-                ));
+impl WbblWebappNodeGroup {
+    pub fn update_group_convex_hull(
+        &mut self,
+        entities: &HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>,
+    ) {
+        let mut positions: Vec<Vec2> = Vec::new();
+
+        for node_id in self.nodes.iter() {
+            let entity = entities.get(&WbblWebappGraphEntityId::NodeId(*node_id));
+            if entity.is_none() {
+                continue;
             }
-            i += 1;
+            let entity = entity.unwrap();
+            if let WbblWebappGraphEntity::Node(node) = entity {
+                let top_left = Vec2::new(node.position.x as f32, node.position.y as f32);
+                let size = Vec2::new(node.width as f32, node.height as f32);
+                positions.push(top_left);
+
+                positions.push(top_left + size);
+
+                positions.push(Vec2 {
+                    x: top_left.x + size.x,
+                    y: top_left.y,
+                });
+
+                positions.push(Vec2 {
+                    x: top_left.x,
+                    y: top_left.y + size.y,
+                });
+            }
         }
-        result.push('Z');
-        return Ok((result, inflated_convex_hull));
+
+        let convex_hull = get_convex_hull(&mut positions);
+
+        let mut inflated_convex_hull = vec![];
+        if convex_hull.len() > 2 {
+            let first = convex_hull[0];
+            let second = convex_hull[1];
+            let delta_first_second = second - first;
+            let first_second_tangent = Vec2::new(-delta_first_second.y, delta_first_second.x)
+                .normalize()
+                * INFLATE_GROUP_PATH_BY;
+            let first_1 = first_second_tangent + first;
+            inflated_convex_hull.push(first_1);
+            let mut result = format!("M {} {}", first_1.x, first_1.y);
+            let mut i = 1;
+            while i <= convex_hull.len() {
+                let prev = convex_hull[(i - 1) % convex_hull.len()];
+                let current = convex_hull[i % convex_hull.len()];
+                let next = convex_hull[(i + 1) % convex_hull.len()];
+                let delta_current_prev = current.clone() - prev.clone();
+                let delta_next_current = next - current.clone();
+                let tangent_prev = INFLATE_GROUP_PATH_BY
+                    * Vec2::new(-delta_current_prev.y, delta_current_prev.x).normalize();
+                let tangent_next = INFLATE_GROUP_PATH_BY
+                    * Vec2::new(-delta_next_current.y, delta_next_current.x).normalize();
+                let prev = prev + tangent_prev;
+                let current_1 = current + tangent_prev;
+                let current_2 = current + tangent_next;
+                let next = next + tangent_next;
+                let intersection = get_ray_ray_intersection(&prev, &current_1, &current_2, &next);
+                result.push_str(&format!("L {} {}", current_1.x, current_1.y));
+                if let Some(intersection) = intersection {
+                    inflated_convex_hull.push(intersection);
+                    result.push_str(&format!(
+                        "Q {} {}, {} {}",
+                        intersection.x, intersection.y, current_2.x, current_2.y
+                    ));
+                }
+                i += 1;
+            }
+            result.push('Z');
+            self.path = Some(result);
+            self.bounds = inflated_convex_hull;
+        }
     }
-    return Ok(("".to_owned(), vec![]));
 }
 
 impl WbblWebappEdge {
@@ -582,9 +460,20 @@ impl WbblWebappEdge {
         let target = get_atomic_u128_from_string("target", txn, map)?;
         let source_handle = get_atomic_bigint("source_handle", txn, map)?;
         let target_handle = get_atomic_bigint("target_handle", txn, map)?;
-        let key_str = uuid::Uuid::from_u128(key).to_string();
         let selections: MapRef = get_map("selections", txn, map)?;
+        let group_id: Option<u128> = match get_atomic_u128_from_string("group_id", txn, map) {
+            Ok(id) => Ok(Some(id)),
+            Err(WbblWebappStoreError::NotFound) => Ok(None),
+            Err(err) => Err(err),
+        }?;
+
         let selected = selections.contains_key(txn, &client_id.to_string());
+        let selections = selections
+            .keys(txn)
+            .flat_map(|x| uuid::Uuid::from_str(x))
+            .map(|x| x.as_u128())
+            .collect();
+
         Ok(WbblWebappEdge {
             id: key,
             source,
@@ -594,7 +483,11 @@ impl WbblWebappEdge {
             deletable: true,
             selectable: true,
             updatable: false,
+            selections,
             selected,
+            source_position: Vec2::ZERO,
+            target_position: Vec2::ZERO,
+            group_id,
         })
     }
 
@@ -647,22 +540,74 @@ fn delete_node_and_associated_edges(
         Some(entity) => entity.clone().try_into(),
         None => Err(WbblWebappStoreError::NotFound),
     }?;
+    if node.node_type == WbblWebappNodeType::Output {
+        return Ok(()); // DO NOTHING
+    }
     for edge in node.in_edges {
-        delete_edge(txn, edge, edges);
+        delete_edge(txn, edge, edges)?;
     }
     for edge in node.out_edges {
-        delete_edge(txn, edge, edges);
+        delete_edge(txn, edge, edges)?;
     }
     nodes.remove(txn, &uuid::Uuid::from_u128(node_id).to_string());
     Ok(())
+}
+
+fn insert_or_update_node_group(
+    node: &WbblWebappNode,
+    entities: &mut HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>,
+    locally_selected_entities: &mut HashSet<WbblWebappGraphEntityId>,
+    group_uuid: u128,
+) {
+    if node.group_id != Some(group_uuid) {
+        let group_id = WbblWebappGraphEntityId::GroupId(group_uuid);
+        let group = entities.get(&group_id).map(|x| x.clone());
+        if group.is_none() {
+            locally_selected_entities.remove(&group_id);
+            return;
+        }
+        if let Some(WbblWebappGraphEntity::Group(mut group)) = group {
+            group.nodes.remove(&node.id);
+            if group.nodes.len() == 0 {
+                locally_selected_entities.remove(&group_id);
+                entities.remove(&group_id);
+            } else {
+                group.update_group_convex_hull(entities);
+                entities.insert(group_id, WbblWebappGraphEntity::Group(group));
+            }
+        }
+    } else {
+        let group_id = WbblWebappGraphEntityId::GroupId(group_uuid);
+
+        let group = entities.get(&group_id).map(|x| x.clone());
+        if group.is_none() {
+            let mut group = WbblWebappNodeGroup {
+                id: group_uuid,
+                nodes: HashSet::from([node.id]),
+                path: None,
+                edges: HashSet::new(),
+                bounds: vec![],
+                selected: false,
+                selections: HashSet::new(),
+            };
+            group.update_group_convex_hull(&entities);
+            entities.insert(group_id, WbblWebappGraphEntity::Group(group));
+        } else if let Some(WbblWebappGraphEntity::Group(mut group)) = group {
+            group.nodes.insert(node.id);
+            group.update_group_convex_hull(&entities);
+            group.edges = get_mutual_edges(&group.nodes, entities)
+                .iter()
+                .cloned()
+                .collect();
+            entities.insert(group_id, WbblWebappGraphEntity::Group(group));
+        }
+    }
 }
 
 #[wasm_bindgen]
 impl WbblWebappGraphStore {
     pub fn empty(graph_worker: Worker) -> Self {
         let graph = yrs::Doc::new();
-        let node_groups: Arc<MapRef> =
-            Arc::new(graph.get_or_insert_map(GRAPH_YRS_NODE_GROUPS_MAP_KEY.to_owned()));
         let nodes = Arc::new(graph.get_or_insert_map(GRAPH_YRS_NODES_MAP_KEY.to_owned()));
         let edges = Arc::new(graph.get_or_insert_map(GRAPH_YRS_EDGES_MAP_KEY.to_owned()));
         let node_group_selections =
@@ -715,98 +660,576 @@ impl WbblWebappGraphStore {
             .add_event_listener_with_callback("message", worker_responder.as_ref().unchecked_ref())
             .unwrap();
 
-        let computed_node_sizes: Arc<RefCell<HashMap<u128, WbbleComputedNodeSize>>> =
-            Arc::new(RefCell::new(HashMap::new()));
-        let spatial_index = Arc::new(RefCell::new(RTree::new()));
         let entities: Arc<RefCell<HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>>> =
             Arc::new(RefCell::new(HashMap::new()));
 
-        let nodes_subscription = nodes.observe_deep({
-            let spatial_index = spatial_index.clone();
-            let entities = entities.clone();
-            let computed_node_sizes = computed_node_sizes.clone();
-            let listeners = listeners.clone();
-            let graph: Arc<yrs::Doc> = graph.clone();
-            move |mut txn, evts| {
-                for evt in evts.iter() {
-                    let path = evt.path();
-                    if path.len() == 0 {
-                        // Signals an addition/removal from the graph store
-                        if let yrs::types::Event::Map(mapEvt) = evt {
-                            for (key, change) in mapEvt.keys(&mut txn).iter() {
-                                if let Ok(node_id) =
-                                    uuid::Uuid::parse_str(&key).map(|id| id.as_u128())
-                                {
-                                    match change {
-                                        yrs::types::EntryChange::Inserted(yrs::Value::YMap(
-                                            node,
-                                        )) => {
-                                            let client_id = graph.client_id();
-                                            if let Ok(node) = WbblWebappNode::decode(
-                                                &node_id, txn, node, client_id,
-                                            ) {
-                                                entities.borrow_mut().insert(
-                                                    WbblWebappGraphEntityId::NodeId(node_id),
-                                                    WbblWebappGraphEntity::Node(node),
-                                                );
+        let nodes_subscription =
+            nodes.observe_deep({
+                let entities = entities.clone();
+                let client_id = graph.client_id();
+                let locally_selected_entities = locally_selected_entities.clone();
+                let nodes = nodes.clone();
+                move |mut txn, evts| {
+                    for evt in evts.iter() {
+                        let path = evt.path();
+                        if path.len() == 0 {
+                            // Signals an addition/removal from the graph store
+                            if let yrs::types::Event::Map(map_evt) = evt {
+                                for (key, change) in map_evt.keys(&mut txn).iter() {
+                                    if let Ok(node_id) =
+                                        uuid::Uuid::parse_str(&key).map(|id| id.as_u128())
+                                    {
+                                        match change {
+                                            yrs::types::EntryChange::Inserted(
+                                                yrs::Value::YMap(node),
+                                            ) => {
+                                                if let Ok(node) = WbblWebappNode::decode(
+                                                    &node_id, txn, node, client_id,
+                                                ) {
+                                                    let mut entities = entities.borrow_mut();
+                                                    let node_id =
+                                                        WbblWebappGraphEntityId::NodeId(node_id);
+                                                    entities.insert(
+                                                        node_id,
+                                                        WbblWebappGraphEntity::Node(node.clone()),
+                                                    );
+                                                    if let Some(group_id) = node.group_id {
+                                                        insert_or_update_node_group(
+                                                            &node,
+                                                            &mut entities,
+                                                            &mut locally_selected_entities
+                                                                .borrow_mut(),
+                                                            group_id,
+                                                        );
+                                                    };
+                                                }
+                                            }
+                                            yrs::types::EntryChange::Removed(_) => {
+                                                let node_id =
+                                                    WbblWebappGraphEntityId::NodeId(node_id);
+                                                locally_selected_entities
+                                                    .borrow_mut()
+                                                    .remove(&node_id);
+                                                let mut entities = entities.borrow_mut();
+                                                if let Some(WbblWebappGraphEntity::Node(mut prev_node)) = entities.remove(&node_id)  {
+                                                    if let Some(prev_group_id) = prev_node.group_id {
+                                                        prev_node.group_id = None;
+                                                        insert_or_update_node_group(
+                                                            &prev_node,
+                                                            &mut entities,
+                                                            &mut locally_selected_entities
+                                                                .borrow_mut(),
+                                                            prev_group_id,
+                                                        );
+                                                    }
+                                                }
+                                                // TODO: Update spatial index
+                                                // TODO: Update node group
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                            }
+                        } else if path.len() == 1 {
+                            if let Some(PathSegment::Key(node_id)) = path.get(0) {
+                                if let Ok(node_id) = try_into_u128(node_id) {
+                                    let mut entities = entities.borrow_mut();
+
+                                    if let yrs::Value::YMap(node_map) = evt.target() {
+                                        if let Ok(mut node) = WbblWebappNode::decode(
+                                            &node_id, txn, &node_map, client_id,
+                                        ) {
+                                            let key = WbblWebappGraphEntityId::NodeId(node_id);
+                                            if let Some(WbblWebappGraphEntity::Node(prev_node)) =
+                                                entities.remove(&key)
+                                            {
+                                                node.width = prev_node.width;
+                                                node.height = prev_node.height;
+                                                node.in_edges = prev_node.in_edges;
+                                                node.out_edges = prev_node.out_edges;
+
+                                                if let yrs::types::Event::Map(map_evt) = evt {
+                                                    let keys = map_evt.keys(txn);
+                                                    entities.insert(
+                                                        key,
+                                                        WbblWebappGraphEntity::Node(node.clone()),
+                                                    );
+
+                                                    if keys.contains_key("group_id") {
+                                                        let group_id_evt =
+                                                            keys.get("group_id").unwrap();
+                                                        // TODO: Update both groups and edges
+                                                        // TODO: Update Spatial Index
+                                                        match group_id_evt {
+                                                            yrs::types::EntryChange::Inserted(
+                                                                yrs::Value::Any(yrs::Any::String(
+                                                                    group_id,
+                                                                )),
+                                                            ) => {
+                                                                if let Ok(group_id) =
+                                                                    try_into_u128(group_id)
+                                                                {
+                                                                    insert_or_update_node_group(
+                                                                    &node,
+                                                                    &mut entities,
+                                                                    &mut locally_selected_entities
+                                                                        .borrow_mut(),
+                                                                    group_id,
+                                                                );
+                                                                }
+                                                            }
+                                                            yrs::types::EntryChange::Updated(
+                                                                yrs::Value::Any(yrs::Any::String(
+                                                                    old_group_id,
+                                                                )),
+                                                                yrs::Value::Any(yrs::Any::String(
+                                                                    new_group_id,
+                                                                )),
+                                                            ) => {
+                                                                let mut locally_selected_entities =
+                                                                    locally_selected_entities
+                                                                        .borrow_mut();
+
+                                                                if let (
+                                                                    Ok(old_group_id),
+                                                                    Ok(new_group_id),
+                                                                ) = (
+                                                                    try_into_u128(old_group_id),
+                                                                    try_into_u128(new_group_id),
+                                                                ) {
+                                                                    insert_or_update_node_group(
+                                                                        &node,
+                                                                        &mut entities,
+                                                                        &mut locally_selected_entities,
+                                                                        old_group_id,
+                                                                    );
+                                                                    insert_or_update_node_group(
+                                                                    &node,
+                                                                    &mut entities,
+                                                                    &mut locally_selected_entities,
+                                                                    new_group_id,
+                                                                );
+                                                                }
+                                                            }
+                                                            yrs::types::EntryChange::Removed(
+                                                                yrs::Value::Any(yrs::Any::String(
+                                                                    group_id,
+                                                                )),
+                                                            ) => {
+                                                                if let Ok(group_id) =
+                                                                    try_into_u128(group_id)
+                                                                {
+                                                                    insert_or_update_node_group(
+                                                                    &node,
+                                                                    &mut entities,
+                                                                    &mut locally_selected_entities
+                                                                        .borrow_mut(),
+                                                                    group_id,
+                                                                );
+                                                                }
+                                                            }
+                                                            _ => {}
+                                                        };
+                                                    }
+                                                    if keys.contains_key("x")
+                                                        || keys.contains_key("y")
+                                                    {
+                                                        if let Some(group_id) = node.group_id {
+                                                            insert_or_update_node_group(
+                                                                &node,
+                                                                &mut entities,
+                                                                &mut locally_selected_entities
+                                                                    .borrow_mut(),
+                                                                group_id,
+                                                            );
+                                                        }
+                                                        let top_left = Vec2::new(
+                                                            node.position.x as f32,
+                                                            node.position.y as f32,
+                                                        );
+                                                        for edge_id in node.in_edges.iter() {
+                                                            let edge = entities.get_mut(
+                                                                &WbblWebappGraphEntityId::EdgeId(
+                                                                    *edge_id,
+                                                                ),
+                                                            );
+
+                                                            match edge {
+                                                                Some(
+                                                                    WbblWebappGraphEntity::Edge(
+                                                                        edge,
+                                                                    ),
+                                                                ) => {
+                                                                    let (x, y) =
+                                                                        get_in_port_position(
+                                                                            node.node_type,
+                                                                            edge.target_handle
+                                                                                as u8,
+                                                                        );
+                                                                    let target_position = top_left
+                                                                        + Vec2::new(
+                                                                            x as f32, y as f32,
+                                                                        );
+                                                                    edge.target_position =
+                                                                        target_position;
+                                                                }
+                                                                _ => {}
+                                                            };
+                                                        }
+                                                        for edge_id in node.out_edges.iter() {
+                                                            let edge = entities.get_mut(
+                                                                &WbblWebappGraphEntityId::EdgeId(
+                                                                    *edge_id,
+                                                                ),
+                                                            );
+
+                                                            match edge {
+                                                                Some(
+                                                                    WbblWebappGraphEntity::Edge(
+                                                                        edge,
+                                                                    ),
+                                                                ) => {
+                                                                    let (x, y) =
+                                                                        get_out_port_position(
+                                                                            node.node_type,
+                                                                            edge.source_handle
+                                                                                as u8,
+                                                                            Some(
+                                                                                node.in_edges.len()
+                                                                                    as u8,
+                                                                            ),
+                                                                            Some(
+                                                                                node.out_edges.len()
+                                                                                    as u8,
+                                                                            ),
+                                                                        );
+                                                                    let source_position = top_left
+                                                                        + Vec2::new(
+                                                                            x as f32, y as f32,
+                                                                        );
+                                                                    edge.source_position =
+                                                                        source_position;
+                                                                }
+                                                                _ => {}
+                                                            };
+                                                        }
+                                                        // TODO: Update Spatial Index
+                                                    }
+                                                }
                                             }
                                         }
-                                        yrs::types::EntryChange::Removed(_) => todo!(),
-                                        _ => {}
+                                    }
+                                }
+                            }
+                        } else {
+                            if let Some(PathSegment::Key(node_id)) = path.get(0) {
+                                let mut entities = entities.borrow_mut();
+                                if let Ok(node_id_uuid) = try_into_u128(node_id) {
+                                    let key = WbblWebappGraphEntityId::NodeId(node_id_uuid);
+                                    if let Some(WbblWebappGraphEntity::Node(prev_node)) =
+                                        entities.remove(&key)
+                                    {
+                                        if let Ok(node) = get_map(node_id, txn, &nodes) {
+                                            if let Ok(mut node) = WbblWebappNode::decode(
+                                                &node_id_uuid,
+                                                txn,
+                                                &node,
+                                                client_id,
+                                            ) {
+                                                match (path.len() == 2, path.get(1).unwrap()) {
+                                                    (true, PathSegment::Key(segment))
+                                                        if segment.to_string() == "selections" =>
+                                                    {
+                                                        if node.selected {
+                                                            locally_selected_entities
+                                                                .borrow_mut()
+                                                                .insert(key);
+                                                        } else {
+                                                            locally_selected_entities
+                                                                .borrow_mut()
+                                                                .remove(&key);
+                                                        }
+                                                    }
+                                                    _ => {}
+                                                };
+                                                node.width = prev_node.width;
+                                                node.height = prev_node.height;
+                                                node.in_edges = prev_node.in_edges;
+                                                node.out_edges = prev_node.out_edges;
+                                                entities
+                                                    .insert(key, WbblWebappGraphEntity::Node(node));
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-                // TODO: Update modified nodes
-                // TODO: Update edges for each modified Node if moved/resized
-                // TODO: Update node groups for each modified node if moved/resized
-
-                // Emitting change to listeners. Do this at end as we need to first update our
-                // domain representation
-                for (_, listener) in listeners.borrow().iter() {
-                    let _ = listener
-                        .call0(&JsValue::UNDEFINED)
-                        .inspect_err(|err| log!("Publish error: {:?}", err));
-                }
-            }
-        });
+            });
         let edges_subscription = edges.observe_deep({
-            let spatial_index = spatial_index.clone();
-            let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
-            move |txn: &TransactionMut<'_>, evts| {
-                // TODO: Update modified edges
-                // TODO: Update nodes if edges changed
+            let entities = entities.clone();
+            let client_id = graph.client_id();
+            let edges = edges.clone();
+            let locally_selected_entities = locally_selected_entities.clone();
 
-                // Emitting change to listeners. Do this at end as we need to first update our
-                // domain representation
-                for (_, listener) in listeners.borrow().iter() {
-                    let _ = listener
-                        .call0(&JsValue::UNDEFINED)
-                        .inspect_err(|err| log!("Publish error: {:?}", err));
+            move |mut txn, evts| {
+                for evt in evts.iter() {
+                    let path = evt.path();
+                    if path.len() == 0 {
+                        // Signals an addition/removal from the graph store
+                        if let yrs::types::Event::Map(map_evt) = evt {
+                            for (key, change) in map_evt.keys(&mut txn).iter() {
+                                if let Ok(edge_uuid) =
+                                    uuid::Uuid::parse_str(&key).map(|id| id.as_u128())
+                                {
+                                    match change {
+                                        yrs::types::EntryChange::Inserted(yrs::Value::YMap(
+                                            node,
+                                        )) => {
+                                            if let Ok(mut edge) = WbblWebappEdge::decode(
+                                                edge_uuid, txn, node, client_id,
+                                            ) {
+                                                let edge_id =
+                                                    WbblWebappGraphEntityId::EdgeId(edge_uuid);
+
+                                                let mut source_position = Vec2::ZERO;
+                                                let mut target_position = Vec2::ZERO;
+                                                // TODO: Update Spatial Index
+                                                let mut entities = entities.borrow_mut();
+                                                let source_node = entities.get_mut(
+                                                    &WbblWebappGraphEntityId::NodeId(edge.source),
+                                                );
+                                                if source_node.is_some() {
+                                                    let source_node = source_node.unwrap();
+                                                    match source_node {
+                                                        WbblWebappGraphEntity::Node(n) => {
+                                                            n.out_edges.insert(edge_uuid);
+                                                            let (mut x, mut y) =
+                                                                get_out_port_position(
+                                                                    n.node_type,
+                                                                    edge.source_handle as u8,
+                                                                    Some(n.in_edges.len() as u8),
+                                                                    Some(n.out_edges.len() as u8),
+                                                                );
+                                                            x = n.position.x + x;
+                                                            y = n.position.y + y;
+                                                            source_position.x = x as f32;
+                                                            source_position.y = y as f32;
+                                                        }
+                                                        _ => {}
+                                                    };
+                                                }
+
+                                                let target_node = entities.get_mut(
+                                                    &WbblWebappGraphEntityId::NodeId(edge.target),
+                                                );
+                                                if target_node.is_some() {
+                                                    let target_node = target_node.unwrap();
+                                                    match target_node {
+                                                        WbblWebappGraphEntity::Node(n) => {
+                                                            n.out_edges.insert(edge_uuid);
+                                                            let (mut x, mut y) =
+                                                                get_in_port_position(
+                                                                    n.node_type,
+                                                                    edge.source_handle as u8,
+                                                                );
+                                                            x = n.position.x + x;
+                                                            y = n.position.y + y;
+                                                            target_position.x = x as f32;
+                                                            target_position.y = y as f32;
+                                                        }
+                                                        _ => {}
+                                                    };
+                                                }
+                                                edge.source_position = source_position;
+                                                edge.target_position = target_position;
+
+                                                entities.insert(
+                                                    edge_id,
+                                                    WbblWebappGraphEntity::Edge(edge.clone()),
+                                                );
+                                                // TODO: Update Spatial Index
+                                            }
+                                        }
+                                        yrs::types::EntryChange::Removed(_) => {
+                                            let edge_id =
+                                                WbblWebappGraphEntityId::EdgeId(edge_uuid);
+                                            let mut entities = entities.borrow_mut();
+                                            locally_selected_entities.borrow_mut().remove(&edge_id);
+                                            if let Some(WbblWebappGraphEntity::Edge(prev_edge)) =
+                                                entities.remove(&edge_id)
+                                            {
+                                                // TODO: Update Spatial Index
+                                                let source_node = entities.get_mut(
+                                                    &WbblWebappGraphEntityId::NodeId(
+                                                        prev_edge.source,
+                                                    ),
+                                                );
+                                                if source_node.is_some() {
+                                                    let source_node = source_node.unwrap();
+                                                    match source_node {
+                                                        WbblWebappGraphEntity::Node(n) => {
+                                                            n.out_edges.remove(&edge_uuid);
+                                                        }
+                                                        _ => {}
+                                                    };
+                                                }
+
+                                                let target_node = entities.get_mut(
+                                                    &WbblWebappGraphEntityId::NodeId(
+                                                        prev_edge.target,
+                                                    ),
+                                                );
+                                                if target_node.is_some() {
+                                                    let target_node = target_node.unwrap();
+                                                    match target_node {
+                                                        WbblWebappGraphEntity::Node(n) => {
+                                                            n.out_edges.remove(&edge_uuid);
+                                                        }
+                                                        _ => {}
+                                                    };
+                                                }
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    } else if path.len() == 2 {
+                        if let Some(PathSegment::Key(edge_id)) = path.get(0) {
+                            let mut entities = entities.borrow_mut();
+                            if let Ok(edge_id_uuid) = try_into_u128(edge_id) {
+                                let key = WbblWebappGraphEntityId::EdgeId(edge_id_uuid);
+                                if let Some(WbblWebappGraphEntity::Edge(prev_edge)) =
+                                    entities.remove(&key)
+                                {
+                                    if let Ok(node) = get_map(edge_id, txn, &edges) {
+                                        if let Ok(mut edge) = WbblWebappEdge::decode(
+                                            edge_id_uuid,
+                                            txn,
+                                            &node,
+                                            client_id,
+                                        ) {
+                                            match path.get(1).unwrap() {
+                                                PathSegment::Key(segment)
+                                                    if segment.to_string() == "selections" =>
+                                                {
+                                                    if edge.selected {
+                                                        locally_selected_entities
+                                                            .borrow_mut()
+                                                            .insert(key);
+                                                    } else {
+                                                        locally_selected_entities
+                                                            .borrow_mut()
+                                                            .remove(&key);
+                                                    }
+                                                }
+                                                _ => {}
+                                            };
+                                            edge.source_position = prev_edge.source_position;
+                                            edge.target_position = prev_edge.target_position;
+                                            entities.insert(key, WbblWebappGraphEntity::Edge(edge));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         });
+        // TODO: Update edges for each modified Node if moved/resized
+        // TODO: Update node groups for each modified node if moved/resized
+
+        // Emitting change to listeners. Do this at end as we need to first update our
+        // domain representation
 
         let node_group_selections_subscription = node_group_selections.observe_deep({
-            let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
+            let locally_selected_entities = locally_selected_entities.clone();
+            let client_id = graph.client_id().to_string();
+            let entities = entities.clone();
             move |txn, evts| {
-                // TODO: Update node group selection state if modified
-                // Emitting change to listeners. Do this at end as we need to first update our
-                // domain representation
-                for (_, listener) in listeners.borrow().iter() {
-                    let _ = listener
-                        .call0(&JsValue::UNDEFINED)
-                        .inspect_err(|err| log!("Publish error: {:?}", err));
+                for evt in evts.iter() {
+                    if let yrs::types::Event::Map(map_evt) = evt {
+                        let path = map_evt.path();
+                        if path.len() == 1 {
+                            match path.get(0) {
+                                Some(PathSegment::Key(segment)) => {
+                                    let keys = map_evt.keys(txn);
+                                    for (key, change) in keys {
+                                        if let Ok(key) = try_into_u128(key) {
+                                            let mut entities = entities.borrow_mut();
+                                            if let Some(WbblWebappGraphEntity::Group(group)) =
+                                                entities
+                                                    .get_mut(&WbblWebappGraphEntityId::GroupId(key))
+                                            {
+                                                if segment.to_string() == client_id {
+                                                    match change {
+                                                        yrs::types::EntryChange::Inserted(_) => {
+                                                            locally_selected_entities
+                                                                .borrow_mut()
+                                                                .insert(
+                                                                WbblWebappGraphEntityId::GroupId(
+                                                                    key,
+                                                                ),
+                                                            );
+                                                            group.selected = true;
+                                                        }
+                                                        yrs::types::EntryChange::Removed(_) => {
+                                                            locally_selected_entities
+                                                                .borrow_mut()
+                                                                .remove(
+                                                                &WbblWebappGraphEntityId::GroupId(
+                                                                    key,
+                                                                ),
+                                                            );
+                                                            group.selected = false;
+                                                        }
+                                                        _ => {}
+                                                    };
+                                                }
+                                                match change {
+                                                    yrs::types::EntryChange::Inserted(_) => {
+                                                        group.selections.insert(key);
+                                                    }
+                                                    yrs::types::EntryChange::Removed(_) => {
+                                                        group.selections.remove(&key);
+                                                    }
+                                                    _ => {}
+                                                };
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            };
+                        }
+                    };
                 }
             }
         });
+
+        let doc_subscription = graph
+            .observe_update_v2({
+                let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
+                move |_, _| {
+                    for (_, listener) in listeners.borrow().iter() {
+                        let _ = listener
+                            .call0(&JsValue::UNDEFINED)
+                            .inspect_err(|err| log!("Publish error: {:?}", err));
+                    }
+                }
+            })
+            .unwrap();
 
         let subscriptions = vec![
             nodes_subscription,
             edges_subscription,
             node_group_selections_subscription,
+            doc_subscription,
         ];
 
         let mut store = WbblWebappGraphStore {
@@ -822,7 +1245,6 @@ impl WbblWebappGraphStore {
             locally_selected_entities,
             graph_worker: graph_worker.clone(),
             worker_responder,
-            spatial_index,
             entities,
             subscriptions,
         };
@@ -848,7 +1270,7 @@ impl WbblWebappGraphStore {
             let local_node_group_selections = store.node_group_selections.insert(
                 &mut txn_mut,
                 store.graph.client_id().to_string(),
-                MapPrelim::<String>::new(),
+                MapPrelim::<bool>::new(),
             );
             store
                 .undo_manager
@@ -1013,6 +1435,14 @@ impl WbblWebappGraphStore {
             let group_id_uuid = uuid::Uuid::parse_str(group_id)
                 .map_err(|_| WbblWebappStoreError::MalformedId)?
                 .as_u128();
+            delete_node_group_and_associated_nodes_and_edges(
+                &mut mut_transaction,
+                group_id_uuid,
+                &self.nodes,
+                &self.edges,
+                &self.node_group_selections,
+                &self.entities.borrow(),
+            )?;
         }
         Ok(())
     }
@@ -1065,7 +1495,7 @@ impl WbblWebappGraphStore {
                 self.graph.transact_mut_with(self.graph.client_id());
             let id = self.graph.client_id();
             let node_id = try_into_u128(node_id)?;
-            encode_selection(&mut mut_transaction, node_id, &self.nodes, id, selected);
+            encode_selection(&mut mut_transaction, node_id, &self.nodes, id, selected)?;
         }
         Ok(())
     }
@@ -1143,10 +1573,9 @@ impl WbblWebappGraphStore {
         }
         if let WbblWebappGraphEntity::Group(group) = group.unwrap() {
             {
-                let txn = self.graph.transact();
                 let node_ids = group.nodes.clone();
 
-                let edge_ids = get_mutual_edges(&txn, &node_ids, &self.nodes)?;
+                let edge_ids = get_mutual_edges(&node_ids, &entities);
                 for node_id in group.nodes.iter() {
                     if let Some(WbblWebappGraphEntity::Node(node)) = self
                         .entities
@@ -1281,7 +1710,6 @@ impl WbblWebappGraphStore {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             snapshot.reassign_ids();
             snapshot.filter_out_output_ports();
-            let client_id = self.graph.client_id();
             if let Some(position) = position {
                 snapshot.recenter(&position);
             }
@@ -1343,7 +1771,7 @@ impl WbblWebappGraphStore {
                 None => Err(WbblWebappStoreError::NotFound),
                 _ => Err(WbblWebappStoreError::MalformedId),
             }?;
-        let nodes_in_group: Vec<u128> = group.nodes.clone();
+        let nodes_in_group: HashSet<u128> = group.nodes.clone();
         {
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             for node_id in nodes_in_group {
@@ -1448,62 +1876,75 @@ impl WbblWebappGraphStore {
     ) -> Result<(), WbblWebappStoreError> {
         let id = self.graph.client_id();
         let group_uuid: u128 = try_into_u128(group_id)?;
-        let entities = self.entities.borrow();
-        let group = entities.get(&WbblWebappGraphEntityId::GroupId(group_uuid));
+        let group = {
+            let entities = self.entities.borrow();
+            entities
+                .get(&WbblWebappGraphEntityId::GroupId(group_uuid))
+                .cloned()
+        };
+
         if group.is_none() {
             return Err(WbblWebappStoreError::NotFound);
         }
-        let group: WbblWebappNodeGroup = group.unwrap().clone().try_into()?;
+        let group: WbblWebappNodeGroup = group.unwrap().try_into()?;
 
-        {
-            let mut txn = self.graph.transact_mut_with(self.graph.client_id());
-            if !additive {
-                clear_local_selections(
-                    &mut txn,
-                    id,
-                    &self.nodes,
-                    &self.edges,
-                    &self.node_group_selections,
-                    &self.locally_selected_entities.borrow(),
-                )?;
-            }
-            let node_group_selections: MapRef =
-                get_map(&id.to_string(), &txn, &self.node_group_selections)?;
-            node_group_selections.insert(&mut txn, group_id, true);
-            for node_id in group.nodes.iter() {
-                encode_selection(&mut txn, node_id.clone(), &self.nodes, id.clone(), true)?;
-            }
-            let edge_ids = get_mutual_edges(&txn, &group.nodes, &self.nodes)?;
-            for e in edge_ids {
-                encode_selection(&mut txn, e, &self.nodes, id.clone(), true)?;
-            }
+        let edge_ids = {
+            let entities = self.entities.borrow();
+            get_mutual_edges(&group.nodes, &entities)
+        };
+
+        let mut txn = self.graph.transact_mut_with(self.graph.client_id());
+        if !additive {
+            clear_local_selections(
+                &mut txn,
+                id,
+                &self.nodes,
+                &self.edges,
+                &self.node_group_selections,
+                &self.locally_selected_entities.borrow(),
+            )?;
         }
+        let node_group_selections: MapRef =
+            get_map(&id.to_string(), &txn, &self.node_group_selections)?;
+        node_group_selections.insert(&mut txn, group_id, true);
+        for node_id in group.nodes.iter() {
+            encode_selection(&mut txn, node_id.clone(), &self.nodes, id.clone(), true)?;
+        }
+        for e in edge_ids {
+            encode_selection(&mut txn, e, &self.edges, id.clone(), true)?;
+        }
+
         Ok(())
     }
 
     pub fn deselect_group(&mut self, group_id: &str) -> Result<(), WbblWebappStoreError> {
         let id = self.graph.client_id();
         let group_uuid: u128 = try_into_u128(group_id)?;
-        let entities = self.entities.borrow();
-        let group = entities.get(&WbblWebappGraphEntityId::GroupId(group_uuid));
+
+        let group = {
+            let entities = self.entities.borrow();
+            entities
+                .get(&WbblWebappGraphEntityId::GroupId(group_uuid))
+                .cloned()
+        };
         if group.is_none() {
             return Err(WbblWebappStoreError::NotFound);
         }
-        let group: WbblWebappNodeGroup = group.unwrap().clone().try_into()?;
-        {
-            let mut txn = self.graph.transact_mut_with(self.graph.client_id());
-            let node_group_selections =
-                get_map(&id.to_string(), &txn, &self.node_group_selections)?;
-            node_group_selections.remove(&mut txn, group_id);
-
-            for n in group.nodes.iter() {
-                encode_selection(&mut txn, *n, &self.nodes, id, false)?;
-            }
-            let edge_ids = get_mutual_edges(&txn, &group.nodes, &self.nodes)?;
-            for e in edge_ids {
-                encode_selection(&mut txn, e, &self.edges, id, false)?;
-            }
+        let group: WbblWebappNodeGroup = group.unwrap().try_into()?;
+        let edge_ids = {
+            let entities = self.entities.borrow();
+            get_mutual_edges(&group.nodes, &entities)
+        };
+        let mut txn = self.graph.transact_mut_with(self.graph.client_id());
+        let node_group_selections = get_map(&id.to_string(), &txn, &self.node_group_selections)?;
+        node_group_selections.remove(&mut txn, group_id);
+        for n in group.nodes.iter() {
+            encode_selection(&mut txn, *n, &self.nodes, id, false)?;
         }
+        for e in edge_ids {
+            encode_selection(&mut txn, e, &self.edges, id, false)?;
+        }
+
         Ok(())
     }
 
@@ -1608,7 +2049,8 @@ impl WbblWebappGraphStore {
             preview_node.encode(mut_transaction, &mut self.nodes)?;
             let source =
                 uuid::Uuid::from_str(node_id).map_err(|_| WbblWebappStoreError::MalformedId)?;
-            let edge = WbblWebappEdge::new(&(source.as_u128()), &preview_node.id, 0, 0);
+            let edge =
+                WbblWebappEdge::new(&(source.as_u128()), &preview_node.id, 0, 0, edge.group_id);
             edge.encode(mut_transaction, &mut self.edges)?;
         }
         Ok(())
@@ -1621,7 +2063,6 @@ impl WbblWebappGraphStore {
         position_y: f64,
     ) -> Result<(), WbblWebappStoreError> {
         {
-            let client_id = self.graph.client_id();
             let uuid =
                 uuid::Uuid::parse_str(edge_id).map_err(|_| WbblWebappStoreError::MalformedId)?;
             let mut txn = self.graph.transact_mut_with(self.graph.client_id());
@@ -1630,8 +2071,20 @@ impl WbblWebappGraphStore {
             let new_node =
                 NewWbblWebappNode::new(position_x, position_y, WbblWebappNodeType::Junction)?;
             new_node.encode(&mut txn, &self.nodes)?;
-            let edge_1 = WbblWebappEdge::new(&edge.source, &new_node.id, edge.source_handle, 0);
-            let edge_2 = WbblWebappEdge::new(&new_node.id, &edge.target, 0, edge.target_handle);
+            let edge_1 = WbblWebappEdge::new(
+                &edge.source,
+                &new_node.id,
+                edge.source_handle,
+                0,
+                edge.group_id,
+            );
+            let edge_2 = WbblWebappEdge::new(
+                &new_node.id,
+                &edge.target,
+                0,
+                edge.target_handle,
+                edge.group_id,
+            );
             edge_1.encode(&mut txn, &self.edges)?;
             edge_2.encode(&mut txn, &self.edges)?;
             let edge_id = try_into_u128(edge_id)?;

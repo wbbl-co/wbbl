@@ -11,8 +11,6 @@ function BinaryOperatorNode(props: NodeProps) {
       previewable
       outputPortLabels={[null]}
       inputPortLabels={["x", "y"]}
-      w={150}
-      h={100}
       {...props}
     />
   );

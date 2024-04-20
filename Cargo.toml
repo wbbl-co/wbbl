@@ -23,7 +23,7 @@ gltf = { version = "1", features = ["names"] }
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
 serde = { version = "1.0", features = ["derive"] }
-glam = { version = "0.25.0", features = ["mint"] }
+glam = { version = "0.25.0", features = ["mint", "serde"] }
 web-sys = { version = "0.3", features = [
     "CanvasRenderingContext2d",
     "console",

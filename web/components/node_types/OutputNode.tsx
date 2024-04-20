@@ -39,8 +39,6 @@ function OutputNode(props: NodeProps) {
       previewable={false}
       outputPortLabels={[]}
       inputPortLabels={[null]}
-      w={315}
-      h={315}
       {...props}
     >
       {canvasElement}

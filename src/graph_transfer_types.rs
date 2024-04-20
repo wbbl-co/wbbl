@@ -19,12 +19,6 @@ use crate::{
     store_errors::WbblWebappStoreError,
 };
 
-#[derive(Debug, PartialEq, Default, Copy, Clone, Serialize, Deserialize)]
-pub struct WbbleComputedNodeSize {
-    pub width: Option<f64>,
-    pub height: Option<f64>,
-}
-
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Any {
     Null,
@@ -295,6 +289,33 @@ where
     }
 }
 
+fn uuid_to_string_set<S>(ids: &HashSet<u128>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut seq = serializer.serialize_seq(Some(ids.len()))?;
+    for id in ids.iter() {
+        seq.serialize_element(&uuid::Uuid::from_u128(*id).to_string())?;
+    }
+    seq.end()
+}
+
+fn string_to_uuid_set<'de, D>(deserializer: D) -> Result<HashSet<u128>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let buf: HashSet<String> = HashSet::deserialize(deserializer)?;
+    let mut result: HashSet<u128> = HashSet::new();
+    for id in buf.iter() {
+        let id = match uuid::Uuid::from_str(&id) {
+            Ok(t) => Ok(t.as_u128()),
+            Err(_) => Err(Error::custom("Malformed Id")),
+        }?;
+        result.insert(id);
+    }
+    Ok(result)
+}
+
 fn option_uuid_to_option_string<S>(id: &Option<u128>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -320,33 +341,6 @@ where
     }
 }
 
-fn uuid_to_string_vec<S>(ids: &Vec<u128>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let mut seq = serializer.serialize_seq(Some(ids.len()))?;
-    for id in ids {
-        seq.serialize_element(&uuid::Uuid::from_u128(*id).to_string())?;
-    }
-    seq.end()
-}
-
-fn string_to_uuid_vec<'de, D>(deserializer: D) -> Result<Vec<u128>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let buf = Vec::<String>::deserialize(deserializer)?;
-    let mut result: Vec<u128> = Vec::new();
-    for i in buf {
-        let item = match uuid::Uuid::from_str(&i) {
-            Ok(t) => Ok(t.as_u128()),
-            Err(_) => Err(Error::custom("Malformed Id")),
-        }?;
-        result.push(item);
-    }
-    Ok(result)
-}
-
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct WbblWebappNode {
     #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
@@ -359,11 +353,16 @@ pub struct WbblWebappNode {
     )]
     pub node_type: WbblWebappNodeType,
     pub data: HashMap<String, Any>,
-    pub measured: Option<WbbleComputedNodeSize>,
+    pub width: f64,
+    pub height: f64,
     pub dragging: bool,
     pub resizing: bool,
     pub selected: bool,
-    pub selections: Vec<String>,
+    #[serde(
+        serialize_with = "uuid_to_string_set",
+        deserialize_with = "string_to_uuid_set"
+    )]
+    pub selections: HashSet<u128>,
     pub selectable: bool,
     pub connectable: bool,
     pub deletable: bool,
@@ -374,17 +373,11 @@ pub struct WbblWebappNode {
     )]
     pub group_id: Option<u128>,
 
-    #[serde(
-        serialize_with = "uuid_to_string_vec",
-        deserialize_with = "string_to_uuid_vec"
-    )]
-    pub in_edges: Vec<u128>,
+    #[serde(skip)]
+    pub in_edges: HashSet<u128>,
 
-    #[serde(
-        serialize_with = "uuid_to_string_vec",
-        deserialize_with = "string_to_uuid_vec"
-    )]
-    pub out_edges: Vec<u128>,
+    #[serde(skip)]
+    pub out_edges: HashSet<u128>,
 }
 
 fn target_handle_to_string<S>(number: &i64, serializer: S) -> Result<S::Ok, S::Error>
@@ -447,6 +440,21 @@ pub struct WbblWebappEdge {
     pub selectable: bool,
     pub selected: bool,
     pub updatable: bool,
+    #[serde(
+        serialize_with = "uuid_to_string_set",
+        deserialize_with = "string_to_uuid_set"
+    )]
+    pub selections: HashSet<u128>,
+    #[serde(skip)]
+    pub source_position: Vec2,
+    #[serde(skip)]
+    pub target_position: Vec2,
+    #[serde(
+        rename = "groupId",
+        serialize_with = "option_uuid_to_option_string",
+        deserialize_with = "string_to_option_uuid"
+    )]
+    pub group_id: Option<u128>,
 }
 
 impl WbblWebappEdge {
@@ -455,6 +463,7 @@ impl WbblWebappEdge {
         target: &u128,
         source_handle: i64,
         target_handle: i64,
+        group_id: Option<u128>,
     ) -> WbblWebappEdge {
         WbblWebappEdge {
             id: uuid::Uuid::new_v4().as_u128(),
@@ -462,10 +471,14 @@ impl WbblWebappEdge {
             target: *target,
             source_handle,
             target_handle,
+            selections: HashSet::new(),
             deletable: true,
             selected: false,
             selectable: true,
             updatable: false,
+            source_position: Vec2::ZERO,
+            target_position: Vec2::ZERO,
+            group_id,
         }
     }
 }
@@ -475,18 +488,23 @@ pub struct WbblWebappNodeGroup {
     #[serde(serialize_with = "uuid_to_string", deserialize_with = "string_to_uuid")]
     pub id: u128,
     #[serde(
-        serialize_with = "uuid_to_string_vec",
-        deserialize_with = "string_to_uuid_vec"
+        serialize_with = "uuid_to_string_set",
+        deserialize_with = "string_to_uuid_set"
     )]
-    pub nodes: Vec<u128>,
+    pub nodes: HashSet<u128>,
     #[serde(
-        serialize_with = "uuid_to_string_vec",
-        deserialize_with = "string_to_uuid_vec"
+        serialize_with = "uuid_to_string_set",
+        deserialize_with = "string_to_uuid_set"
     )]
-    pub edges: Vec<u128>,
+    pub edges: HashSet<u128>,
     pub path: Option<String>,
-    pub bounds: Vec<f32>,
+    pub bounds: Vec<Vec2>,
     pub selected: bool,
+    #[serde(
+        serialize_with = "uuid_to_string_set",
+        deserialize_with = "string_to_uuid_set"
+    )]
+    pub selections: HashSet<u128>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -703,10 +721,11 @@ impl WbblWebappGraphSnapshot {
                 WbblWebappNodeGroup {
                     id: *group_id,
                     nodes,
-                    edges: vec![],
+                    edges: HashSet::new(),
                     path: None,
                     bounds: vec![],
                     selected: false,
+                    selections: HashSet::new(),
                 }
             })
             .collect();
@@ -827,7 +846,7 @@ impl TryFrom<WbblWebappGraphEntity> for WbblWebappNodeGroup {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Ord, Hash, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Ord, Hash, PartialOrd, Clone, Copy)]
 pub enum WbblWebappGraphEntityId {
     NodeId(u128),
     EdgeId(u128),
@@ -868,23 +887,19 @@ impl RTreeObject for WbblWebappGraphEntity {
         match self {
             WbblWebappGraphEntity::Node(node) => {
                 let top_left: Vec2 = node.position.clone().into();
-                let meaasured = node.measured.unwrap_or_default();
-                let size = Vec2::new(
-                    meaasured.width.unwrap_or_default() as f32,
-                    meaasured.height.unwrap_or_default() as f32,
-                );
+                let size = Vec2::new(node.width as f32, node.height as f32);
                 AABB::from_corners(top_left.into(), (top_left + size).into())
             }
-            WbblWebappGraphEntity::Edge(_) => {
-                AABB::from_corners(Point2 { x: 0.0, y: 0.0 }, Point2 { x: 0.0, y: 0.0 })
+            WbblWebappGraphEntity::Edge(edge) => {
+                // TODO: Add back positions of edge
+                AABB::from_corners(edge.source_position.into(), edge.target_position.into())
             }
             WbblWebappGraphEntity::Group(group) => {
-                let points: Vec<Point2<f32>> = group
+                let points = group
                     .bounds
                     .iter()
-                    .zip(group.bounds.iter().skip(1))
-                    .map(|(a, b)| Point2 { x: *a, y: *b })
-                    .collect();
+                    .map(|x| -> Point2<f32> { x.clone().into() })
+                    .collect::<Vec<Point2<f32>>>();
                 AABB::from_points(&points)
             }
         }

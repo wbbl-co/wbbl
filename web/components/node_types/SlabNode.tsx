@@ -11,8 +11,6 @@ function SlabNode(props: NodeProps) {
       previewable
       outputPortLabels={[null]}
       inputPortLabels={[]}
-      w={200}
-      h={200}
       {...props}
     />
   );

@@ -22,7 +22,7 @@ export type WbblWebappGraphSnapshot = {
     path?: string;
     edges: string[];
     selected: boolean;
-    bounds: Float32Array;
+    bounds: [number, number][];
   }[];
   computed_types: Map<string, unknown>;
 };

@@ -38,8 +38,6 @@ function PreviewNode(props: NodeProps) {
       previewable={false}
       outputPortLabels={[]}
       inputPortLabels={[null]}
-      w={150}
-      h={170}
       {...props}
     >
       {canvasElement}

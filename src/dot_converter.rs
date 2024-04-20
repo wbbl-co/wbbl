@@ -1,9 +1,11 @@
-use im::HashSet;
+use glam::Vec2;
+use std::collections::HashSet;
 use std::vec;
 use std::{collections::HashMap, str::FromStr};
 use web_sys::js_sys::escape;
 use web_sys::js_sys::unescape;
 
+use crate::node_display_data::get_node_dimensions;
 use crate::{
     graph_transfer_types::{
         from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphSnapshot,
@@ -59,7 +61,6 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
             let id = parse_escaped_id(&id)?;
             let mut nodes: Vec<WbblWebappNode> = vec![];
             let mut edges: Vec<WbblWebappEdge> = vec![];
-
             for statment in stmts.iter() {
                 match statment {
                     graphviz_rust::dot_structures::Stmt::Node(Node {
@@ -114,26 +115,30 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                             }
                         }
                         match node_type {
-                            Some(node_type) => nodes.push(WbblWebappNode {
-                                id,
-                                position: WbblePosition {
-                                    x: position_x,
-                                    y: position_y,
-                                },
-                                node_type,
-                                data: node_data,
-                                measured: None,
-                                dragging: false,
-                                resizing: false,
-                                selected: false,
-                                selectable: true,
-                                connectable: true,
-                                deletable: true,
-                                in_edges: vec![],
-                                out_edges: vec![],
-                                selections: vec![],
-                                group_id,
-                            }),
+                            Some(node_type) => {
+                                let (width, height) = get_node_dimensions(node_type, None, None);
+                                nodes.push(WbblWebappNode {
+                                    id,
+                                    position: WbblePosition {
+                                        x: position_x,
+                                        y: position_y,
+                                    },
+                                    node_type,
+                                    width,
+                                    height,
+                                    data: node_data,
+                                    dragging: false,
+                                    resizing: false,
+                                    selected: false,
+                                    selectable: true,
+                                    connectable: true,
+                                    deletable: true,
+                                    in_edges: HashSet::new(),
+                                    out_edges: HashSet::new(),
+                                    selections: HashSet::new(),
+                                    group_id,
+                                })
+                            }
                             _ => return Err(DotFileError::MissingNodeType),
                         }
                     }
@@ -164,9 +169,12 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                             source_handle,
                             target_handle,
                             deletable: true,
+                            selections: HashSet::new(),
                             selectable: true,
                             selected: false,
                             updatable: false,
+                            source_position: Vec2::ZERO,
+                            target_position: Vec2::ZERO,
                         })
                     }
                     _ => {}

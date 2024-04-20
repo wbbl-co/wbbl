@@ -40,7 +40,7 @@ export default function NodeGroup(props: {
   nodes: string[];
   edges: string[];
   selected: boolean;
-  bounds: Float32Array;
+  bounds: [number, number][];
 }) {
   const graphStore = useContext(WbblGraphStoreContext);
   const selectionRect = useStore(selector);
@@ -63,7 +63,7 @@ export default function NodeGroup(props: {
       );
       if (
         is_axis_aligned_rect_intersecting_convex_hull(
-          props.bounds,
+          new Float32Array(props.bounds.flatMap((x) => x)),
           new Float32Array([topLeft.x, topLeft.y]),
           new Float32Array([bottomRight.x, bottomRight.y]),
         )

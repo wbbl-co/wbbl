@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use yrs::{block::Prelim, Map, MapRef, TransactionMut};
+use yrs::{Map, MapRef};
 
 use crate::store_errors::WbblWebappStoreError;
 
@@ -59,22 +59,6 @@ pub(crate) fn get_map<Txn: yrs::ReadTxn>(
     match map.get(txn, key) {
         Some(yrs::Value::YMap(map_ref)) => Ok(map_ref),
         None => Err(WbblWebappStoreError::NotFound),
-        _ => Err(WbblWebappStoreError::UnexpectedStructure),
-    }
-}
-
-pub(crate) fn get_or_insert_map<T: Prelim>(
-    key: &str,
-    txn: &mut TransactionMut,
-    map: &yrs::MapRef,
-    default_value: T,
-) -> Result<MapRef, WbblWebappStoreError> {
-    match map.get(txn, key) {
-        Some(yrs::Value::YMap(map_ref)) => Ok(map_ref),
-        None => {
-            map.insert(txn, key, default_value);
-            get_map(key, txn, map)
-        }
         _ => Err(WbblWebappStoreError::UnexpectedStructure),
     }
 }

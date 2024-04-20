@@ -567,19 +567,23 @@ fn update_entity(
     };
     js_entities.insert(id.clone(), js_value);
     match entity {
-        WbblWebappGraphEntity::Node(entity) => entities.insert(id.clone(), WbblWebappGraphEntity::Node(entity.clone())),
-        WbblWebappGraphEntity::Edge(entity) => entities.insert(id.clone(), WbblWebappGraphEntity::Edge(entity.clone())),
-        WbblWebappGraphEntity::Group(entity) => entities.insert(id.clone(), WbblWebappGraphEntity::Group(entity.clone())),
+        WbblWebappGraphEntity::Node(entity) => {
+            entities.insert(id.clone(), WbblWebappGraphEntity::Node(entity.clone()))
+        }
+        WbblWebappGraphEntity::Edge(entity) => {
+            entities.insert(id.clone(), WbblWebappGraphEntity::Edge(entity.clone()))
+        }
+        WbblWebappGraphEntity::Group(entity) => {
+            entities.insert(id.clone(), WbblWebappGraphEntity::Group(entity.clone()))
+        }
     };
-    
 }
-
 
 fn remove_entity(
     id: &WbblWebappGraphEntityId,
     entities: &mut HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>,
     js_entities: &mut HashMap<WbblWebappGraphEntityId, JsValue>,
-)  -> Option<WbblWebappGraphEntity> {
+) -> Option<WbblWebappGraphEntity> {
     js_entities.remove(id);
     entities.remove(id)
 }
@@ -607,8 +611,9 @@ fn insert_or_update_node_group(
                 group.update_group_convex_hull(entities);
                 for e in node.in_edges.iter() {
                     group.edges.remove(e);
-                    if let Some(WbblWebappGraphEntity::Edge(mut edge)) =
-                        entities.get(&WbblWebappGraphEntityId::EdgeId(*e)).map(|x| x.clone())
+                    if let Some(WbblWebappGraphEntity::Edge(mut edge)) = entities
+                        .get(&WbblWebappGraphEntityId::EdgeId(*e))
+                        .map(|x| x.clone())
                     {
                         edge.group_id = None;
                         update_entity(
@@ -671,8 +676,9 @@ fn insert_or_update_node_group(
                 .cloned()
                 .collect();
             for e in edges.iter() {
-                if let Some(WbblWebappGraphEntity::Edge(mut edge)) =
-                    entities.get(&WbblWebappGraphEntityId::EdgeId(*e)).map(|x| x.clone())
+                if let Some(WbblWebappGraphEntity::Edge(mut edge)) = entities
+                    .get(&WbblWebappGraphEntityId::EdgeId(*e))
+                    .map(|x| x.clone())
                 {
                     edge.group_id = Some(group_uuid);
                     update_entity(
@@ -783,7 +789,7 @@ impl WbblWebappGraphStore {
                                                 ) {
                                                     let mut entities = entities.borrow_mut();
                                                     let mut js_entities = js_entities.borrow_mut();
-                                                    
+
                                                     let node_id =
                                                         WbblWebappGraphEntityId::NodeId(node_id);
                                                     update_entity(&node_id, &WbblWebappGraphEntity::Node(node.clone()), &mut entities, &mut js_entities);
@@ -807,7 +813,7 @@ impl WbblWebappGraphStore {
                                                     .remove(&node_id);
                                                 let mut entities = entities.borrow_mut();
                                                 let mut js_entities = js_entities.borrow_mut();
-                                                    
+
                                                 if let Some(WbblWebappGraphEntity::Node(mut prev_node)) = remove_entity(&node_id, &mut entities, &mut js_entities)  {
                                                     if let Some(prev_group_id) = prev_node.group_id {
                                                         prev_node.group_id = None;
@@ -834,7 +840,7 @@ impl WbblWebappGraphStore {
                                 if let Ok(node_id) = try_into_u128(node_id) {
                                     let mut entities = entities.borrow_mut();
                                     let mut js_entities = js_entities.borrow_mut();
-                                                    
+
                                     if let yrs::Value::YMap(node_map) = evt.target() {
                                         if let Ok(mut node) = WbblWebappNode::decode(
                                             &node_id, txn, &node_map, client_id,
@@ -847,16 +853,14 @@ impl WbblWebappGraphStore {
                                                 node.height = prev_node.height;
                                                 node.in_edges = prev_node.in_edges;
                                                 node.out_edges = prev_node.out_edges;
-
+                                                update_entity(
+                                                    &key,
+                                                    &WbblWebappGraphEntity::Node(node.clone()),
+                                                    &mut entities,
+                                                    &mut js_entities
+                                                );
                                                 if let yrs::types::Event::Map(map_evt) = evt {
                                                     let keys = map_evt.keys(txn);
-                                                    update_entity(
-                                                        &key,
-                                                        &WbblWebappGraphEntity::Node(node.clone()),
-                                                        &mut entities,
-                                                        &mut js_entities
-                                                    );
-
                                                     if keys.contains_key("group_id") {
                                                         let group_id_evt =
                                                             keys.get("group_id").unwrap();
@@ -1026,6 +1030,7 @@ impl WbblWebappGraphStore {
                                                         // TODO: Update Spatial Index
                                                     }
                                                 }
+
                                             }
                                         }
                                     }
@@ -1035,7 +1040,7 @@ impl WbblWebappGraphStore {
                             if let Some(PathSegment::Key(node_id)) = path.get(0) {
                                 let mut entities = entities.borrow_mut();
                                 let mut js_entities = js_entities.borrow_mut();
-                                
+
                                 if let Ok(node_id_uuid) = try_into_u128(node_id) {
                                     let key = WbblWebappGraphEntityId::NodeId(node_id_uuid);
                                     if let Some(WbblWebappGraphEntity::Node(prev_node)) =
@@ -1068,8 +1073,7 @@ impl WbblWebappGraphStore {
                                                 node.height = prev_node.height;
                                                 node.in_edges = prev_node.in_edges;
                                                 node.out_edges = prev_node.out_edges;
-                                                entities
-                                                    .insert(key, WbblWebappGraphEntity::Node(node));
+                                                update_entity(&WbblWebappGraphEntityId::NodeId(node.id), &WbblWebappGraphEntity::Node(node.clone()), &mut entities, &mut js_entities);
                                             }
                                         }
                                     }
@@ -1085,7 +1089,7 @@ impl WbblWebappGraphStore {
             let client_id = graph.client_id();
             let edges = edges.clone();
             let locally_selected_entities = locally_selected_entities.clone();
-            
+
             move |mut txn, evts| {
                 for evt in evts.iter() {
                     let path = evt.path();
@@ -1111,7 +1115,7 @@ impl WbblWebappGraphStore {
                                                 // TODO: Update Spatial Index
                                                 let mut entities = entities.borrow_mut();
                                                 let mut js_entities = js_entities.borrow_mut();
-                                                
+
                                                 let source_node = entities.get_mut(
                                                     &WbblWebappGraphEntityId::NodeId(edge.source),
                                                 );
@@ -1136,7 +1140,16 @@ impl WbblWebappGraphStore {
                                                             y = n.position.y + y;
                                                             source_position.x = x as f32;
                                                             source_position.y = y as f32;
-                                                            update_entity(&WbblWebappGraphEntityId::NodeId(n.id), &WbblWebappGraphEntity::Node(n.clone()), &mut entities,&mut  js_entities);
+                                                            update_entity(
+                                                                &WbblWebappGraphEntityId::NodeId(
+                                                                    n.id,
+                                                                ),
+                                                                &WbblWebappGraphEntity::Node(
+                                                                    n.clone(),
+                                                                ),
+                                                                &mut entities,
+                                                                &mut js_entities,
+                                                            );
                                                         }
                                                         _ => {}
                                                     };
@@ -1160,7 +1173,16 @@ impl WbblWebappGraphStore {
                                                             y = n.position.y + y;
                                                             target_position.x = x as f32;
                                                             target_position.y = y as f32;
-                                                            update_entity(&WbblWebappGraphEntityId::NodeId(n.id), &WbblWebappGraphEntity::Node(n.clone()), &mut entities,&mut  js_entities);
+                                                            update_entity(
+                                                                &WbblWebappGraphEntityId::NodeId(
+                                                                    n.id,
+                                                                ),
+                                                                &WbblWebappGraphEntity::Node(
+                                                                    n.clone(),
+                                                                ),
+                                                                &mut entities,
+                                                                &mut js_entities,
+                                                            );
                                                         }
                                                         _ => {}
                                                     };
@@ -1178,12 +1200,26 @@ impl WbblWebappGraphStore {
                                                     ) {
                                                         group.edges.insert(edge.id);
                                                         edge.group_id = Some(group_id);
-                                                        update_entity(&WbblWebappGraphEntityId::GroupId(group.id), &WbblWebappGraphEntity::Group(group.clone()), &mut entities, &mut  js_entities);
+                                                        update_entity(
+                                                            &WbblWebappGraphEntityId::GroupId(
+                                                                group.id,
+                                                            ),
+                                                            &WbblWebappGraphEntity::Group(
+                                                                group.clone(),
+                                                            ),
+                                                            &mut entities,
+                                                            &mut js_entities,
+                                                        );
                                                     }
                                                 }
 
                                                 // TODO: Update Spatial Index
-                                                update_entity(&edge_id, &WbblWebappGraphEntity::Edge(edge.clone()), &mut entities, &mut  js_entities);
+                                                update_entity(
+                                                    &edge_id,
+                                                    &WbblWebappGraphEntity::Edge(edge.clone()),
+                                                    &mut entities,
+                                                    &mut js_entities,
+                                                );
                                             }
                                         }
                                         yrs::types::EntryChange::Removed(_) => {
@@ -1193,7 +1229,11 @@ impl WbblWebappGraphStore {
                                             let mut js_entities = js_entities.borrow_mut();
                                             locally_selected_entities.borrow_mut().remove(&edge_id);
                                             if let Some(WbblWebappGraphEntity::Edge(prev_edge)) =
-                                                remove_entity(&edge_id, &mut entities, &mut js_entities)
+                                                remove_entity(
+                                                    &edge_id,
+                                                    &mut entities,
+                                                    &mut js_entities,
+                                                )
                                             {
                                                 if let Some(group_id) = prev_edge.group_id {
                                                     if let Some(WbblWebappGraphEntity::Group(
@@ -1202,7 +1242,16 @@ impl WbblWebappGraphStore {
                                                         &WbblWebappGraphEntityId::GroupId(group_id),
                                                     ) {
                                                         group.edges.remove(&prev_edge.id);
-                                                        update_entity(&WbblWebappGraphEntityId::GroupId(group_id), &WbblWebappGraphEntity::Group(group.clone()), &mut entities, &mut js_entities);
+                                                        update_entity(
+                                                            &WbblWebappGraphEntityId::GroupId(
+                                                                group_id,
+                                                            ),
+                                                            &WbblWebappGraphEntity::Group(
+                                                                group.clone(),
+                                                            ),
+                                                            &mut entities,
+                                                            &mut js_entities,
+                                                        );
                                                     }
                                                 }
                                                 // TODO: Update Spatial Index
@@ -1216,7 +1265,16 @@ impl WbblWebappGraphStore {
                                                     match source_node {
                                                         WbblWebappGraphEntity::Node(n) => {
                                                             n.out_edges.remove(&edge_uuid);
-                                                            update_entity(&WbblWebappGraphEntityId::NodeId(n.id), &WbblWebappGraphEntity::Node(n.clone()), &mut entities, &mut js_entities);
+                                                            update_entity(
+                                                                &WbblWebappGraphEntityId::NodeId(
+                                                                    n.id,
+                                                                ),
+                                                                &WbblWebappGraphEntity::Node(
+                                                                    n.clone(),
+                                                                ),
+                                                                &mut entities,
+                                                                &mut js_entities,
+                                                            );
                                                         }
                                                         _ => {}
                                                     };
@@ -1232,7 +1290,16 @@ impl WbblWebappGraphStore {
                                                     match target_node {
                                                         WbblWebappGraphEntity::Node(n) => {
                                                             n.out_edges.remove(&edge_uuid);
-                                                            update_entity(&WbblWebappGraphEntityId::NodeId(n.id), &WbblWebappGraphEntity::Node(n.clone()), &mut entities, &mut js_entities);
+                                                            update_entity(
+                                                                &WbblWebappGraphEntityId::NodeId(
+                                                                    n.id,
+                                                                ),
+                                                                &WbblWebappGraphEntity::Node(
+                                                                    n.clone(),
+                                                                ),
+                                                                &mut entities,
+                                                                &mut js_entities,
+                                                            );
                                                         }
                                                         _ => {}
                                                     };
@@ -1278,7 +1345,12 @@ impl WbblWebappGraphStore {
                                             };
                                             edge.source_position = prev_edge.source_position;
                                             edge.target_position = prev_edge.target_position;
-                                            update_entity(&key, &WbblWebappGraphEntity::Edge(edge.clone()), &mut entities,&mut js_entities);
+                                            update_entity(
+                                                &key,
+                                                &WbblWebappGraphEntity::Edge(edge.clone()),
+                                                &mut entities,
+                                                &mut js_entities,
+                                            );
                                         }
                                     }
                                 }
@@ -1306,7 +1378,7 @@ impl WbblWebappGraphStore {
                                         if let Ok(key) = try_into_u128(key) {
                                             let mut entities = entities.borrow_mut();
                                             let mut js_entities = js_entities.borrow_mut();
-                                            
+
                                             if let Some(WbblWebappGraphEntity::Group(group)) =
                                                 entities
                                                     .get_mut(&WbblWebappGraphEntityId::GroupId(key))
@@ -1345,8 +1417,13 @@ impl WbblWebappGraphStore {
                                                     }
                                                     _ => {}
                                                 };
-                                                
-                                                update_entity(&WbblWebappGraphEntityId::GroupId(group.id), &&WbblWebappGraphEntity::Group(group.clone()), &mut entities, &mut js_entities);
+
+                                                update_entity(
+                                                    &WbblWebappGraphEntityId::GroupId(group.id),
+                                                    &&WbblWebappGraphEntity::Group(group.clone()),
+                                                    &mut entities,
+                                                    &mut js_entities,
+                                                );
                                             }
                                         }
                                     }
@@ -1535,12 +1612,17 @@ impl WbblWebappGraphStore {
             js_sys::Array::from_iter([js_sys::JsString::from_str("nodes").unwrap().into(), nodes])
                 .into();
         let computed_types = serde_wasm_bindgen::to_value(&self.computed_types).unwrap();
-        let graph_types = js_sys::Array::from_iter([js_sys::JsString::from_str("computed_types").unwrap().into(), computed_types])
+        let graph_types = js_sys::Array::from_iter([
+            js_sys::JsString::from_str("computed_types").unwrap().into(),
+            computed_types,
+        ])
         .into();
 
-        js_sys::Object::from_entries(&js_sys::Array::from_iter([nodes, edges, node_groups, graph_types]).into())
-            .map(|x| x.into())
-            .map_err(|_| WbblWebappStoreError::SerializationFailure)
+        js_sys::Object::from_entries(
+            &js_sys::Array::from_iter([nodes, edges, node_groups, graph_types]).into(),
+        )
+        .map(|x| x.into())
+        .map_err(|_| WbblWebappStoreError::SerializationFailure)
     }
 
     pub fn remove_node(&mut self, node_id: &str) -> Result<(), WbblWebappStoreError> {

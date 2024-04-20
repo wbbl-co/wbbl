@@ -504,23 +504,18 @@ function NodeOrEdgeContextMenu(
     [makeJunction, makeJunctionShortcut],
   );
 
-  const menu = useMemo(
-    () => (
-      <ContextMenu.Root onOpenChange={setIsOpen}>
-        <ContextMenu.Trigger>
-          {props.isEdge ? (
-            <g onClick={onClick}>{props.children}</g>
-          ) : (
-            props.children
-          )}
-        </ContextMenu.Trigger>
-        {contextMenuContent}
-      </ContextMenu.Root>
-    ),
-    [props.children, contextMenuContent, setIsOpen],
+  return (
+    <ContextMenu.Root onOpenChange={setIsOpen}>
+      <ContextMenu.Trigger>
+        {props.isEdge ? (
+          <g onClick={onClick}>{props.children}</g>
+        ) : (
+          props.children
+        )}
+      </ContextMenu.Trigger>
+      {contextMenuContent}
+    </ContextMenu.Root>
   );
-
-  return menu;
 }
 
 export default memo(NodeOrEdgeContextMenu);

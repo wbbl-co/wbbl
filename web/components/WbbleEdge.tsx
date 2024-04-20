@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { memo, useContext, useEffect, useMemo, useRef } from "react";
 import {
   BaseEdge,
   EdgeProps,
@@ -26,43 +26,88 @@ import {
 } from "../hooks/use-preferences-store";
 import EdgeContextMenu from "./NodeOrEdgeContextMenu";
 
-export default function WbbleEdge({
+function WbblInteractiveEdge({
   id,
-  sourceHandleId,
-  targetHandleId,
-  source,
-  target,
   sourceX,
   sourceY,
   targetX,
   targetY,
   selected,
-}: EdgeProps) {
+  edgeStyle,
+  edgeClassName,
+}: Pick<
+  EdgeProps,
+  "id" | "sourceX" | "sourceY" | "targetX" | "targetY" | "selected"
+> & { edgeStyle: EdgeStyle; edgeClassName: string }) {
+  let path = "";
+  if (edgeStyle === EdgeStyle.Default) {
+    [path] = getStraightPath({
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+    });
+  } else if (edgeStyle === EdgeStyle.Bezier) {
+    [path] = getBezierPath({
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    });
+  } else {
+    [path] = getSmoothStepPath({
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    });
+  }
+  return (
+    <EdgeContextMenu
+      edgeClassname={edgeClassName}
+      isEdge
+      id={id}
+      selected={!!selected}
+    >
+      <BaseEdge path={path} interactionWidth={25} />
+    </EdgeContextMenu>
+  );
+}
+
+const MemoWbblInteractiveEdge = memo(WbblInteractiveEdge);
+
+function WbblVisualEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  selected,
+  edgeStyle,
+  edgeClassName,
+  source,
+  sourceHandleId,
+  target,
+  targetHandleId,
+}: Pick<
+  EdgeProps,
+  | "id"
+  | "sourceX"
+  | "sourceY"
+  | "targetX"
+  | "targetY"
+  | "selected"
+  | "target"
+  | "targetHandleId"
+  | "source"
+  | "sourceHandleId"
+> & { edgeStyle: EdgeStyle; edgeClassName: string }) {
   const flow = useReactFlow();
   const portRefStore = useContext(PortRefStoreContext);
-  const preferencesStore = useContext(WbblPreferencesStoreContext);
-  const edgeStyle = useEdgeStyle(preferencesStore);
-  const sourceType = usePortTypeWithNodeId(
-    source,
-    sourceHandleId as `${"s" | "t"}#${number}`,
-  );
-  const targetType = usePortTypeWithNodeId(
-    target,
-    targetHandleId as `${"s" | "t"}#${number}`,
-  );
-  const edgeType = useMemo(
-    () =>
-      sourceType &&
-      targetType &&
-      WbblWebappGraphStore.get_edge_type(sourceType, targetType),
-    [sourceType, targetType],
-  );
-  const edgeClassName = useMemo(() => {
-    if (targetType && sourceType) {
-      return getStyleForType(edgeType);
-    }
-    return "";
-  }, [edgeType]);
 
   const rope = useMemo(
     () =>
@@ -74,37 +119,6 @@ export default function WbbleEdge({
   );
 
   const isWbblEffectEnabled = useIsWbblEffectEnabled();
-
-  const pathElement = useMemo(() => {
-    let path = "";
-    if (edgeStyle === EdgeStyle.Default) {
-      [path] = getStraightPath({
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-      });
-    } else if (edgeStyle === EdgeStyle.Bezier) {
-      [path] = getBezierPath({
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      });
-    } else {
-      [path] = getSmoothStepPath({
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      });
-    }
-    return <BaseEdge path={path} interactionWidth={25} />;
-  }, [sourceX, sourceY, targetX, targetY, edgeStyle]);
 
   const startMarker = useRef<SVGCircleElement>(null);
   const endMarker = useRef<SVGCircleElement>(null);
@@ -233,53 +247,107 @@ export default function WbbleEdge({
     targetY,
   ]);
 
-  const visibleEdges = useMemo(() => {
-    return (
-      edgeEnd != null &&
-      createPortal(
-        <>
-          <path
-            ref={ropePath}
-            style={{ fill: "none" }}
-            className={`rope-path ${selected ? "selected" : ""} ${edgeClassName}`}
-          />
-          <circle
-            ref={startMarker}
-            key="start-marker"
-            className={`start-marker ${selected ? "selected" : ""} ${edgeClassName}`}
-            cx={0}
-            cy={0}
-            r={HALF_PORT_SIZE}
-          />
-          <circle
-            ref={endMarker}
-            key="end-marker"
-            className={`end-marker ${selected ? "selected" : ""} ${edgeClassName}`}
-            cx={0}
-            cy={0}
-            r={HALF_PORT_SIZE}
-            style={{
-              filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
-            }}
-          />
-        </>,
-        edgeEnd,
-        `edge-marker-${id}`,
-      )
-    );
-  }, [edgeEnd, selected, edgeClassName, id, ropePath, startMarker, endMarker]);
+  return (
+    edgeEnd != null &&
+    createPortal(
+      <>
+        <path
+          ref={ropePath}
+          style={{ fill: "none" }}
+          className={`rope-path ${selected ? "selected" : ""} ${edgeClassName}`}
+        />
+        <circle
+          ref={startMarker}
+          key="start-marker"
+          className={`start-marker ${selected ? "selected" : ""} ${edgeClassName}`}
+          cx={0}
+          cy={0}
+          r={HALF_PORT_SIZE}
+        />
+        <circle
+          ref={endMarker}
+          key="end-marker"
+          className={`end-marker ${selected ? "selected" : ""} ${edgeClassName}`}
+          cx={0}
+          cy={0}
+          r={HALF_PORT_SIZE}
+          style={{
+            filter: "drop-shadow(3px 5px 2px rgb(0 0 0 / 0.4))",
+          }}
+        />
+      </>,
+      edgeEnd,
+      `edge-marker-${id}`,
+    )
+  );
+}
+
+const MemoWbblVisualEdge = memo(WbblVisualEdge);
+
+function WbbleEdge({
+  id,
+  sourceHandleId,
+  targetHandleId,
+  source,
+  target,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  selected,
+}: EdgeProps) {
+  const preferencesStore = useContext(WbblPreferencesStoreContext);
+  const edgeStyle = useEdgeStyle(preferencesStore);
+  const sourceType = usePortTypeWithNodeId(
+    source,
+    sourceHandleId as `${"s" | "t"}#${number}`,
+  );
+  const targetType = usePortTypeWithNodeId(
+    target,
+    targetHandleId as `${"s" | "t"}#${number}`,
+  );
+  const edgeType = useMemo(
+    () =>
+      sourceType &&
+      targetType &&
+      WbblWebappGraphStore.get_edge_type(sourceType, targetType),
+    [sourceType, targetType],
+  );
+  const edgeClassName = useMemo(() => {
+    if (targetType && sourceType) {
+      return getStyleForType(edgeType);
+    }
+    return "";
+  }, [edgeType]);
 
   return (
     <>
-      {visibleEdges}
-      <EdgeContextMenu
-        edgeClassname={edgeClassName}
-        isEdge
+      <MemoWbblInteractiveEdge
         id={id}
-        selected={!!selected}
-      >
-        {pathElement}
-      </EdgeContextMenu>
+        sourceX={sourceX}
+        sourceY={sourceY}
+        targetX={targetX}
+        targetY={targetY}
+        selected={selected}
+        edgeStyle={edgeStyle}
+        edgeClassName={edgeClassName}
+      />
+      <MemoWbblVisualEdge
+        id={id}
+        sourceX={sourceX}
+        sourceY={sourceY}
+        targetX={targetX}
+        targetY={targetY}
+        selected={selected}
+        edgeStyle={edgeStyle}
+        edgeClassName={edgeClassName}
+        source={source}
+        target={target}
+        sourceHandleId={sourceHandleId}
+        targetHandleId={targetHandleId}
+      />
     </>
   );
 }
+
+export default memo(WbbleEdge);

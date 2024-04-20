@@ -573,6 +573,22 @@ fn insert_or_update_node_group(
                 entities.remove(&group_id);
             } else {
                 group.update_group_convex_hull(entities);
+                for e in node.in_edges.iter() {
+                    group.edges.remove(e);
+                    if let Some(WbblWebappGraphEntity::Edge(edge)) =
+                        entities.get_mut(&WbblWebappGraphEntityId::EdgeId(*e))
+                    {
+                        edge.group_id = None;
+                    }
+                }
+                for e in node.out_edges.iter() {
+                    group.edges.remove(e);
+                    if let Some(WbblWebappGraphEntity::Edge(edge)) =
+                        entities.get_mut(&WbblWebappGraphEntityId::EdgeId(*e))
+                    {
+                        edge.group_id = None;
+                    }
+                }
                 entities.insert(group_id, WbblWebappGraphEntity::Group(group));
             }
         }
@@ -595,10 +611,18 @@ fn insert_or_update_node_group(
         } else if let Some(WbblWebappGraphEntity::Group(mut group)) = group {
             group.nodes.insert(node.id);
             group.update_group_convex_hull(&entities);
-            group.edges = get_mutual_edges(&group.nodes, entities)
+            let edges: HashSet<u128> = get_mutual_edges(&group.nodes, entities)
                 .iter()
                 .cloned()
                 .collect();
+            for e in edges.iter() {
+                if let Some(WbblWebappGraphEntity::Edge(edge)) =
+                    entities.get_mut(&WbblWebappGraphEntityId::EdgeId(*e))
+                {
+                    edge.group_id = Some(group_uuid);
+                }
+            }
+            group.edges = edges;
             entities.insert(group_id, WbblWebappGraphEntity::Group(group));
         }
     }
@@ -1001,10 +1025,15 @@ impl WbblWebappGraphStore {
                                                 let source_node = entities.get_mut(
                                                     &WbblWebappGraphEntityId::NodeId(edge.source),
                                                 );
+                                                let mut source_group_id: Option<u128> = None;
+
+                                                let mut target_group_id: Option<u128> = None;
                                                 if source_node.is_some() {
                                                     let source_node = source_node.unwrap();
+
                                                     match source_node {
                                                         WbblWebappGraphEntity::Node(n) => {
+                                                            source_group_id = n.group_id.clone();
                                                             n.out_edges.insert(edge_uuid);
                                                             let (mut x, mut y) =
                                                                 get_out_port_position(
@@ -1029,6 +1058,7 @@ impl WbblWebappGraphStore {
                                                     let target_node = target_node.unwrap();
                                                     match target_node {
                                                         WbblWebappGraphEntity::Node(n) => {
+                                                            target_group_id = n.group_id.clone();
                                                             n.out_edges.insert(edge_uuid);
                                                             let (mut x, mut y) =
                                                                 get_in_port_position(
@@ -1045,6 +1075,19 @@ impl WbblWebappGraphStore {
                                                 }
                                                 edge.source_position = source_position;
                                                 edge.target_position = target_position;
+                                                if source_group_id.is_some()
+                                                    && source_group_id == target_group_id
+                                                {
+                                                    let group_id = source_group_id.unwrap();
+                                                    if let Some(WbblWebappGraphEntity::Group(
+                                                        group,
+                                                    )) = entities.get_mut(
+                                                        &WbblWebappGraphEntityId::GroupId(group_id),
+                                                    ) {
+                                                        group.edges.insert(edge.id);
+                                                        edge.group_id = Some(group_id);
+                                                    }
+                                                }
 
                                                 entities.insert(
                                                     edge_id,
@@ -1061,6 +1104,15 @@ impl WbblWebappGraphStore {
                                             if let Some(WbblWebappGraphEntity::Edge(prev_edge)) =
                                                 entities.remove(&edge_id)
                                             {
+                                                if let Some(group_id) = prev_edge.group_id {
+                                                    if let Some(WbblWebappGraphEntity::Group(
+                                                        group,
+                                                    )) = entities.get_mut(
+                                                        &WbblWebappGraphEntityId::GroupId(group_id),
+                                                    ) {
+                                                        group.edges.remove(&prev_edge.id);
+                                                    }
+                                                }
                                                 // TODO: Update Spatial Index
                                                 let source_node = entities.get_mut(
                                                     &WbblWebappGraphEntityId::NodeId(
@@ -1141,11 +1193,6 @@ impl WbblWebappGraphStore {
                 }
             }
         });
-        // TODO: Update edges for each modified Node if moved/resized
-        // TODO: Update node groups for each modified node if moved/resized
-
-        // Emitting change to listeners. Do this at end as we need to first update our
-        // domain representation
 
         let node_group_selections_subscription = node_group_selections.observe_deep({
             let locally_selected_entities = locally_selected_entities.clone();
@@ -1495,6 +1542,26 @@ impl WbblWebappGraphStore {
                 self.graph.transact_mut_with(self.graph.client_id());
             let id = self.graph.client_id();
             let node_id = try_into_u128(node_id)?;
+            if !selected {
+                if let Some(WbblWebappGraphEntity::Node(node)) = self
+                    .entities
+                    .borrow()
+                    .get(&WbblWebappGraphEntityId::NodeId(node_id))
+                {
+                    if let Some(group_id) = node.group_id {
+                        let node_group_selections: MapRef = get_map(
+                            &id.to_string(),
+                            &mut_transaction,
+                            &self.node_group_selections,
+                        )?;
+                        node_group_selections.remove(
+                            &mut mut_transaction,
+                            &uuid::Uuid::from_u128(group_id).to_string(),
+                        );
+                    }
+                }
+            }
+            // TODO: If deselection & has_group & group_selected
             encode_selection(&mut mut_transaction, node_id, &self.nodes, id, selected)?;
         }
         Ok(())
@@ -1508,17 +1575,34 @@ impl WbblWebappGraphStore {
         target_handle: i64,
     ) -> Result<(), WbblWebappStoreError> {
         {
-            let source_uuid =
-                uuid::Uuid::from_str(source).map_err(|_| WbblWebappStoreError::MalformedId)?;
-            let target_uuid =
-                uuid::Uuid::from_str(target).map_err(|_| WbblWebappStoreError::MalformedId)?;
-
-            let edge = WbblWebappEdge::new(
-                &(source_uuid.as_u128()),
-                &(target_uuid.as_u128()),
-                source_handle,
-                target_handle,
-            );
+            let source_uuid = try_into_u128(source)?;
+            let target_uuid = try_into_u128(target)?;
+            let edge = {
+                let entities = self.entities.borrow();
+                match (
+                    entities.get(&WbblWebappGraphEntityId::NodeId(source_uuid)),
+                    entities.get(&WbblWebappGraphEntityId::NodeId(target_uuid)),
+                ) {
+                    (
+                        Some(WbblWebappGraphEntity::Node(source_node)),
+                        Some(WbblWebappGraphEntity::Node(target_node)),
+                    ) => {
+                        let group_id = if source_node.group_id == target_node.group_id {
+                            source_node.group_id
+                        } else {
+                            None
+                        };
+                        Ok(WbblWebappEdge::new(
+                            &source_uuid,
+                            &target_uuid,
+                            source_handle,
+                            target_handle,
+                            group_id,
+                        ))
+                    }
+                    _ => Err(WbblWebappStoreError::NotFound),
+                }
+            }?;
 
             let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
             edge.encode(&mut mut_transaction, &mut self.edges)?;
@@ -1828,15 +1912,30 @@ impl WbblWebappGraphStore {
         selected: bool,
     ) -> Result<(), WbblWebappStoreError> {
         {
-            let mut mut_transaction = self.graph.transact_mut_with(self.graph.client_id());
-            let id = self.graph.client_id().to_string();
-            let edge = get_map(edge_id, &mut_transaction, &self.edges)?;
-            let selections = get_map("selections", &mut_transaction, &edge)?;
-            if selected {
-                selections.insert(&mut mut_transaction, id, true);
-            } else {
-                selections.remove(&mut mut_transaction, &id);
+            let id = self.graph.client_id();
+            let mut mut_transaction: TransactionMut<'_> =
+                self.graph.transact_mut_with(self.graph.client_id());
+            let edge_id = try_into_u128(edge_id)?;
+            if !selected {
+                if let Some(WbblWebappGraphEntity::Edge(edge)) = self
+                    .entities
+                    .borrow()
+                    .get(&WbblWebappGraphEntityId::EdgeId(edge_id))
+                {
+                    if let Some(group_id) = edge.group_id {
+                        let node_group_selections: MapRef = get_map(
+                            &id.to_string(),
+                            &mut_transaction,
+                            &self.node_group_selections,
+                        )?;
+                        node_group_selections.remove(
+                            &mut mut_transaction,
+                            &uuid::Uuid::from_u128(group_id).to_string(),
+                        );
+                    }
+                }
             }
+            encode_selection(&mut mut_transaction, edge_id, &self.edges, id, selected)?;
         }
         Ok(())
     }
@@ -2026,32 +2125,28 @@ impl WbblWebappGraphStore {
         {
             // TODO Add validation for this
             let mut_transaction = &mut self.graph.transact_mut_with(self.graph.client_id());
-            let position = match self.nodes.get(mut_transaction, node_id) {
-                Some(yrs::Value::YMap(node_ref)) => {
-                    match (
-                        node_ref.get(mut_transaction, "x"),
-                        node_ref.get(mut_transaction, "y"),
-                    ) {
-                        (
-                            Some(yrs::Value::Any(yrs::Any::Number(x))),
-                            Some(yrs::Value::Any(yrs::Any::Number(y))),
-                        ) => Ok((x, y)),
-                        (_, _) => Err(WbblWebappStoreError::UnexpectedStructure),
-                    }
+            {
+                let entities = self.entities.borrow();
+                let node_uuid = try_into_u128(node_id)?;
+                if let Some(WbblWebappGraphEntity::Node(source_node)) =
+                    entities.get(&WbblWebappGraphEntityId::NodeId(node_uuid))
+                {
+                    let preview_node = NewWbblWebappNode::new(
+                        source_node.position.x + 350.0,
+                        source_node.position.y,
+                        WbblWebappNodeType::Preview,
+                    )?;
+                    preview_node.encode(mut_transaction, &mut self.nodes)?;
+                    let source = uuid::Uuid::from_str(node_id)
+                        .map_err(|_| WbblWebappStoreError::MalformedId)?;
+
+                    let edge =
+                        WbblWebappEdge::new(&(source.as_u128()), &preview_node.id, 0, 0, None);
+                    edge.encode(mut_transaction, &mut self.edges)?;
+                } else {
+                    return Err(WbblWebappStoreError::NotFound);
                 }
-                _ => Err(WbblWebappStoreError::UnexpectedStructure),
-            }?;
-            let preview_node = NewWbblWebappNode::new(
-                position.0 + 350.0,
-                position.1,
-                WbblWebappNodeType::Preview,
-            )?;
-            preview_node.encode(mut_transaction, &mut self.nodes)?;
-            let source =
-                uuid::Uuid::from_str(node_id).map_err(|_| WbblWebappStoreError::MalformedId)?;
-            let edge =
-                WbblWebappEdge::new(&(source.as_u128()), &preview_node.id, 0, 0, edge.group_id);
-            edge.encode(mut_transaction, &mut self.edges)?;
+            }
         }
         Ok(())
     }

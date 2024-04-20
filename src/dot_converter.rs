@@ -174,6 +174,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                             selected: false,
                             updatable: false,
                             source_position: Vec2::ZERO,
+                            group_id: None,
                             target_position: Vec2::ZERO,
                         })
                     }

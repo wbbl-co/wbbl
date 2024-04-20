@@ -1561,7 +1561,6 @@ impl WbblWebappGraphStore {
                     }
                 }
             }
-            // TODO: If deselection & has_group & group_selected
             encode_selection(&mut mut_transaction, node_id, &self.nodes, id, selected)?;
         }
         Ok(())

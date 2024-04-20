@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys;
-use yrs::{Map, Transact};
+use yrs::{Map, Subscription, Transact};
 
 use crate::{
     graph_transfer_types::{from_type_name, get_type_name, WbblWebappNodeType},
@@ -19,6 +19,7 @@ const FAVOURITES_MAP_KEY: &str = "favourites";
 const THEME_MAP_KEY: &str = "theme";
 
 #[wasm_bindgen]
+#[allow(unused)]
 pub struct WbblWebappPreferencesStore {
     next_listener_handle: u32,
     listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>>,
@@ -28,7 +29,7 @@ pub struct WbblWebappPreferencesStore {
     node_keyboard_shortcuts: yrs::MapRef,
     favourites: yrs::MapRef,
     theme: yrs::MapRef,
-    should_emit: bool,
+    subscriptions: Vec<Subscription>,
 }
 
 #[wasm_bindgen]
@@ -205,32 +206,32 @@ impl WbblWebappPreferencesStore {
         let node_keyboard_shortcuts =
             preferences.get_or_insert_map(NODE_KEYBOARD_SHORTCUTS_MAP_KEY.to_owned());
 
+        let preferences = Arc::new(preferences);
         let listeners = Arc::new(RefCell::new(Vec::<(u32, js_sys::Function)>::new()));
+        let preferences_subscription = preferences
+            .observe_update_v2({
+                let listeners = listeners.clone();
+                move |_, _| {
+                    for (_, listener) in listeners.borrow().iter() {
+                        let _ = listener.call0(&JsValue::UNDEFINED);
+                    }
+                }
+            })
+            .map_err(|_| WbblWebappStoreError::SubscriptionFailure)?;
 
-        let mut store = WbblWebappPreferencesStore {
+        let store = WbblWebappPreferencesStore {
             next_listener_handle: 0,
             listeners: listeners.clone(),
-            preferences: Arc::new(preferences),
+            preferences: preferences.clone(),
             general_settings,
             keyboard_shortcuts,
             node_keyboard_shortcuts,
             favourites,
             theme,
-            should_emit: false,
+            subscriptions: Vec::from([preferences_subscription]),
         };
 
-        store.should_emit = true;
-        store.emit()?;
         Ok(store)
-    }
-
-    fn emit(&self) -> Result<(), WbblWebappStoreError> {
-        for (_, listener) in self.listeners.borrow().iter() {
-            listener
-                .call0(&JsValue::UNDEFINED)
-                .map_err(|_| WbblWebappStoreError::FailedToEmit)?;
-        }
-        Ok(())
     }
 
     pub fn subscribe(&mut self, subscriber: js_sys::Function) -> u32 {
@@ -257,7 +258,6 @@ impl WbblWebappPreferencesStore {
             self.theme
                 .insert(&mut txn, "base", yrs::Any::BigInt(theme as i64));
         }
-        self.emit()?;
         Ok(())
     }
 
@@ -283,7 +283,6 @@ impl WbblWebappPreferencesStore {
             let command_key = command.get_string_representation();
             self.keyboard_shortcuts.remove(&mut txn, &command_key);
         }
-        self.emit()?;
         Ok(())
     }
 
@@ -302,7 +301,6 @@ impl WbblWebappPreferencesStore {
                 None => self.keyboard_shortcuts.insert(&mut txn, command_key, false),
             };
         }
-        self.emit()?;
         Ok(())
     }
 
@@ -332,7 +330,6 @@ impl WbblWebappPreferencesStore {
                 self.favourites.remove(&mut txn, &get_type_name(node_type));
             }
         }
-        self.emit()?;
         Ok(())
     }
 
@@ -431,7 +428,6 @@ impl WbblWebappPreferencesStore {
             self.node_keyboard_shortcuts
                 .remove(&mut txn, &get_type_name(node_type));
         }
-        self.emit()?;
         Ok(())
     }
 
@@ -448,7 +444,6 @@ impl WbblWebappPreferencesStore {
                 None => self.keyboard_shortcuts.insert(&mut txn, key, false),
             };
         }
-        self.emit()?;
         Ok(())
     }
 
@@ -469,7 +464,6 @@ impl WbblWebappPreferencesStore {
                 Err(err) => Err(err),
             }?;
         }
-        self.emit()?;
         Ok(())
     }
 
@@ -510,7 +504,6 @@ impl WbblWebappPreferencesStore {
                 );
             };
         }
-        self.emit()?;
         Ok(())
     }
 }

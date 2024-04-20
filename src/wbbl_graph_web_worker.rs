@@ -75,7 +75,7 @@ impl WbblGraphWebWorkerJsWrapper {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WbblGraphWebWorkerRequestMessage {
     Poll,
-    SetSnapshot(WbblWebappGraphSnapshot),
+    ReceiveUpdate(Vec<u8>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -130,7 +130,8 @@ impl WbblGraphWebWorkerMain {
             WbblGraphWebWorkerRequestMessage::Poll => {
                 self.post_message(WbblGraphWebWorkerResponseMessage::Ready)
             }
-            WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot) => {
+            WbblGraphWebWorkerRequestMessage::ReceiveUpdate(update) => {
+                let update = yrs::UpdateEvent { update };
                 let graph: Graph = snapshot.into();
                 if Some(&graph) != self.current_graph.as_ref() {
                     match graph_functions::narrow_abstract_types(&graph) {

@@ -27,7 +27,7 @@ use crate::{
     log,
     node_display_data::{get_in_port_position, get_node_dimensions, get_out_port_position},
     store_errors::WbblWebappStoreError,
-    wbbl_graph_web_worker::WbblGraphWebWorkerResponseMessage,
+    wbbl_graph_web_worker::{WbblGraphWebWorkerRequestMessage, WbblGraphWebWorkerResponseMessage},
     yrs_utils::*,
 };
 
@@ -1439,12 +1439,26 @@ impl WbblWebappGraphStore {
         let doc_subscription = graph
             .observe_update_v2({
                 let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
-                move |_, _| {
+                move |txn, update| {
                     for (_, listener) in listeners.borrow().iter() {
                         let _ = listener
                             .call0(&JsValue::UNDEFINED)
                             .inspect_err(|err| log!("Publish error: {:?}", err));
                     }
+                    let update = update.update.clone();
+                    let snapshot_js_value = serde_wasm_bindgen::to_value(
+                        &WbblGraphWebWorkerRequestMessage::ReceiveUpdate(update),
+                    )
+                    .unwrap();
+                    let update = js_sys::Reflect::get(
+                        &snapshot_js_value,
+                        &js_sys::JsString::from_str("ReceiveUpdate").unwrap(),
+                    )
+                    .unwrap();
+                    let transfer = js_sys::Array::from_iter([update]).into();
+                    graph_worker
+                        .post_message_with_transfer(&snapshot_js_value, &transfer)
+                        .unwrap();
                 }
             })
             .unwrap();

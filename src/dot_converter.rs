@@ -182,13 +182,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                 }
             }
 
-            Ok(WbblWebappGraphSnapshot {
-                id,
-                nodes,
-                edges,
-                node_groups: vec![],
-                computed_types: HashMap::new(),
-            })
+            Ok(WbblWebappGraphSnapshot { id, nodes, edges })
         }
         _ => Err(DotFileError::NotDigraph),
     }

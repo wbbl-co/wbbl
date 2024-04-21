@@ -21,19 +21,17 @@ use crate::{
     graph_transfer_types::{
         from_type_name, get_type_name, Any, WbblWebappEdge, WbblWebappGraphEntity,
         WbblWebappGraphEntityId, WbblWebappGraphSnapshot, WbblWebappNode, WbblWebappNodeGroup,
-        WbblWebappNodeType, WbblePosition,
+        WbblWebappNodeType, WbblePosition, GRAPH_YRS_EDGES_MAP_KEY, GRAPH_YRS_NODES_MAP_KEY,
+        GRAPH_YRS_NODE_GROUP_SELECTIONS_MAP_KEY,
     },
     graph_types::PortId,
     log,
     node_display_data::{get_in_port_position, get_node_dimensions, get_out_port_position},
     store_errors::WbblWebappStoreError,
+    utils::try_into_u128,
     wbbl_graph_web_worker::{WbblGraphWebWorkerRequestMessage, WbblGraphWebWorkerResponseMessage},
     yrs_utils::*,
 };
-
-const GRAPH_YRS_NODE_GROUP_SELECTIONS_MAP_KEY: &str = "node_group_selections";
-const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
-const GRAPH_YRS_EDGES_MAP_KEY: &str = "edges";
 
 #[wasm_bindgen]
 #[allow(unused)]
@@ -46,7 +44,7 @@ pub struct WbblWebappGraphStore {
     nodes: Arc<yrs::MapRef>,
     node_group_selections: Arc<yrs::MapRef>,
     edges: Arc<yrs::MapRef>,
-    graph_worker: Worker,
+    graph_worker: Arc<Worker>,
     worker_responder: Closure<dyn FnMut(MessageEvent) -> ()>,
     computed_types: Arc<RefCell<HashMap<PortId, AbstractDataType>>>,
     entities: Arc<RefCell<HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>>>,
@@ -62,12 +60,6 @@ pub struct NewWbblWebappNode {
     position: WbblePosition,
     node_type: WbblWebappNodeType,
     data: HashMap<String, Any>,
-}
-
-fn try_into_u128(value: &str) -> Result<u128, WbblWebappStoreError> {
-    return uuid::Uuid::from_str(value)
-        .map_err(|_| WbblWebappStoreError::MalformedId)
-        .map(|x| x.as_u128());
 }
 
 fn encode_data(
@@ -704,6 +696,7 @@ fn insert_or_update_node_group(
 #[wasm_bindgen]
 impl WbblWebappGraphStore {
     pub fn empty(graph_worker: Worker) -> Self {
+        let graph_worker = Arc::new(graph_worker);
         let graph = yrs::Doc::new();
         let nodes = Arc::new(graph.get_or_insert_map(GRAPH_YRS_NODES_MAP_KEY.to_owned()));
         let edges = Arc::new(graph.get_or_insert_map(GRAPH_YRS_EDGES_MAP_KEY.to_owned()));
@@ -1439,7 +1432,8 @@ impl WbblWebappGraphStore {
         let doc_subscription = graph
             .observe_update_v2({
                 let listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>> = listeners.clone();
-                move |txn, update| {
+                let graph_worker = graph_worker.clone();
+                move |_, update| {
                     for (_, listener) in listeners.borrow().iter() {
                         let _ = listener
                             .call0(&JsValue::UNDEFINED)
@@ -1520,25 +1514,6 @@ impl WbblWebappGraphStore {
 
         store
     }
-
-    // pub fn emit(&self, should_publish_to_worker: bool) -> Result<(), WbblWebappStoreError> {
-    //     for (_, listener) in self.listeners.borrow().iter() {
-    //         listener
-    //             .call0(&JsValue::UNDEFINED)
-    //             .map_err(|_| WbblWebappStoreError::FailedToEmit)?;
-    //     }
-    //     if should_publish_to_worker && self.initialized {
-    //         let snapshot = self.get_snapshot_raw()?;
-    //         let snapshot_js_value = serde_wasm_bindgen::to_value(
-    //             &WbblGraphWebWorkerRequestMessage::SetSnapshot(snapshot),
-    //         )
-    //         .map_err(|_| WbblWebappStoreError::UnexpectedStructure)?;
-
-    //         self.graph_worker.post_message(&snapshot_js_value).unwrap();
-    //     }
-
-    //     Ok(())
-    // }
 
     pub fn subscribe(&mut self, subscriber: js_sys::Function) -> u32 {
         let handle = self.next_listener_handle;
@@ -1844,8 +1819,6 @@ impl WbblWebappGraphStore {
             id: self.id,
             nodes,
             edges,
-            node_groups: vec![],
-            computed_types: HashMap::new(),
         })
     }
 
@@ -1894,8 +1867,6 @@ impl WbblWebappGraphStore {
                 id: self.id,
                 nodes,
                 edges,
-                node_groups: vec![],
-                computed_types: HashMap::new(),
             })
         } else {
             return Err(WbblWebappStoreError::UnexpectedStructure);
@@ -1921,10 +1892,8 @@ impl WbblWebappGraphStore {
 
         let snapshot = WbblWebappGraphSnapshot {
             id: self.id,
-            nodes: nodes,
+            nodes,
             edges: vec![],
-            computed_types: HashMap::new(),
-            node_groups: vec![],
         };
         Ok(snapshot)
     }

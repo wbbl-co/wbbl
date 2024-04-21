@@ -2,24 +2,32 @@ use crate::{
     animation_frame::{AnimationFrameHandler, AnimationFrameProcessor},
     builtin_geometry::BuiltInGeometry,
     data_types::AbstractDataType,
-    graph_functions,
-    graph_transfer_types::WbblWebappGraphSnapshot,
-    graph_types::{Graph, PortId},
+    graph_transfer_types::{GRAPH_YRS_EDGES_MAP_KEY, GRAPH_YRS_NODES_MAP_KEY},
+    graph_types::{Graph, Node, PortId},
+    log,
     preview_renderer::{PreviewRendererResources, SharedPreviewRendererResources},
     test_fragment_shader::make_fragment_shader_module,
+    utils::try_into_u128,
     vertex_shader::make_vertex_shader_module,
+    yrs_utils::get_map,
 };
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, collections::HashMap, panic, rc::Rc, str::FromStr, sync::Arc};
 use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, OffscreenCanvas, Window};
+use yrs::{updates::decoder::Decode, DeepObservable, Subscription, Transact, Update};
 
+#[allow(unused)]
 pub struct WbblGraphWebWorkerMain {
-    current_graph: Option<Graph>,
+    doc: Arc<yrs::Doc>,
+    graph: Arc<RefCell<Graph>>,
     preview_resources: HashMap<u128, Arc<RefCell<PreviewRendererResources>>>,
     shared_preview_resources: Arc<SharedPreviewRendererResources>,
     animation_frame_handler: Arc<RefCell<AnimationFrameHandler>>,
     worker_scope: Arc<DedicatedWorkerGlobalScope>,
+    subscriptions: Vec<Subscription>,
+    nodes: Arc<yrs::MapRef>,
+    edges: Arc<yrs::MapRef>,
 }
 
 #[wasm_bindgen]
@@ -103,14 +111,180 @@ impl WbblGraphWebWorkerMain {
         let shared_preview_resources = SharedPreviewRendererResources::new()
             .await
             .expect("Expected success");
+        let graph = Arc::new(RefCell::new(Graph {
+            id: uuid::Uuid::new_v4().as_u128(),
+            constraints: vec![],
+            nodes: HashMap::new(),
+            edges: HashMap::new(),
+            input_ports: HashMap::new(),
+            output_ports: HashMap::new(),
+        }));
+        let doc = Arc::new(yrs::Doc::new());
+        let nodes = Arc::new(doc.get_or_insert_map(GRAPH_YRS_NODES_MAP_KEY.to_owned()));
+        let edges = Arc::new(doc.get_or_insert_map(GRAPH_YRS_EDGES_MAP_KEY.to_owned()));
+
+        let nodes_subscription = nodes.observe_deep({
+            let graph = graph.clone();
+            let nodes = nodes.clone();
+            move |txn, evts| {
+                for evt in evts.iter() {
+                    match evt {
+                        yrs::types::Event::Map(map_evt) => {
+                            let path = map_evt.path();
+                            if path.len() == 0 {
+                                // Add/Remove node
+                                for (key, change) in map_evt.keys(txn) {
+                                    if let Ok(key) = try_into_u128(key) {
+                                        let mut graph = graph.borrow_mut();
+                                        match change {
+                                            yrs::types::EntryChange::Inserted(new_node) => {
+                                                match new_node {
+                                                    yrs::Value::YMap(new_node) => {
+                                                        Node::insert_new(txn, new_node, &mut graph)
+                                                            .inspect_err(|err| {
+                                                                log!("Err {:?}", err)
+                                                            });
+                                                    }
+                                                    _ => {}
+                                                };
+                                            }
+                                            yrs::types::EntryChange::Removed(_) => {
+                                                if let Some(prev_node) = graph.nodes.remove(&key) {
+                                                    for port_id in prev_node.port_ids() {
+                                                        match port_id {
+                                                            PortId::Output(port_id) => {
+                                                                if let Some(output_port) = graph
+                                                                    .output_ports
+                                                                    .remove(&port_id)
+                                                                {
+                                                                    for edge_id in output_port
+                                                                        .outgoing_edges
+                                                                        .iter()
+                                                                    {
+                                                                        graph
+                                                                            .edges
+                                                                            .remove(&edge_id);
+                                                                    }
+                                                                }
+                                                            }
+                                                            PortId::Input(port_id) => {
+                                                                if let Some(input_port) = graph
+                                                                    .input_ports
+                                                                    .remove(&port_id)
+                                                                {
+                                                                    if let Some(edge_id) =
+                                                                        input_port.incoming_edge
+                                                                    {
+                                                                        graph
+                                                                            .edges
+                                                                            .remove(&edge_id);
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            yrs::types::EntryChange::Updated(_, _) => {
+                                                // Updates are not observed at this level, so ignore
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if path.len() >= 1 {
+                                match (path.get(0), path.get(1)) {
+                                    // Here we need to test if fields on the data were replaced
+                                    (
+                                        Some(yrs::types::PathSegment::Key(key)),
+                                        Some(yrs::types::PathSegment::Key(field)),
+                                    ) if field.to_string() == "data" => {
+                                        // Only update node if data changed.
+                                        // We don't care about the other node properties
+                                        if let Ok(node_uuid) = try_into_u128(key) {
+                                            let mut graph = graph.borrow_mut();
+                                            if let (Ok(new_node), Some(prev_node)) = (
+                                                get_map(key, txn, &nodes),
+                                                graph.nodes.get(&node_uuid),
+                                            ) {
+                                                let _ = Node::update_existing(
+                                                    txn, &new_node, &mut graph,
+                                                )
+                                                .inspect_err(|err| log!("Err {:?}", err));
+                                            }
+                                        }
+                                    }
+                                    // Here we need to test if the data was replaced as a whole
+                                    (Some(yrs::types::PathSegment::Key(key)), None) => {
+                                        if let Ok(node_uuid) = try_into_u128(key) {
+                                            let mut graph = graph.borrow_mut();
+                                            // Node updated
+                                            let keys = map_evt.keys(txn);
+                                            if let Some(data_change) = keys.get("data") {
+                                                match data_change {
+                                                    yrs::types::EntryChange::Inserted(new_data) => {
+                                                        // Do nothing. Should probably log here. Data should never be inserted but rather updated
+                                                    }
+                                                    yrs::types::EntryChange::Updated(_, _) => {
+                                                        if let Ok(node) = get_map(key, txn, &nodes)
+                                                        {
+                                                            let _ = Node::update_existing(
+                                                                txn, &node, &mut graph,
+                                                            )
+                                                            .inspect_err(|err| {
+                                                                log!("Err {:?}", err)
+                                                            });
+                                                        }
+                                                    }
+                                                    yrs::types::EntryChange::Removed(_) => {
+                                                        // Do nothing. Should probably log here. Data should never be deleted
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    _ => {}
+                                };
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        });
+
+        let edges_subscription = nodes.observe_deep({
+            let graph = graph.clone();
+            let edges = edges.clone();
+
+            move |mut txn, evts| {
+                for evt in evts {
+                    match evt {}
+                }
+            }
+        });
+        // doc.integrate(&mut txn, update);
+        // match graph_functions::narrow_abstract_types(&graph) {
+        //     Ok(types) => {
+        //         let result = self
+        //             .post_message(WbblGraphWebWorkerResponseMessage::TypesUpdated(types));
+        //         self.graph = Some(graph);
+        //         result
+        //     }
+        //     Err(_) => {
+        //         self.post_message(WbblGraphWebWorkerResponseMessage::TypeUnificationFailure)
+        //     }
+        // }
         let result = WbblGraphWebWorkerMain {
-            current_graph: None,
+            doc,
+            graph,
             shared_preview_resources: shared_preview_resources.into(),
             preview_resources: HashMap::new().into(),
             animation_frame_handler,
             worker_scope: worker_scope.clone(),
+            subscriptions: vec![nodes_subscription],
+            nodes,
+            edges,
         };
-
         result
     }
 
@@ -131,24 +305,10 @@ impl WbblGraphWebWorkerMain {
                 self.post_message(WbblGraphWebWorkerResponseMessage::Ready)
             }
             WbblGraphWebWorkerRequestMessage::ReceiveUpdate(update) => {
-                let update = yrs::UpdateEvent { update };
-                let graph: Graph = snapshot.into();
-                if Some(&graph) != self.current_graph.as_ref() {
-                    match graph_functions::narrow_abstract_types(&graph) {
-                        Ok(types) => {
-                            let result = self.post_message(
-                                WbblGraphWebWorkerResponseMessage::TypesUpdated(types),
-                            );
-                            self.current_graph = Some(graph);
-                            result
-                        }
-                        Err(_) => self.post_message(
-                            WbblGraphWebWorkerResponseMessage::TypeUnificationFailure,
-                        ),
-                    }
-                } else {
-                    Ok(())
-                }
+                self.doc
+                    .transact_mut()
+                    .apply_update(Update::decode_v2(&update).unwrap());
+                Ok(())
             }
         }
     }

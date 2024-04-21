@@ -13,11 +13,13 @@ use wasm_bindgen::prelude::*;
 use crate::{
     constraint_solver_constraints::Constraint,
     data_types::AbstractDataType,
-    graph_types::{
-        Edge, Graph, InputPort, InputPortId, Node, NodeType, OutputPort, OutputPortId, PortId,
-    },
+    graph_types::{Edge, Graph, InputPort, InputPortId, Node, OutputPort, OutputPortId, PortId},
     store_errors::WbblWebappStoreError,
 };
+
+pub const GRAPH_YRS_NODE_GROUP_SELECTIONS_MAP_KEY: &str = "node_group_selections";
+pub const GRAPH_YRS_NODES_MAP_KEY: &str = "nodes";
+pub const GRAPH_YRS_EDGES_MAP_KEY: &str = "edges";
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Any {
@@ -513,183 +515,85 @@ pub struct WbblWebappGraphSnapshot {
     pub id: u128,
     pub nodes: Vec<WbblWebappNode>,
     pub edges: Vec<WbblWebappEdge>,
-    pub node_groups: Vec<WbblWebappNodeGroup>,
-    pub computed_types: HashMap<PortId, AbstractDataType>,
 }
 
-impl From<WbblWebappEdge> for Edge {
-    fn from(value: WbblWebappEdge) -> Self {
-        Edge {
-            id: value.id,
-            input_port: InputPortId {
-                node_id: value.target,
-                port_index: value.target_handle as u8,
-            },
-            output_port: OutputPortId {
-                node_id: value.source,
-                port_index: value.source_handle as u8,
-            },
-        }
-    }
-}
+// impl From<WbblWebappEdge> for Edge {
+//     fn from(value: WbblWebappEdge) -> Self {
+//         Edge {
+//             id: value.id,
+//             input_port: InputPortId {
+//                 node_id: value.target,
+//                 port_index: value.target_handle as u8,
+//             },
+//             output_port: OutputPortId {
+//                 node_id: value.source,
+//                 port_index: value.source_handle as u8,
+//             },
+//         }
+//     }
+// }
 
-impl Node {
-    fn node_type_from_webapp_node(
-        node: &WbblWebappNode,
-        _incoming_edges: &Vec<&Edge>,
-        _outgoing_edges: &Vec<&Edge>,
-    ) -> NodeType {
-        match node.node_type {
-            WbblWebappNodeType::Output => NodeType::Output,
-            WbblWebappNodeType::Slab => NodeType::Slab,
-            WbblWebappNodeType::Preview => NodeType::Preview,
-            WbblWebappNodeType::Add => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Add)
-            }
-            WbblWebappNodeType::Subtract => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Subtract)
-            }
-            WbblWebappNodeType::Multiply => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Multiply)
-            }
-            WbblWebappNodeType::Divide => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Divide)
-            }
-            WbblWebappNodeType::Modulo => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Modulo)
-            }
-            WbblWebappNodeType::Equal => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Equal)
-            }
-            WbblWebappNodeType::NotEqual => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::NotEqual)
-            }
-            WbblWebappNodeType::Less => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Less)
-            }
-            WbblWebappNodeType::LessEqual => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::LessEqual)
-            }
-            WbblWebappNodeType::Greater => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Greater)
-            }
-            WbblWebappNodeType::GreaterEqual => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::GreaterEqual)
-            }
-            WbblWebappNodeType::And => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::And)
-            }
-            WbblWebappNodeType::Or => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Or)
-            }
-            WbblWebappNodeType::ShiftLeft => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::ShiftLeft)
-            }
-            WbblWebappNodeType::ShiftRight => {
-                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::ShiftRight)
-            }
-            WbblWebappNodeType::WorldPosition => {
-                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldPosition)
-            }
-            WbblWebappNodeType::ClipPosition => {
-                NodeType::BuiltIn(crate::graph_types::BuiltIn::ClipPosition)
-            }
-            WbblWebappNodeType::WorldNormal => {
-                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldNormal)
-            }
-            WbblWebappNodeType::WorldBitangent => {
-                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldBitangent)
-            }
-            WbblWebappNodeType::WorldTangent => {
-                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldTangent)
-            }
-            WbblWebappNodeType::TexCoord => {
-                NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate)
-            }
-            WbblWebappNodeType::TexCoord2 => {
-                NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate2)
-            }
-            WbblWebappNodeType::Junction => NodeType::Junction,
-        }
-    }
+// impl From<WbblWebappGraphSnapshot> for Graph {
+//     fn from(value: WbblWebappGraphSnapshot) -> Self {
+//         let edges: HashMap<u128, Edge> = value
+//             .edges
+//             .iter()
+//             .map(|e| (e.id, Edge::from(e.clone())))
+//             .collect();
 
-    pub fn from(
-        webapp_node: &WbblWebappNode,
-        incoming_edges: &Vec<&Edge>,
-        outgoing_edges: &Vec<&Edge>,
-    ) -> Self {
-        let node_type =
-            Self::node_type_from_webapp_node(webapp_node, incoming_edges, outgoing_edges);
-        Node {
-            id: webapp_node.id,
-            input_port_count: node_type.input_port_count(incoming_edges, outgoing_edges),
-            output_port_count: node_type.output_port_count(incoming_edges, outgoing_edges),
-            node_type,
-        }
-    }
-}
+//         let input_edges_by_node: HashMap<u128, Vec<&Edge>> =
+//             edges.iter().fold(HashMap::new(), |mut prev, (_, e)| {
+//                 let entry = prev.entry(e.input_port.node_id).or_insert(vec![]);
+//                 entry.push(&e);
+//                 prev
+//             });
 
-impl From<WbblWebappGraphSnapshot> for Graph {
-    fn from(value: WbblWebappGraphSnapshot) -> Self {
-        let edges: HashMap<u128, Edge> = value
-            .edges
-            .iter()
-            .map(|e| (e.id, Edge::from(e.clone())))
-            .collect();
+//         let output_edges_by_node: HashMap<u128, Vec<&Edge>> =
+//             edges.iter().fold(HashMap::new(), |mut prev, (_, e)| {
+//                 let entry = prev.entry(e.output_port.node_id).or_insert(vec![]);
+//                 entry.push(&e);
+//                 prev
+//             });
 
-        let input_edges_by_node: HashMap<u128, Vec<&Edge>> =
-            edges.iter().fold(HashMap::new(), |mut prev, (_, e)| {
-                let entry = prev.entry(e.input_port.node_id).or_insert(vec![]);
-                entry.push(&e);
-                prev
-            });
+//         let nodes: HashMap<u128, Node> = value
+//             .nodes
+//             .iter()
+//             .map(|n| {
+//                 (
+//                     n.id,
+//                     Node::from(
+//                         n,
+//                         input_edges_by_node.get(&n.id).unwrap_or(&vec![]),
+//                         output_edges_by_node.get(&n.id).unwrap_or(&vec![]),
+//                     ),
+//                 )
+//             })
+//             .collect();
 
-        let output_edges_by_node: HashMap<u128, Vec<&Edge>> =
-            edges.iter().fold(HashMap::new(), |mut prev, (_, e)| {
-                let entry = prev.entry(e.output_port.node_id).or_insert(vec![]);
-                entry.push(&e);
-                prev
-            });
+//         let input_ports: HashMap<InputPortId, InputPort> = nodes
+//             .values()
+//             .flat_map(|n| n.input_ports(input_edges_by_node.get(&n.id).unwrap_or(&Vec::new())))
+//             .map(|p| (p.id.clone(), p))
+//             .collect();
 
-        let nodes: HashMap<u128, Node> = value
-            .nodes
-            .iter()
-            .map(|n| {
-                (
-                    n.id,
-                    Node::from(
-                        n,
-                        input_edges_by_node.get(&n.id).unwrap_or(&vec![]),
-                        output_edges_by_node.get(&n.id).unwrap_or(&vec![]),
-                    ),
-                )
-            })
-            .collect();
+//         let output_ports: HashMap<OutputPortId, OutputPort> = nodes
+//             .values()
+//             .flat_map(|n| n.output_ports(output_edges_by_node.get(&n.id).unwrap_or(&Vec::new())))
+//             .map(|p| (p.id.clone(), p))
+//             .collect();
 
-        let input_ports: HashMap<InputPortId, InputPort> = nodes
-            .values()
-            .flat_map(|n| n.input_ports(input_edges_by_node.get(&n.id).unwrap_or(&Vec::new())))
-            .map(|p| (p.id.clone(), p))
-            .collect();
+//         let constraints: Vec<Constraint> = nodes.values().flat_map(|n| n.constraints()).collect();
 
-        let output_ports: HashMap<OutputPortId, OutputPort> = nodes
-            .values()
-            .flat_map(|n| n.output_ports(output_edges_by_node.get(&n.id).unwrap_or(&Vec::new())))
-            .map(|p| (p.id.clone(), p))
-            .collect();
-
-        let constraints: Vec<Constraint> = nodes.values().flat_map(|n| n.constraints()).collect();
-
-        Self {
-            id: value.id,
-            nodes,
-            edges,
-            input_ports,
-            output_ports,
-            constraints,
-        }
-    }
-}
+//         Self {
+//             id: value.id,
+//             nodes,
+//             edges,
+//             input_ports,
+//             output_ports,
+//             constraints,
+//         }
+//     }
+// }
 
 impl WbblWebappGraphSnapshot {
     pub(crate) fn reassign_ids(&mut self) {
@@ -709,26 +613,6 @@ impl WbblWebappGraphSnapshot {
                 n.group_id = Some(*new_group_id);
             }
         }
-        self.node_groups = new_group_ids
-            .values()
-            .map(|group_id| {
-                let nodes = self
-                    .nodes
-                    .iter()
-                    .filter(|n| n.group_id == Some(*group_id))
-                    .map(|n| n.id)
-                    .collect();
-                WbblWebappNodeGroup {
-                    id: *group_id,
-                    nodes,
-                    edges: HashSet::new(),
-                    path: None,
-                    bounds: vec![],
-                    selected: false,
-                    selections: HashSet::new(),
-                }
-            })
-            .collect();
         self.edges = self
             .edges
             .iter()
@@ -741,6 +625,9 @@ impl WbblWebappGraphSnapshot {
             e.id = uuid::Uuid::new_v4().as_u128();
             e.source = new_node_ids.get(&e.source).map(|s| *s).unwrap();
             e.target = new_node_ids.get(&e.target).map(|t| *t).unwrap();
+            if let Some(group_id) = e.group_id {
+                e.group_id = new_group_ids.get(&group_id).cloned();
+            }
         }
         self.id = uuid::Uuid::new_v4().as_u128();
     }
@@ -756,21 +643,6 @@ impl WbblWebappGraphSnapshot {
         });
         self.edges
             .retain_mut(|e| !output_node_ids.contains(&e.target));
-
-        for group in self.node_groups.iter_mut() {
-            group.nodes = group
-                .nodes
-                .iter()
-                .filter(|x| !output_node_ids.contains(x))
-                .cloned()
-                .collect();
-        }
-        self.node_groups = self
-            .node_groups
-            .iter()
-            .filter(|x| x.nodes.len() > 0)
-            .cloned()
-            .collect();
     }
 
     pub(crate) fn offset(&mut self, offset: &Vec2) {

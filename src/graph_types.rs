@@ -1,9 +1,13 @@
 use crate::{
     constraint_solver_constraints::{Constraint, SameTypesConstraint},
     data_types::{AbstractDataType, CompositeSize, ComputationDomain, ConcreteDataType},
+    graph_transfer_types::{from_type_name, Any, WbblWebappNodeType},
+    store_errors::WbblWebappStoreError,
+    yrs_utils::{get_atomic_string, get_atomic_u128_from_string, get_map},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use yrs::{Map, MapRef, ReadTxn};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Edge {
@@ -425,6 +429,7 @@ pub enum NodeType {
 impl NodeType {
     pub fn input_port_count(
         &self,
+        _data: &HashMap<String, Any>,
         _incoming_edges: &Vec<&Edge>,
         _outgoing_edges: &Vec<&Edge>,
     ) -> u8 {
@@ -441,6 +446,7 @@ impl NodeType {
 
     pub fn output_port_count(
         &self,
+        _data: &HashMap<String, Any>,
         _incoming_edges: &Vec<&Edge>,
         _outgoing_edges: &Vec<&Edge>,
     ) -> u8 {
@@ -459,4 +465,250 @@ impl NodeType {
 #[derive(Serialize, Deserialize)]
 pub struct AbstractTypeAssignments {
     pub assignment: HashMap<u128, AbstractDataType>,
+}
+
+impl Node {
+    fn decode_data<Txn: ReadTxn>(
+        txn: &Txn,
+        data: &MapRef,
+    ) -> Result<HashMap<String, Any>, WbblWebappStoreError> {
+        let mut results: HashMap<String, Any> = HashMap::new();
+        for (key, value) in data.iter(txn) {
+            let value: Any = match value {
+                yrs::Value::Any(any) => Ok((&any).into()),
+                _ => Err(WbblWebappStoreError::UnexpectedStructure),
+            }?;
+            results.insert(key.to_string(), value);
+        }
+        Ok(results)
+    }
+
+    fn node_type_from_webapp_node(
+        node: WbblWebappNodeType,
+        _data: &HashMap<String, Any>,
+    ) -> NodeType {
+        match node {
+            WbblWebappNodeType::Output => NodeType::Output,
+            WbblWebappNodeType::Slab => NodeType::Slab,
+            WbblWebappNodeType::Preview => NodeType::Preview,
+            WbblWebappNodeType::Add => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Add)
+            }
+            WbblWebappNodeType::Subtract => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Subtract)
+            }
+            WbblWebappNodeType::Multiply => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Multiply)
+            }
+            WbblWebappNodeType::Divide => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Divide)
+            }
+            WbblWebappNodeType::Modulo => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Modulo)
+            }
+            WbblWebappNodeType::Equal => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Equal)
+            }
+            WbblWebappNodeType::NotEqual => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::NotEqual)
+            }
+            WbblWebappNodeType::Less => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Less)
+            }
+            WbblWebappNodeType::LessEqual => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::LessEqual)
+            }
+            WbblWebappNodeType::Greater => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Greater)
+            }
+            WbblWebappNodeType::GreaterEqual => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::GreaterEqual)
+            }
+            WbblWebappNodeType::And => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::And)
+            }
+            WbblWebappNodeType::Or => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::Or)
+            }
+            WbblWebappNodeType::ShiftLeft => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::ShiftLeft)
+            }
+            WbblWebappNodeType::ShiftRight => {
+                NodeType::BinaryOperation(crate::graph_types::BinaryOperation::ShiftRight)
+            }
+            WbblWebappNodeType::WorldPosition => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldPosition)
+            }
+            WbblWebappNodeType::ClipPosition => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::ClipPosition)
+            }
+            WbblWebappNodeType::WorldNormal => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldNormal)
+            }
+            WbblWebappNodeType::WorldBitangent => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldBitangent)
+            }
+            WbblWebappNodeType::WorldTangent => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::WorldTangent)
+            }
+            WbblWebappNodeType::TexCoord => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate)
+            }
+            WbblWebappNodeType::TexCoord2 => {
+                NodeType::BuiltIn(crate::graph_types::BuiltIn::TextureCoordinate2)
+            }
+            WbblWebappNodeType::Junction => NodeType::Junction,
+        }
+    }
+
+    pub fn insert_new<Txn: ReadTxn>(
+        txn: &Txn,
+        node: &MapRef,
+        graph: &mut Graph,
+    ) -> Result<(), WbblWebappStoreError> {
+        let id = get_atomic_u128_from_string("id", txn, node)?;
+        let data = get_map("data", txn, node)?;
+        let data = Node::decode_data(txn, &data)?;
+        let type_name: String = get_atomic_string("type", txn, node)?;
+        let node_transfer_type = from_type_name(&type_name);
+        if node_transfer_type.is_none() {
+            return Err(WbblWebappStoreError::UnknownNodeType);
+        }
+        let node_transfer_type = node_transfer_type.unwrap();
+        let node_type = Self::node_type_from_webapp_node(node_transfer_type, &data);
+        let input_port_count = node_type.input_port_count(&data, &vec![], &vec![]);
+        let output_port_count = node_type.output_port_count(&data, &vec![], &vec![]);
+        let node = Node {
+            id,
+            input_port_count,
+            output_port_count,
+            node_type,
+        };
+
+        graph.nodes.insert(node.id, node);
+        for port in node.input_ports(&vec![]) {
+            graph.input_ports.insert(port.id, port);
+        }
+
+        for port in node.output_ports(&vec![]) {
+            graph.output_ports.insert(port.id, port);
+        }
+
+        Ok(())
+    }
+
+    pub fn update_existing<Txn: ReadTxn>(
+        txn: &Txn,
+        node: &MapRef,
+        graph: &mut Graph,
+    ) -> Result<(), WbblWebappStoreError> {
+        let id = get_atomic_u128_from_string("id", txn, node)?;
+        let data = get_map("data", txn, node)?;
+        let data = Node::decode_data(txn, &data)?;
+        let type_name: String = get_atomic_string("type", txn, node)?;
+        let node_transfer_type = from_type_name(&type_name);
+        if node_transfer_type.is_none() {
+            return Err(WbblWebappStoreError::UnknownNodeType);
+        }
+        let node_transfer_type = node_transfer_type.unwrap();
+        if let Some(prev_node) = graph.nodes.get(&id) {
+            let prev_input_port_count = prev_node.input_port_count;
+            let prev_output_port_count = prev_node.input_port_count;
+            let mut incoming_edges: Vec<&Edge> = Vec::new();
+            let mut outgoing_edges: Vec<&Edge> = Vec::new();
+
+            for i in 0..prev_input_port_count {
+                if let Some(input_port) = graph.input_ports.get(&InputPortId {
+                    node_id: prev_node.id,
+                    port_index: i,
+                }) {
+                    if let Some(Some(incoming_edge)) =
+                        input_port.incoming_edge.map(|x| graph.edges.get(&x))
+                    {
+                        incoming_edges.push(incoming_edge);
+                    }
+                }
+            }
+            for i in 0..prev_output_port_count {
+                if let Some(output_port) = graph.output_ports.get(&OutputPortId {
+                    node_id: prev_node.id,
+                    port_index: i,
+                }) {
+                    for edge_id in output_port.outgoing_edges.iter() {
+                        if let Some(outgoing_edge) = graph.edges.get(&edge_id) {
+                            outgoing_edges.push(outgoing_edge);
+                        }
+                    }
+                }
+            }
+
+            let node_type = Self::node_type_from_webapp_node(node_transfer_type, &data);
+
+            let new_input_port_count =
+                node_type.input_port_count(&data, &incoming_edges, &outgoing_edges);
+            let new_output_port_count =
+                node_type.output_port_count(&data, &incoming_edges, &outgoing_edges);
+
+            if new_input_port_count < prev_input_port_count {
+                for i in new_input_port_count..prev_input_port_count {
+                    let port_id = InputPortId {
+                        node_id: id,
+                        port_index: i,
+                    };
+                    if let Some(port) = graph.input_ports.remove(&port_id) {
+                        if let Some(edge_id) = port.incoming_edge {
+                            graph.edges.remove(&edge_id);
+                        }
+                    }
+                }
+            }
+
+            if new_output_port_count < prev_output_port_count {
+                for i in new_output_port_count..prev_output_port_count {
+                    let port_id = OutputPortId {
+                        node_id: id,
+                        port_index: i,
+                    };
+                    if let Some(port) = graph.output_ports.remove(&port_id) {
+                        for edge_id in port.outgoing_edges.iter() {
+                            graph.edges.remove(&edge_id);
+                        }
+                    }
+                }
+            }
+
+            let node = Node {
+                id,
+                input_port_count: new_input_port_count,
+                output_port_count: new_output_port_count,
+                node_type,
+            };
+            for mut port in node.input_ports(&vec![]) {
+                if let Some(prev_port) = graph.input_ports.remove(&port.id) {
+                    if prev_port.abstract_data_type == port.abstract_data_type {
+                        // If abstract data type is same, keep edge
+                        port.incoming_edge = prev_port.incoming_edge;
+                    }
+                    graph.input_ports.insert(port.id, port);
+                } else {
+                    graph.input_ports.insert(port.id, port);
+                }
+            }
+            for mut port in node.output_ports(&vec![]) {
+                if let Some(prev_port) = graph.output_ports.remove(&port.id) {
+                    if prev_port.abstract_data_type == port.abstract_data_type {
+                        // If abstract data type is same, keep edge
+                        port.outgoing_edges = prev_port.outgoing_edges;
+                    }
+                    graph.output_ports.insert(port.id, port);
+                } else {
+                    graph.output_ports.insert(port.id, port);
+                }
+            }
+            graph.nodes.insert(node.id.clone(), node);
+            Ok(())
+        } else {
+            Err(WbblWebappStoreError::NotFound)
+        }
+    }
 }

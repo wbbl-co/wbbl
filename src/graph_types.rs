@@ -3,20 +3,20 @@ use crate::{
     data_types::{AbstractDataType, CompositeSize, ComputationDomain, ConcreteDataType},
     graph_transfer_types::{from_type_name, Any, WbblWebappNodeType},
     store_errors::WbblWebappStoreError,
-    yrs_utils::{get_atomic_string, get_atomic_u128_from_string, get_map},
+    yrs_utils::{get_atomic_bigint, get_atomic_string, get_atomic_u128_from_string, get_map},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use yrs::{Map, MapRef, ReadTxn};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Edge {
     pub id: u128,
     pub input_port: InputPortId,
     pub output_port: OutputPortId,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Node {
     pub id: u128,
     pub node_type: NodeType,
@@ -209,7 +209,7 @@ impl Node {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InputPort {
     pub id: InputPortId,
     pub incoming_edge: Option<u128>,
@@ -218,21 +218,20 @@ pub struct InputPort {
     pub new_subgraph_id: Option<u128>,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct OutputPort {
     pub id: OutputPortId,
     pub outgoing_edges: Vec<u128>,
     pub abstract_data_type: AbstractDataType,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Graph {
     pub id: u128,
     pub nodes: HashMap<u128, Node>,
     pub edges: HashMap<u128, Edge>,
     pub input_ports: HashMap<InputPortId, InputPort>,
     pub output_ports: HashMap<OutputPortId, OutputPort>,
-    pub constraints: Vec<Constraint>,
 }
 
 #[derive(Clone)]
@@ -264,7 +263,7 @@ pub struct BranchedMultiGraph {
     pub dependencies: HashMap<u128, HashSet<u128>>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BinaryOperation {
     Add,
     Subtract,
@@ -376,7 +375,7 @@ impl BinaryOperation {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BuiltIn {
     WorldPosition,
     ClipPosition,
@@ -415,7 +414,7 @@ impl BuiltIn {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeType {
     Output,
     Slab,
@@ -429,7 +428,6 @@ pub enum NodeType {
 impl NodeType {
     pub fn input_port_count(
         &self,
-        _data: &HashMap<String, Any>,
         _incoming_edges: &Vec<&Edge>,
         _outgoing_edges: &Vec<&Edge>,
     ) -> u8 {
@@ -446,7 +444,6 @@ impl NodeType {
 
     pub fn output_port_count(
         &self,
-        _data: &HashMap<String, Any>,
         _incoming_edges: &Vec<&Edge>,
         _outgoing_edges: &Vec<&Edge>,
     ) -> u8 {
@@ -576,8 +573,8 @@ impl Node {
         }
         let node_transfer_type = node_transfer_type.unwrap();
         let node_type = Self::node_type_from_webapp_node(node_transfer_type, &data);
-        let input_port_count = node_type.input_port_count(&data, &vec![], &vec![]);
-        let output_port_count = node_type.output_port_count(&data, &vec![], &vec![]);
+        let input_port_count = node_type.input_port_count(&vec![], &vec![]);
+        let output_port_count = node_type.output_port_count(&vec![], &vec![]);
         let node = Node {
             id,
             input_port_count,
@@ -585,14 +582,14 @@ impl Node {
             node_type,
         };
 
-        graph.nodes.insert(node.id, node);
         for port in node.input_ports(&vec![]) {
-            graph.input_ports.insert(port.id, port);
+            graph.input_ports.insert(port.id.clone(), port);
         }
 
         for port in node.output_ports(&vec![]) {
-            graph.output_ports.insert(port.id, port);
+            graph.output_ports.insert(port.id.clone(), port);
         }
+        graph.nodes.insert(node.id, node);
 
         Ok(())
     }
@@ -644,10 +641,9 @@ impl Node {
 
             let node_type = Self::node_type_from_webapp_node(node_transfer_type, &data);
 
-            let new_input_port_count =
-                node_type.input_port_count(&data, &incoming_edges, &outgoing_edges);
+            let new_input_port_count = node_type.input_port_count(&incoming_edges, &outgoing_edges);
             let new_output_port_count =
-                node_type.output_port_count(&data, &incoming_edges, &outgoing_edges);
+                node_type.output_port_count(&incoming_edges, &outgoing_edges);
 
             if new_input_port_count < prev_input_port_count {
                 for i in new_input_port_count..prev_input_port_count {
@@ -689,9 +685,9 @@ impl Node {
                         // If abstract data type is same, keep edge
                         port.incoming_edge = prev_port.incoming_edge;
                     }
-                    graph.input_ports.insert(port.id, port);
+                    graph.input_ports.insert(port.id.clone(), port);
                 } else {
-                    graph.input_ports.insert(port.id, port);
+                    graph.input_ports.insert(port.id.clone(), port);
                 }
             }
             for mut port in node.output_ports(&vec![]) {
@@ -700,9 +696,9 @@ impl Node {
                         // If abstract data type is same, keep edge
                         port.outgoing_edges = prev_port.outgoing_edges;
                     }
-                    graph.output_ports.insert(port.id, port);
+                    graph.output_ports.insert(port.id.clone(), port);
                 } else {
-                    graph.output_ports.insert(port.id, port);
+                    graph.output_ports.insert(port.id.clone(), port);
                 }
             }
             graph.nodes.insert(node.id.clone(), node);
@@ -710,5 +706,113 @@ impl Node {
         } else {
             Err(WbblWebappStoreError::NotFound)
         }
+    }
+}
+
+impl Edge {
+    pub fn insert_new<Txn: ReadTxn>(
+        txn: &Txn,
+        edge: &MapRef,
+        graph: &mut Graph,
+    ) -> Result<(), WbblWebappStoreError> {
+        let id = get_atomic_u128_from_string("id", txn, edge)?;
+        let source = get_atomic_u128_from_string("source", txn, edge)?;
+        let target = get_atomic_u128_from_string("target", txn, edge)?;
+        let source_handle = get_atomic_bigint("source_handle", txn, edge)? as u8;
+        let target_handle = get_atomic_bigint("target_handle", txn, edge)? as u8;
+        let edge = Edge {
+            id,
+            input_port: InputPortId {
+                node_id: target.clone(),
+                port_index: target_handle,
+            },
+            output_port: OutputPortId {
+                node_id: source.clone(),
+                port_index: source_handle,
+            },
+        };
+        graph.edges.insert(edge.id.clone(), edge.clone());
+        if let Some(input_port) = graph.input_ports.get_mut(&edge.input_port) {
+            input_port.incoming_edge = Some(edge.id);
+
+            if let Some(input_node) = graph.nodes.get_mut(&target) {
+                let prev_input_port_count = input_node.input_port_count;
+                let prev_output_port_count = input_node.output_port_count;
+                let mut incoming_edges: Vec<&Edge> = Vec::new();
+                let mut outgoing_edges: Vec<&Edge> = Vec::new();
+
+                for i in 0..prev_input_port_count {
+                    if let Some(input_port) = graph.input_ports.get(&InputPortId {
+                        node_id: input_node.id,
+                        port_index: i,
+                    }) {
+                        if let Some(Some(incoming_edge)) =
+                            input_port.incoming_edge.map(|x| graph.edges.get(&x))
+                        {
+                            incoming_edges.push(incoming_edge);
+                        }
+                    }
+                }
+                for i in 0..prev_output_port_count {
+                    if let Some(output_port) = graph.output_ports.get(&OutputPortId {
+                        node_id: input_node.id,
+                        port_index: i,
+                    }) {
+                        for edge_id in output_port.outgoing_edges.iter() {
+                            if let Some(outgoing_edge) = graph.edges.get(&edge_id) {
+                                outgoing_edges.push(outgoing_edge);
+                            }
+                        }
+                    }
+                }
+                input_node.input_port_count = input_node
+                    .node_type
+                    .input_port_count(&incoming_edges, &outgoing_edges);
+                input_node.output_port_count = input_node
+                    .node_type
+                    .output_port_count(&incoming_edges, &outgoing_edges);
+            }
+        }
+        if let Some(output_port) = graph.output_ports.get_mut(&edge.output_port) {
+            output_port.outgoing_edges.push(edge.id);
+            if let Some(output_node) = graph.nodes.get_mut(&source) {
+                let prev_input_port_count = output_node.input_port_count;
+                let prev_output_port_count = output_node.output_port_count;
+                let mut incoming_edges: Vec<&Edge> = Vec::new();
+                let mut outgoing_edges: Vec<&Edge> = Vec::new();
+
+                for i in 0..prev_input_port_count {
+                    if let Some(input_port) = graph.input_ports.get(&InputPortId {
+                        node_id: output_node.id,
+                        port_index: i,
+                    }) {
+                        if let Some(Some(incoming_edge)) =
+                            input_port.incoming_edge.map(|x| graph.edges.get(&x))
+                        {
+                            incoming_edges.push(incoming_edge);
+                        }
+                    }
+                }
+                for i in 0..prev_output_port_count {
+                    if let Some(output_port) = graph.output_ports.get(&OutputPortId {
+                        node_id: output_node.id,
+                        port_index: i,
+                    }) {
+                        for edge_id in output_port.outgoing_edges.iter() {
+                            if let Some(outgoing_edge) = graph.edges.get(&edge_id) {
+                                outgoing_edges.push(outgoing_edge);
+                            }
+                        }
+                    }
+                }
+                output_node.input_port_count = output_node
+                    .node_type
+                    .input_port_count(&incoming_edges, &outgoing_edges);
+                output_node.output_port_count = output_node
+                    .node_type
+                    .output_port_count(&incoming_edges, &outgoing_edges);
+            }
+        }
+        Ok(())
     }
 }

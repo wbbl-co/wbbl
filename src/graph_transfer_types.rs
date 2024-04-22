@@ -11,9 +11,7 @@ use std::{
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    constraint_solver_constraints::Constraint,
-    data_types::AbstractDataType,
-    graph_types::{Edge, Graph, InputPort, InputPortId, Node, OutputPort, OutputPortId, PortId},
+    graph_types::{InputPortId, OutputPortId, PortId},
     store_errors::WbblWebappStoreError,
 };
 

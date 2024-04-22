@@ -38,7 +38,7 @@ pub trait PortConstraint {
     ) -> ConstraintApplicationResult;
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Constraint {
     SameTypes(SameTypesConstraint),
     SameDimensionality(SameDimensionalityConstraint),
@@ -67,7 +67,7 @@ impl Constraint {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SameTypesConstraint {
     pub ports: HashSet<PortId>,
 }
@@ -158,7 +158,7 @@ impl PortConstraint for SameTypesConstraint {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SameDimensionalityConstraint {
     ports: HashSet<PortId>,
 }
@@ -268,7 +268,7 @@ impl PortConstraint for SameDimensionalityConstraint {
     }
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SameCompositeSizeConstraint {
     ports: HashSet<PortId>,
 }

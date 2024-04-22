@@ -108,6 +108,11 @@ impl NewWbblWebappNode {
             uuid::Uuid::from_u128(self.id).to_string(),
             prelim_map,
         );
+        node_ref.insert(
+            transaction,
+            "id",
+            uuid::Uuid::from_u128(self.id).to_string(),
+        );
         node_ref.insert(transaction, "type", get_type_name(self.node_type));
         node_ref.insert(transaction, "x", self.position.x);
         node_ref.insert(transaction, "y", self.position.y);
@@ -495,7 +500,11 @@ impl WbblWebappEdge {
             uuid::Uuid::from_u128(self.id).to_string(),
             MapPrelim::from(prelim_map),
         );
-
+        edge_ref.insert(
+            txn,
+            "id".to_owned(),
+            yrs::Any::String(uuid::Uuid::from_u128(self.id).to_string().into()),
+        );
         edge_ref.insert(
             txn,
             "source".to_owned(),
@@ -511,7 +520,6 @@ impl WbblWebappEdge {
             "source_handle".to_owned(),
             yrs::Any::BigInt(self.source_handle),
         );
-        edge_ref.insert(txn, "selections".to_owned(), yrs::MapPrelim::<bool>::new());
         edge_ref.insert(
             txn,
             "target_handle".to_owned(),
@@ -1444,15 +1452,12 @@ impl WbblWebappGraphStore {
                         &WbblGraphWebWorkerRequestMessage::ReceiveUpdate(update),
                     )
                     .unwrap();
-                    let update = js_sys::Reflect::get(
-                        &snapshot_js_value,
-                        &js_sys::JsString::from_str("ReceiveUpdate").unwrap(),
-                    )
-                    .unwrap();
-                    let transfer = js_sys::Array::from_iter([update]).into();
-                    graph_worker
-                        .post_message_with_transfer(&snapshot_js_value, &transfer)
-                        .unwrap();
+                    // let update = js_sys::Reflect::get(
+                    //     &snapshot_js_value,
+                    //     &js_sys::JsString::from_str("ReceiveUpdate").unwrap(),
+                    // )
+                    // .unwrap();
+                    graph_worker.post_message(&snapshot_js_value).unwrap();
                 }
             })
             .unwrap();

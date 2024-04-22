@@ -143,7 +143,8 @@ pub fn label_computation_domains(
 }
 
 fn map_constraints_to_ports(graph: &Graph) -> HashMap<PortId, Vec<Constraint>> {
-    let mut constraints_with_edges = graph.constraints.clone();
+    let mut constraints_with_edges: Vec<Constraint> =
+        graph.nodes.values().flat_map(|x| x.constraints()).collect();
     let mut edge_constraints = graph
         .edges
         .values()
@@ -333,6 +334,7 @@ pub fn decompose_branches(
 pub fn narrow_abstract_types(
     graph: &Graph,
 ) -> Result<HashMap<PortId, AbstractDataType>, ConstraintSolverError> {
+    // TODO: Make this a gradual algorithm
     let ordered_nodes = topologically_order_nodes(graph);
     let ordered_ports = topologically_order_ports(graph, &ordered_nodes);
     let mut port_types: Vec<(PortId, AbstractDataType)> = graph

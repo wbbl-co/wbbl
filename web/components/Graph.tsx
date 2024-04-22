@@ -489,14 +489,6 @@ function Graph() {
   );
 
   const portRefStore = useMemo(() => new PortRefStore(), []);
-  const processedNodes = useMemo(() => {
-    return snapshot.nodes
-      .sort((a, b) => (a.type === b.type ? 0 : a.type === "frame" ? -1 : 1))
-      .map((x) => {
-        x.measured = { height: x.height, width: x.width };
-        return x;
-      });
-  }, [snapshot.nodes]);
 
   return (
     <MousePositionContext.Provider value={mousePos}>
@@ -507,7 +499,7 @@ function Graph() {
               <ReactFlow
                 width={width}
                 height={height}
-                nodes={processedNodes}
+                nodes={snapshot.nodes}
                 onNodesChange={onNodesChange}
                 edges={snapshot.edges}
                 edgeTypes={edgeTypes}

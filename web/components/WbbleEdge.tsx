@@ -24,6 +24,7 @@ import {
   useEdgeStyle,
 } from "../hooks/use-preferences-store";
 import EdgeContextMenu from "./NodeOrEdgeContextMenu";
+import { ShortcutScope } from "../hooks/use-shortcut";
 
 function WbblInteractiveEdge({
   id,
@@ -73,20 +74,22 @@ function WbblInteractiveEdge({
   }, [sourceX, sourceY, targetX, targetY, edgeStyle, pathRef]);
 
   return (
-    <EdgeContextMenu
-      edgeClassname={edgeClassName}
-      isEdge
-      id={id}
-      selected={!!selected}
-    >
-      <path
-        ref={setPathRef}
-        fill="none"
-        strokeOpacity={0}
-        strokeWidth={PORT_SIZE}
-        className="react-flow__edge-interaction"
-      />
-    </EdgeContextMenu>
+    <ShortcutScope as="g" scope={`edge-${id}`} mode="hover">
+      <EdgeContextMenu
+        edgeClassname={edgeClassName}
+        isEdge
+        id={id}
+        selected={!!selected}
+      >
+        <path
+          stroke="red"
+          strokeOpacity={0}
+          ref={setPathRef}
+          fill="none"
+          strokeWidth={PORT_SIZE}
+        />
+      </EdgeContextMenu>
+    </ShortcutScope>
   );
 }
 

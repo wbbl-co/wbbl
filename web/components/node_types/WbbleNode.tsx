@@ -107,7 +107,11 @@ function WbblNode({
   );
 
   return (
-    <ShortcutScope scope={`node-${id}`} mode="hover">
+    <ShortcutScope
+      style={{ width: width, height: height }}
+      scope={`node-${id}`}
+      mode="hover"
+    >
       <NodeContextMenu
         isEdge={false}
         selected={selected ?? false}

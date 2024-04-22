@@ -24,7 +24,6 @@ use crate::{
         WbblWebappNodeType, WbblePosition, GRAPH_YRS_EDGES_MAP_KEY, GRAPH_YRS_NODES_MAP_KEY,
         GRAPH_YRS_NODE_GROUP_SELECTIONS_MAP_KEY,
     },
-    graph_types::PortId,
     log,
     node_display_data::{get_in_port_position, get_node_dimensions, get_out_port_position},
     store_errors::WbblWebappStoreError,
@@ -46,7 +45,7 @@ pub struct WbblWebappGraphStore {
     edges: Arc<yrs::MapRef>,
     graph_worker: Arc<Worker>,
     worker_responder: Closure<dyn FnMut(MessageEvent) -> ()>,
-    computed_types: Arc<RefCell<HashMap<PortId, AbstractDataType>>>,
+    computed_types: Arc<RefCell<JsValue>>,
     entities: Arc<RefCell<HashMap<WbblWebappGraphEntityId, WbblWebappGraphEntity>>>,
     js_entities: Arc<RefCell<HashMap<WbblWebappGraphEntityId, JsValue>>>,
     subscriptions: Vec<yrs::Subscription>,
@@ -724,7 +723,7 @@ impl WbblWebappGraphStore {
 
         let graph = Arc::new(graph);
 
-        let computed_types = Arc::new(RefCell::new(HashMap::new()));
+        let computed_types = Arc::new(RefCell::new(JsValue::null()));
         let locally_selected_entities: Arc<RefCell<HashSet<WbblWebappGraphEntityId>>> =
             Arc::new(RefCell::new(HashSet::new()));
         let listeners = Arc::new(RefCell::new(Vec::<(u32, js_sys::Function)>::new()));
@@ -736,7 +735,7 @@ impl WbblWebappGraphStore {
                     msg.data(),
                 ) {
                     Ok(WbblGraphWebWorkerResponseMessage::TypesUpdated(types)) => {
-                        computed_types.replace(types);
+                        computed_types.replace(serde_wasm_bindgen::to_value(&types).unwrap());
                         for (_, listener) in listeners.borrow().iter() {
                             listener
                                 .call0(&JsValue::UNDEFINED)
@@ -1566,6 +1565,11 @@ impl WbblWebappGraphStore {
 
     pub fn get_snapshot(&mut self) -> Result<JsValue, WbblWebappStoreError> {
         let js_entities = self.js_entities.borrow();
+        let mut js_entities: Vec<(WbblWebappGraphEntityId, JsValue)> = js_entities
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        js_entities.sort_by_key(|(id, _)| id.clone());
         let nodes: Vec<JsValue> = js_entities
             .iter()
             .filter_map(|(k, v)| match k {
@@ -1606,7 +1610,8 @@ impl WbblWebappGraphStore {
         let nodes: JsValue =
             js_sys::Array::from_iter([js_sys::JsString::from_str("nodes").unwrap().into(), nodes])
                 .into();
-        let computed_types = serde_wasm_bindgen::to_value(&self.computed_types).unwrap();
+
+        let computed_types: JsValue = self.computed_types.borrow().clone();
         let graph_types = js_sys::Array::from_iter([
             js_sys::JsString::from_str("computed_types").unwrap().into(),
             computed_types,

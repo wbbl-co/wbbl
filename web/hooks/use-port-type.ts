@@ -10,7 +10,7 @@ export default function usePortType(portId: `${"s" | "t"}#${number}`): unknown {
   const qualifiedId = useMemo(() => `${nodeId}#${portId}`, [nodeId, portId]);
   const getPortType = useCallback(
     (snapshot: WbblWebappGraphSnapshot) =>
-      snapshot.computed_types.get(qualifiedId),
+      snapshot.computed_types?.get(qualifiedId),
     [qualifiedId],
   );
   return useWbblGraphDataWithSelector(getPortType);
@@ -23,7 +23,7 @@ export function usePortTypeWithNodeId(
   const qualifiedId = useMemo(() => `${nodeId}#${portId}`, [nodeId, portId]);
   const getPortType = useCallback(
     (snapshot: WbblWebappGraphSnapshot) => {
-      return snapshot.computed_types.get(qualifiedId);
+      return snapshot.computed_types?.get(qualifiedId);
     },
     [qualifiedId],
   );

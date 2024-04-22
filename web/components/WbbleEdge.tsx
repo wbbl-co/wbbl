@@ -1,6 +1,5 @@
-import { memo, useContext, useEffect, useMemo, useRef } from "react";
+import { memo, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BaseEdge,
   EdgeProps,
   Position,
   getBezierPath,
@@ -13,7 +12,7 @@ import { createPortal } from "react-dom";
 import { WbblEdgeEndContext } from "../hooks/use-edge-end-portal";
 import { usePortTypeWithNodeId } from "../hooks/use-port-type";
 import { getStyleForType } from "../port-type-styling";
-import { HALF_PORT_SIZE } from "../port-constants";
+import { HALF_PORT_SIZE, PORT_SIZE } from "../port-constants";
 import {
   defaultConnectionPathProvider,
   setConnectionPath,
@@ -39,33 +38,40 @@ function WbblInteractiveEdge({
   EdgeProps,
   "id" | "sourceX" | "sourceY" | "targetX" | "targetY" | "selected"
 > & { edgeStyle: EdgeStyle; edgeClassName: string }) {
-  let path = "";
-  if (edgeStyle === EdgeStyle.Default) {
-    [path] = getStraightPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-    });
-  } else if (edgeStyle === EdgeStyle.Bezier) {
-    [path] = getBezierPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
-    });
-  } else {
-    [path] = getSmoothStepPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
-    });
-  }
+  const [pathRef, setPathRef] = useState<SVGPathElement | null>(null);
+  useEffect(() => {
+    let path = "";
+    if (edgeStyle === EdgeStyle.Default) {
+      [path] = getStraightPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+      });
+    } else if (edgeStyle === EdgeStyle.Bezier) {
+      [path] = getBezierPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      });
+    } else {
+      [path] = getSmoothStepPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      });
+    }
+    if (pathRef) {
+      pathRef.setAttribute("d", path);
+    }
+  }, [sourceX, sourceY, targetX, targetY, edgeStyle, pathRef]);
+
   return (
     <EdgeContextMenu
       edgeClassname={edgeClassName}
@@ -73,7 +79,13 @@ function WbblInteractiveEdge({
       id={id}
       selected={!!selected}
     >
-      <BaseEdge path={path} interactionWidth={25} />
+      <path
+        ref={setPathRef}
+        fill="none"
+        strokeOpacity={0}
+        strokeWidth={PORT_SIZE}
+        className="react-flow__edge-interaction"
+      />
     </EdgeContextMenu>
   );
 }

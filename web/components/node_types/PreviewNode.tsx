@@ -1,7 +1,7 @@
 import { NodeProps } from "@xyflow/react";
 import WbblNode from "./WbbleNode";
 import { graphWorker } from "../../graph-worker-reference";
-import { memo, useLayoutEffect, useMemo, useState } from "react";
+import { memo, useLayoutEffect, useState } from "react";
 import { DeregisterCanvas, RegisterCanvas } from "../../worker_message_types";
 import { areNodePropsEqual } from "../../hooks/use-wbbl-graph-store";
 
@@ -20,17 +20,6 @@ function PreviewNode(props: NodeProps) {
     }
   }, [canvasRef, props.id]);
 
-  const canvasElement = useMemo(
-    () => (
-      <canvas
-        style={{ backgroundColor: "transparent" }}
-        width={128}
-        height={128}
-        ref={setCanvasRef}
-      />
-    ),
-    [canvasRef],
-  );
   return (
     <WbblNode
       deleteable
@@ -40,7 +29,12 @@ function PreviewNode(props: NodeProps) {
       inputPortLabels={[null]}
       {...props}
     >
-      {canvasElement}
+      <canvas
+        style={{ backgroundColor: "transparent" }}
+        width={128}
+        height={128}
+        ref={setCanvasRef}
+      />
     </WbblNode>
   );
 }

@@ -1,16 +1,22 @@
 import { useViewport } from "@xyflow/react";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   WbblPreferencesStoreContext,
   useIsWobbleEffectEnabledInPreferences,
 } from "./use-preferences-store";
 
-function getPrefersReducedMotion() {
-  const mediaQueryList = window.matchMedia(
-    "(prefers-reduced-motion: no-preference)",
-  );
+function usePrefersReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  useEffect(() => {
+    const mediaQueryList = window.matchMedia(
+      "(prefers-reduced-motion: no-preference)",
+    );
+    setPrefersReducedMotion(!mediaQueryList.matches);
+    mediaQueryList.addEventListener("change", (evt) => {
+      setPrefersReducedMotion(!evt.matches);
+    });
+  }, []);
 
-  const prefersReducedMotion = !mediaQueryList.matches;
   return prefersReducedMotion;
 }
 
@@ -20,9 +26,8 @@ export default function useIsWbblEffectEnabled() {
   const preferencesStore = useContext(WbblPreferencesStoreContext);
   const isWbblEnabledInPreferences =
     useIsWobbleEffectEnabledInPreferences(preferencesStore);
+  const prefersReducedMotion = usePrefersReducedMotion();
   return (
-    isWbblEnabledInPreferences &&
-    !getPrefersReducedMotion() &&
-    viewport.zoom > 0.5
+    isWbblEnabledInPreferences && !prefersReducedMotion && viewport.zoom > 0.5
   );
 }

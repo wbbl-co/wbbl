@@ -24,7 +24,7 @@ export type WbblWebappGraphSnapshot = {
     selected: boolean;
     bounds: [number, number][];
   }[];
-  computed_types: Map<string, unknown>;
+  computed_types: null | Map<string, unknown>;
 };
 
 export function useWbblGraphData(
@@ -105,7 +105,6 @@ export function areNodePropsEqual(
       return false;
     }
   }
-
   if (oldProps.data.size !== newProps.data.size) {
     return false;
   }

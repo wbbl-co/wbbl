@@ -230,6 +230,7 @@ pub struct Graph {
     pub id: u128,
     pub nodes: HashMap<u128, Node>,
     pub edges: HashMap<u128, Edge>,
+    pub dirty: bool,
     pub input_ports: HashMap<InputPortId, InputPort>,
     pub output_ports: HashMap<OutputPortId, OutputPort>,
 }
@@ -590,6 +591,7 @@ impl Node {
             graph.output_ports.insert(port.id.clone(), port);
         }
         graph.nodes.insert(node.id, node);
+        graph.dirty = true;
 
         Ok(())
     }
@@ -702,6 +704,7 @@ impl Node {
                 }
             }
             graph.nodes.insert(node.id.clone(), node);
+            graph.dirty = true;
             Ok(())
         } else {
             Err(WbblWebappStoreError::NotFound)
@@ -813,6 +816,8 @@ impl Edge {
                     .output_port_count(&incoming_edges, &outgoing_edges);
             }
         }
+        graph.dirty = true;
+
         Ok(())
     }
 }

@@ -116,6 +116,7 @@ impl WbblGraphWebWorkerMain {
             id: uuid::Uuid::new_v4().as_u128(),
             nodes: HashMap::new(),
             edges: HashMap::new(),
+            dirty: false,
             input_ports: HashMap::new(),
             output_ports: HashMap::new(),
         }));
@@ -160,7 +161,22 @@ impl WbblGraphWebWorkerMain {
                                                                     .outgoing_edges
                                                                     .iter()
                                                                 {
-                                                                    graph.edges.remove(&edge_id);
+                                                                    if let Some(edge) =
+                                                                        graph.edges.remove(&edge_id)
+                                                                    {
+                                                                        if let Some(input_port) =
+                                                                            graph
+                                                                                .input_ports
+                                                                                .get_mut(
+                                                                                    &edge
+                                                                                        .input_port,
+                                                                                )
+                                                                        {
+                                                                            input_port
+                                                                                .incoming_edge =
+                                                                                None;
+                                                                        }
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -171,13 +187,35 @@ impl WbblGraphWebWorkerMain {
                                                                 if let Some(edge_id) =
                                                                     input_port.incoming_edge
                                                                 {
-                                                                    graph.edges.remove(&edge_id);
+                                                                    if let Some(edge) =
+                                                                        graph.edges.remove(&edge_id)
+                                                                    {
+                                                                        if let Some(output_port) =
+                                                                            graph
+                                                                                .output_ports
+                                                                                .get_mut(
+                                                                                &edge.output_port,
+                                                                            )
+                                                                        {
+                                                                            output_port
+                                                                                .outgoing_edges =
+                                                                                output_port
+                                                                                    .outgoing_edges
+                                                                                    .iter()
+                                                                                    .filter(|x| {
+                                                                                        *x != &edge_id
+                                                                                    })
+                                                                                    .map(|x| *x)
+                                                                                    .collect();
+                                                                        }
+                                                                    }
                                                                 }
                                                             }
                                                         }
                                                     }
                                                 }
                                             }
+                                            graph.dirty = true;
                                         }
                                         yrs::types::EntryChange::Updated(_, _) => {
                                             // Updates are not observed at this level, so ignore
@@ -280,6 +318,7 @@ impl WbblGraphWebWorkerMain {
                                                         .cloned()
                                                         .collect()
                                                 }
+                                                graph.dirty = true;
                                             }
                                         }
                                         _ => {
@@ -299,19 +338,22 @@ impl WbblGraphWebWorkerMain {
                 let graph = graph.clone();
                 let worker_scope = worker_scope.clone();
                 move |_| {
-                    match graph_functions::narrow_abstract_types(&graph.borrow()) {
-                        Ok(types) => {
-                            let _ = worker_scope
-                                .post_message(
-                                    &serde_wasm_bindgen::to_value(
-                                        &WbblGraphWebWorkerResponseMessage::TypesUpdated(types),
+                    let mut graph = graph.borrow_mut();
+                    if graph.dirty {
+                        graph.dirty = false;
+                        match graph_functions::narrow_abstract_types(&graph) {
+                            Ok(types) => {
+                                let _ = worker_scope
+                                    .post_message(
+                                        &serde_wasm_bindgen::to_value(
+                                            &WbblGraphWebWorkerResponseMessage::TypesUpdated(types),
+                                        )
+                                        .unwrap(),
                                     )
-                                    .unwrap(),
-                                )
-                                .unwrap();
-                        }
-                        Err(_) => {
-                            let _ = worker_scope
+                                    .unwrap();
+                            }
+                            Err(_) => {
+                                let _ = worker_scope
                                 .post_message(
                                     &serde_wasm_bindgen::to_value(
                                         &WbblGraphWebWorkerResponseMessage::TypeUnificationFailure,
@@ -319,8 +361,9 @@ impl WbblGraphWebWorkerMain {
                                     .unwrap(),
                                 )
                                 .unwrap();
-                        }
-                    };
+                            }
+                        };
+                    }
                 }
             })
             .unwrap();

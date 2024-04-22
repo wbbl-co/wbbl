@@ -2,6 +2,7 @@ import { ContextMenu } from "@radix-ui/themes";
 import {
   MouseEventHandler,
   PropsWithChildren,
+  memo,
   useCallback,
   useContext,
   useMemo,
@@ -19,7 +20,7 @@ import MicroRedoIcon from "./icons/micro/MicroRedoIcon";
 import MicroCopyPasteIcon from "./icons/micro/MicroCopyPasteIcon";
 import MicroHelpIcon from "./icons/micro/MicroHelpIcon";
 
-export default function GraphCanvasContextMenu(
+function GraphCanvasContextMenu(
   props: PropsWithChildren<{
     mousePosition: { current: [number, number] };
   }>,
@@ -98,4 +99,4 @@ export default function GraphCanvasContextMenu(
   );
 }
 
-GraphCanvasContextMenu;
+export default memo(GraphCanvasContextMenu);

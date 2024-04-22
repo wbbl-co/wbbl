@@ -553,7 +553,6 @@ function Graph() {
                 selectionMode={SelectionMode.Partial}
                 proOptions={useMemo(() => ({ hideAttribution: true }), [])}
                 fitView
-                onlyRenderVisibleElements
               >
                 <Background variant={BackgroundVariant.Dots} />
                 <NodeGroupRenderer

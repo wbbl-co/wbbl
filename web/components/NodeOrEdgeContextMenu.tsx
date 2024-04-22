@@ -6,7 +6,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 import { WbblGraphStoreContext } from "../hooks/use-wbbl-graph-store";
@@ -305,6 +304,7 @@ function NodeOrEdgeContextMenu(
   const flow = useReactFlow();
   const makeJunction = useCallback<MouseEventHandler>(
     (evt) => {
+      console.log("MAKE JUNCTION");
       const pos = flow.screenToFlowPosition(
         {
           x: evt.clientX - JUNCTION_WIDTH / 2,
@@ -317,8 +317,26 @@ function NodeOrEdgeContextMenu(
     [flow, graphStore, props.id],
   );
 
-  const contextMenuContent = useMemo(() => {
-    return (
+  const onClick = useCallback<MouseEventHandler>(
+    (evt) => {
+      if (makeJunctionShortcut && isHotkeyPressed(makeJunctionShortcut)) {
+        makeJunction(evt);
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+    },
+    [makeJunction, makeJunctionShortcut],
+  );
+
+  return (
+    <ContextMenu.Root onOpenChange={setIsOpen}>
+      <ContextMenu.Trigger>
+        {props.isEdge ? (
+          <g onClick={onClick}>{props.children}</g>
+        ) : (
+          props.children
+        )}
+      </ContextMenu.Trigger>
       <ContextMenu.Content
         onContextMenu={blockNestedContextMenu}
         onClick={blockNestedContextMenu}
@@ -471,49 +489,6 @@ function NodeOrEdgeContextMenu(
           </>
         )}
       </ContextMenu.Content>
-    );
-  }, [
-    selectedEdgesCount,
-    deleteNodeOrSelection,
-    selectedNodesCount,
-    linkToPreview,
-    toggleFavourites,
-    props.isEdge || props.deleteable,
-    props.isEdge || props.copyable,
-    props.isEdge || props.previewable,
-    props.isEdge || props.type,
-    blockNestedContextMenu,
-    isFavouriteDeferred,
-    cutShortcut,
-    copyShortcut,
-    helpShortcut,
-    deleteShortcut,
-    duplicateShortcut,
-    makeJunctionShortcut,
-    onElkJs,
-  ]);
-
-  const onClick = useCallback<MouseEventHandler>(
-    (evt) => {
-      if (makeJunctionShortcut && isHotkeyPressed(makeJunctionShortcut)) {
-        makeJunction(evt);
-        evt.preventDefault();
-        evt.stopPropagation();
-      }
-    },
-    [makeJunction, makeJunctionShortcut],
-  );
-
-  return (
-    <ContextMenu.Root onOpenChange={setIsOpen}>
-      <ContextMenu.Trigger>
-        {props.isEdge ? (
-          <g onClick={onClick}>{props.children}</g>
-        ) : (
-          props.children
-        )}
-      </ContextMenu.Trigger>
-      {contextMenuContent}
     </ContextMenu.Root>
   );
 }

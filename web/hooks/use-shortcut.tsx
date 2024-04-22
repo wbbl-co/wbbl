@@ -68,7 +68,11 @@ function useShortcut(
       ...(options ?? {}),
       enabled: !(options?.disabled ?? false) && !!keybinding,
     }),
-    [options, keybinding, options?.disabled],
+    [
+      ...Object.entries(options ?? {}).flatMap((kv) => kv),
+      keybinding,
+      options?.disabled,
+    ],
   );
   const hotkeysRef = useHotkeys(
     keybinding ?? "",

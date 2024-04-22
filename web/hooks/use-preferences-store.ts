@@ -276,7 +276,7 @@ export function useKeyBinding(
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      data.current = store.get_keybinding(shortcut);
+      data.current = store.get_keybinding(shortcut) ?? null;
     }
     return data.current;
   }, [store, shortcut]);
@@ -315,12 +315,12 @@ export function useNodeKeyBinding(
   );
 
   useEffect(() => {
-    data.current = store.get_node_keybinding(node_type);
+    data.current = store.get_node_keybinding(node_type) ?? null;
   }, [node_type]);
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      data.current = store.get_node_keybinding(node_type);
+      data.current = store.get_node_keybinding(node_type) ?? null;
     }
     return data.current;
   }, [store, node_type]);
@@ -403,7 +403,7 @@ export function useIsWobbleEffectEnabledInPreferences(
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      data.current = store.get_allow_wobble();
+      data.current = store.get_allow_wobble() ?? false;
     }
     return data.current;
   }, [store]);

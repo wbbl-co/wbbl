@@ -216,16 +216,6 @@ path.react-flow__edge-path {
     font-family: var(--code-font-family);
 }
 
-@keyframes ping {
-    0% {
-        box-shadow: 0px 0px 7px currentColor;
-    }
-    75%,
-    100% {
-        box-shadow: 0px 0px 20px currentColor;
-    }
-}
-
 .node-contents {
     position: absolute;
     top: 0;
@@ -249,7 +239,6 @@ path.react-flow__edge-path {
 
     &.selected {
         box-shadow: 0px 0px 7px currentColor;
-        animation: ping 2s ease-in-out alternate-reverse infinite;
     }
 }
 

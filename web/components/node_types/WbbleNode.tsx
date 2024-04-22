@@ -1,5 +1,5 @@
 import { NodeProps } from "@xyflow/react";
-import { ReactElement, useMemo } from "react";
+import { ReactElement, memo, useMemo } from "react";
 import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
@@ -123,4 +123,4 @@ function WbblNode({
   );
 }
 
-export default WbblNode;
+export default memo(WbblNode);

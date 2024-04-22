@@ -2,6 +2,7 @@ import { DropdownMenu, Button, Dialog, Flex } from "@radix-ui/themes";
 import WbblLogo from "./WbblLogo";
 import {
   FunctionComponent,
+  memo,
   useCallback,
   useContext,
   useMemo,
@@ -24,7 +25,7 @@ import MicroSearchIcon from "./icons/micro/MicroSearchIcon";
 import MicroHomeIcon from "./icons/micro/MicroHomeIcon";
 import MicroSettingsIcon from "./icons/micro/MicroSettingsIcon";
 
-export default function ApplicationMenu(props: {
+function ApplicationMenu(props: {
   showNodesInActionMenu: boolean;
   setActionMenuSettings: (settings: {
     open: boolean;
@@ -220,3 +221,5 @@ export default function ApplicationMenu(props: {
     </Dialog.Root>
   );
 }
+
+export default memo(ApplicationMenu);

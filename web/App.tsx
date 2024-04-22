@@ -22,7 +22,7 @@ import {
   AvailableActionsContext,
 } from "./hooks/use-actions-menu";
 import { ShortcutScope } from "./hooks/use-shortcut";
-import { ActionMenu } from "./components/SearchMenu";
+import ActionMenu from "./components/SearchMenu";
 
 function App() {
   const [ready, setReady] = useState<boolean>(false);

@@ -1,5 +1,6 @@
 import { UseComboboxProps, useCombobox } from "downshift";
 import {
+  memo,
   useCallback,
   useContext,
   useEffect,
@@ -192,7 +193,7 @@ function ActionMenuCombobox(props: {
   );
 }
 
-export function ActionMenu(props: {
+function ActionMenu(props: {
   open: boolean;
   useMousePosition: boolean;
   mousePosition: { current: { x: number; y: number } };
@@ -275,3 +276,5 @@ export function ActionMenu(props: {
     </Dialog.Root>
   );
 }
+
+export default memo(ActionMenu);

@@ -208,8 +208,12 @@ fn get_mutual_edges(
                 edges_map.intersection(&node.out_edges).cloned().collect();
             mutual_edges.append(&mut in_intersection);
             mutual_edges.append(&mut out_intersection);
-            edges_map = edges_map.union(&node.in_edges).cloned().collect();
-            edges_map = edges_map.union(&node.out_edges).cloned().collect();
+            for edge in node.in_edges.iter() {
+                edges_map.insert(*edge);
+            }
+            for edge in node.out_edges.iter() {
+                edges_map.insert(*edge);
+            }
         }
     }
     mutual_edges
@@ -1623,7 +1627,7 @@ impl WbblWebappGraphStore {
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
-        js_entities.sort_by_key(|(id, _)| id.clone());
+        js_entities.sort_unstable_by_key(|(id, _)| id.clone());
         let nodes: Vec<JsValue> = js_entities
             .iter()
             .filter_map(|(k, v)| match k {

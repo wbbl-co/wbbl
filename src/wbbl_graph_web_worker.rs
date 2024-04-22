@@ -142,7 +142,7 @@ impl WbblGraphWebWorkerMain {
                                                     let _ =
                                                         Node::insert_new(txn, new_node, &mut graph)
                                                             .inspect_err(|err| {
-                                                                log!("Err {:?}", err)
+                                                                log!("Nodes Err 3 {:?}", err)
                                                             });
                                                 }
                                                 _ => {}
@@ -199,7 +199,9 @@ impl WbblGraphWebWorkerMain {
                                         if let Ok(new_node) = get_map(key, txn, &nodes) {
                                             let _ =
                                                 Node::update_existing(txn, &new_node, &mut graph)
-                                                    .inspect_err(|err| log!("Err {:?}", err));
+                                                    .inspect_err(|err| {
+                                                        log!("Nodes Err 2 {:?}", err)
+                                                    });
                                         }
                                     }
                                 }
@@ -219,7 +221,9 @@ impl WbblGraphWebWorkerMain {
                                                         let _ = Node::update_existing(
                                                             txn, &node, &mut graph,
                                                         )
-                                                        .inspect_err(|err| log!("Err {:?}", err));
+                                                        .inspect_err(|err| {
+                                                            log!("Nodes Err {:?}", err)
+                                                        });
                                                     }
                                                 }
                                                 yrs::types::EntryChange::Removed(_) => {
@@ -252,7 +256,7 @@ impl WbblGraphWebWorkerMain {
                                         )) => {
                                             let mut graph = graph.borrow_mut();
                                             let _ = Edge::insert_new(txn, &new_edge, &mut graph)
-                                                .inspect_err(|err| log!("Err {:?}", err));
+                                                .inspect_err(|err| log!("Edges Err {:?}", err));
                                         }
                                         yrs::types::EntryChange::Removed(_) => {
                                             let mut graph = graph.borrow_mut();

@@ -281,6 +281,7 @@ impl WbblWebappNode {
         let prelim_map: yrs::MapPrelim<yrs::Any> = yrs::MapPrelim::new();
         let node_id = uuid::Uuid::from_u128(self.id).to_string();
         let mut node_ref = nodes.insert(transaction, node_id.clone(), prelim_map);
+        node_ref.insert(transaction, "id", node_id.clone());
         node_ref.insert(transaction, "type", get_type_name(self.node_type));
         node_ref.insert(transaction, "x", self.position.x);
         let prelim_selections: MapPrelim<bool> = yrs::MapPrelim::new();

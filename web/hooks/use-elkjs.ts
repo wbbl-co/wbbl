@@ -176,14 +176,18 @@ export function useElkJs() {
         thisSnapshot.edges,
         preferencesStore.get_edge_style(),
       );
-      for (const node of results.nodes) {
-        graphStore.set_node_position(
-          node.id,
-          node.position.x,
-          node.position.y,
-          false,
-        );
-      }
+      const ids = results.nodes.map((x) => x.id);
+      const dragging = results.nodes.map(() => 0.0);
+      const positions = results.nodes.flatMap((x) => [
+        x.position.x,
+        x.position.y,
+      ]);
+      graphStore.set_node_positions(
+        ids,
+        new Float64Array(positions),
+        new Float64Array(dragging),
+      );
+
       setTimeout(() => {
         const state = storeApi.getState();
         const zoom = state.panZoom?.getViewport().zoom;

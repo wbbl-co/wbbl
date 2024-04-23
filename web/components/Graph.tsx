@@ -13,6 +13,9 @@ import {
   useViewport,
   OnNodesChange,
   OnEdgesChange,
+  EdgeSelectionChange,
+  NodeSelectionChange,
+  NodePositionChange,
 } from "@xyflow/react";
 import React, {
   useContext,
@@ -207,6 +210,43 @@ function Graph() {
   );
   const onNodesChange = useCallback<OnNodesChange>(
     (changes) => {
+      const selected_changes = changes.filter(
+        (x) => x.type == "select" && x.selected,
+      ) as unknown[] as NodeSelectionChange[];
+
+      const not_selected_changes = changes.filter(
+        (x) => x.type == "select" && !x.selected,
+      ) as unknown[] as NodeSelectionChange[];
+
+      const position_changes = changes.filter(
+        (x) => x.type == "position",
+      ) as unknown[] as NodePositionChange[];
+
+      if (selected_changes.length > 0) {
+        graphStore.set_node_selections(
+          selected_changes.map((x) => x.id),
+          true,
+        );
+      }
+      if (not_selected_changes.length > 0) {
+        graphStore.set_node_selections(
+          not_selected_changes.map((x) => x.id),
+          false,
+        );
+      }
+      if (position_changes.length > 0) {
+        const ids = position_changes.map((x) => x.id);
+        const dragging = new Float64Array(
+          position_changes.map((x) => (x.dragging ? 1.0 : 0)),
+        );
+        const positions = new Float64Array(
+          position_changes.flatMap((x) => [
+            x.position?.x ?? 0,
+            x.position?.y ?? 0,
+          ]),
+        );
+        graphStore.set_node_positions(ids, positions, dragging);
+      }
       for (const change of changes) {
         switch (change.type) {
           case "add":
@@ -222,16 +262,7 @@ function Graph() {
             graphStore.remove_node(change.id);
             break;
           case "position":
-            graphStore.set_node_position(
-              change.id,
-              change.position?.x ?? 0,
-              change.position?.y ?? 0,
-              true,
-            );
-            break;
           case "select":
-            graphStore.set_node_selection(change.id, change.selected);
-            break;
           case "dimensions":
           case "replace":
             // Ignore the other events here. We don't need them
@@ -244,6 +275,24 @@ function Graph() {
 
   const onEdgesChange = useCallback<OnEdgesChange>(
     (changes) => {
+      const selected_changes = changes.filter(
+        (x) => x.type == "select" && x.selected,
+      ) as unknown[] as EdgeSelectionChange[];
+      const not_selected_changes = changes.filter(
+        (x) => x.type == "select" && !x.selected,
+      ) as unknown[] as EdgeSelectionChange[];
+      if (selected_changes.length > 0) {
+        graphStore.set_edge_selections(
+          selected_changes.map((x) => x.id),
+          true,
+        );
+      }
+      if (not_selected_changes.length > 0) {
+        graphStore.set_edge_selections(
+          not_selected_changes.map((x) => x.id),
+          false,
+        );
+      }
       for (const change of changes) {
         switch (change.type) {
           case "add":
@@ -266,7 +315,6 @@ function Graph() {
             );
             break;
           case "select":
-            graphStore.set_edge_selection(change.id, change.selected);
             break;
         }
       }
@@ -545,6 +593,7 @@ function Graph() {
                 selectionMode={SelectionMode.Partial}
                 proOptions={useMemo(() => ({ hideAttribution: true }), [])}
                 fitView
+                onlyRenderVisibleElements
               >
                 <Background variant={BackgroundVariant.Dots} />
                 <NodeGroupRenderer

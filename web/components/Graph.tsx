@@ -593,7 +593,7 @@ function Graph() {
                 selectionMode={SelectionMode.Partial}
                 proOptions={useMemo(() => ({ hideAttribution: true }), [])}
                 fitView
-                onlyRenderVisibleElements
+                onlyRenderVisibleElements={viewport.zoom >= 0.5}
               >
                 <Background variant={BackgroundVariant.Dots} />
                 <NodeGroupRenderer

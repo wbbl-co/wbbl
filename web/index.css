@@ -70,8 +70,8 @@ path.react-flow__edge-path {
 }
 
 .port-label {
-    fontfamily: var(--code-font-family);
-    fontstyle: italic;
+    font-family: var(--code-font-family);
+    font-style: italic;
 }
 
 .node-type-header {

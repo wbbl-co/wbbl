@@ -3,6 +3,7 @@ import {
   PropsWithChildren,
   createContext,
   createElement,
+  memo,
   useCallback,
   useContext,
   useEffect,
@@ -88,7 +89,7 @@ export const ShortcutScopeContext = createContext<{ scope: string[] }>({
   scope: [],
 });
 
-export function ShortcutScope<Type extends keyof JSX.IntrinsicElements = "div">(
+function ShortcutScopeImpl<Type extends keyof JSX.IntrinsicElements = "div">(
   props: PropsWithChildren<
     {
       scope: string;
@@ -155,6 +156,8 @@ export function ShortcutScope<Type extends keyof JSX.IntrinsicElements = "div">(
     </ShortcutScopeContext.Provider>
   );
 }
+
+export const ShortcutScope = memo(ShortcutScopeImpl);
 
 export function useScopedShortcut(
   shortcut: KeyboardShortcut,

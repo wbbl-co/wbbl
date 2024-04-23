@@ -83,8 +83,6 @@ function TargetPort(props: TargetPortProps) {
       position: "absolute" as const,
       textAlign: "left" as const,
       fontSize: "0.8em",
-      fontFamily: "var(--code-font-family)",
-      fontStyle: "italic",
     }),
     [props.top],
   );

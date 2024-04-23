@@ -12,10 +12,13 @@ const elk = new ELK({
   algorithms: ["layered", "fixed"],
   workerFactory: function () {
     // the value of 'url' is irrelevant here
-    return new Worker("/node_modules/elkjs/lib/elk-worker.js", {
-      type: "module",
-      credentials: "same-origin",
-    });
+    return new Worker(
+      new URL("/node_modules/elkjs/lib/elk-worker.js", import.meta.url),
+      {
+        type: "module",
+        credentials: "same-origin",
+      },
+    );
   },
 });
 

@@ -79,18 +79,7 @@ export function useWbblGraphDataWithSelector<T>(
 type Data = { [key: string]: unknown };
 export type WbblNodeType = Node<Data>;
 
-const shallowProps = [
-  "id",
-  "sourcePosition",
-  "targetPosition",
-  "positionAbsoluteX",
-  "positionAbsoluteY",
-  "selected",
-  "dragHandle",
-  "type",
-  "dragging",
-  "zIndex",
-] as const;
+const shallowProps = ["id", "selected", "type", "dragging"] as const;
 
 export function areNodePropsEqual(
   oldProps: { [K in (typeof shallowProps)[any]]?: any } & {

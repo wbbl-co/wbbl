@@ -1,5 +1,5 @@
-import { NodeProps } from "@xyflow/react";
-import { ReactElement, memo, useMemo } from "react";
+import { NodeProps, ReactFlowStore, useStore } from "@xyflow/react";
+import { ReactElement, memo, useCallback, useMemo } from "react";
 import TargetPort from "../TargetPort";
 import SourcePort from "../SourcePort";
 import { HALF_PORT_SIZE, PORT_SIZE } from "../../port-constants";
@@ -10,12 +10,14 @@ import { Box } from "@radix-ui/themes";
 import { ShortcutScope } from "../../hooks/use-shortcut";
 import { useCardWbbl } from "../../hooks/use-card-wbbl";
 
+function positionSelector(id: string) {
+  return (store: ReactFlowStore) => store.nodeLookup.get(id)!.position;
+}
+
 function WbblNode({
   id,
   type,
   dragging,
-  positionAbsoluteX,
-  positionAbsoluteY,
   width,
   height,
   children,
@@ -25,19 +27,23 @@ function WbblNode({
   deleteable,
   copyable,
   selected,
-}: Omit<NodeProps, "data"> & {
+  positionX,
+  positionY,
+}: Omit<NodeProps, "data" | "positionAbsoluteX" | "positionAbsoluteY"> & {
   inputPortLabels: (null | string)[];
   outputPortLabels: (null | string)[];
   children?: ReactElement;
   previewable: boolean;
   deleteable: boolean;
   copyable: boolean;
+  positionX: number;
+  positionY: number;
 }) {
   const contentsRef = useCardWbbl({
     w: width!,
     h: height!,
-    positionAbsoluteX,
-    positionAbsoluteY,
+    positionAbsoluteX: positionX,
+    positionAbsoluteY: positionY,
     dragging,
     selected: !!selected,
   });
@@ -127,4 +133,73 @@ function WbblNode({
   );
 }
 
-export default memo(WbblNode);
+const MemoWbblNode = memo(WbblNode);
+
+export type WbblNodeProps = Omit<
+  NodeProps,
+  "data" | "positionAbsoluteX" | "positionAbsoluteY"
+> & {
+  inputPortLabels: (null | string)[];
+  outputPortLabels: (null | string)[];
+  children?: ReactElement;
+  previewable: boolean;
+  deleteable: boolean;
+  copyable: boolean;
+};
+
+function WbblNodeMemoWrapper(props: WbblNodeProps) {
+  const positionSelectorForId = useCallback(positionSelector(props.id), [
+    props.id,
+  ]);
+  const position = useStore(positionSelectorForId)!;
+  return (
+    <MemoWbblNode positionX={position.x} positionY={position.y} {...props} />
+  );
+}
+
+const shallowProps = [
+  "children",
+  "previewable",
+  "deleteable",
+  "selected",
+  "copyable",
+  "dragging",
+  "width",
+  "height",
+] as const;
+
+export function areWbblNodePropsEqual(
+  oldProps: WbblNodeProps,
+  newProps: WbblNodeProps,
+) {
+  for (const prop of shallowProps) {
+    if (oldProps[prop] !== newProps[prop]) {
+      return false;
+    }
+  }
+
+  if (
+    oldProps.inputPortLabels === newProps.inputPortLabels &&
+    oldProps.outputPortLabels === newProps.outputPortLabels
+  ) {
+    return true;
+  }
+
+  if (
+    oldProps.inputPortLabels.length !== newProps.inputPortLabels.length ||
+    oldProps.outputPortLabels.length !== newProps.outputPortLabels.length
+  ) {
+    return false;
+  }
+
+  return (
+    oldProps.inputPortLabels.every(
+      (x, i) => x === newProps.inputPortLabels[i],
+    ) &&
+    oldProps.outputPortLabels.every(
+      (x, i) => x === newProps.outputPortLabels[i],
+    )
+  );
+}
+
+export default memo(WbblNodeMemoWrapper, areWbblNodePropsEqual);

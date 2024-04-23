@@ -1,6 +1,5 @@
 import { NodeProps, useHandleConnections } from "@xyflow/react";
 import { memo } from "react";
-import { areNodePropsEqual } from "../../hooks/use-wbbl-graph-store";
 import NodeContextMenu from "../NodeOrEdgeContextMenu";
 import { ShortcutScope } from "../../hooks/use-shortcut";
 import { Box, Card, Flex, Separator } from "@radix-ui/themes";
@@ -101,6 +100,24 @@ function JunctionNode({
       </NodeContextMenu>
     </ShortcutScope>
   );
+}
+
+const shallowProps = [
+  "dragging",
+  "positionAbsoluteX",
+  "positionAbsoluteY",
+  "width",
+  "height",
+] as const;
+
+export function areNodePropsEqual(oldProps: NodeProps, newProps: NodeProps) {
+  for (const prop of shallowProps) {
+    if (oldProps[prop] !== newProps[prop]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export default memo(JunctionNode, areNodePropsEqual);

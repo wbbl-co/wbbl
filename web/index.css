@@ -528,10 +528,144 @@ path.react-flow__edge-path {
 
 .react-flow__viewport-portal {
     z-index: -100;
+    cursor: pointer;
+}
+
+.react-flow__pane.draggable {
+    cursor: default;
+    &:active {
+        cursor: grabbing;
+    }
 }
 
 .node-group {
     &[data-selected="true"] {
         filter: drop-shadow(0px 0px 7px currentColor);
     }
+}
+
+a,
+button {
+    all: unset;
+}
+
+.GraphToolbarPanel {
+    background: transparent;
+    padding: 1em;
+    width: max-content;
+    height: max-content;
+    box-shadow: none;
+}
+
+.ToolbarRoot {
+    padding: var(--space-1);
+    min-width: max-content;
+    border-radius: var(--radius-5);
+    background-color: var(--color-panel-solid);
+    display: flex;
+    box-shadow: var(--shadow-3);
+    justify-content: space-between;
+}
+
+.ToolbarToggleItem,
+.ToolbarLink,
+.ToolbarButton {
+    cursor: pointer;
+    position: relative;
+    flex: 0 0 auto;
+    padding: var(--space-2);
+    border-radius: var(--radius-5);
+    display: inline-flex;
+    font-size: 2em;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+.ToolbarToggleItem:hover,
+.ToolbarLink:hover,
+.ToolbarButton:hover {
+    color: var(--accent-11);
+}
+
+.ToolbarToggleItem {
+    margin-left: var(--space-1);
+}
+
+@keyframes slide-elastic {
+    from {
+        border-radius: var(--radius-5);
+        height: 2em;
+        width: 2em;
+    }
+    50% {
+        border-radius: 100%;
+        top: 2rem;
+        height: 0.75rem;
+        width: 1.5rem;
+    }
+    to {
+        height: 2em;
+        width: 2em;
+        border-radius: var(--radius-5);
+    }
+}
+
+.ToolbarToggleItem:first-child {
+    margin-left: 0;
+}
+
+.ToolbarToggleGroup {
+    &::before {
+        content: " ";
+        pointer-events: none;
+        position: absolute;
+        background-color: var(--accent-9);
+        left: calc(
+            (1rem + var(--space-1)) +
+                (
+                    var(--toggle-index) *
+                        (2rem + var(--space-1) + 2 * var(--space-2))
+                )
+        );
+        transition-property: left;
+        transition-duration: 100ms;
+        transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        top: calc(1rem + var(--space-1));
+        border-radius: var(--radius-5);
+        padding: var(--space-2);
+        width: 2rem;
+        height: 2rem;
+    }
+    &.animating::before {
+        animation-name: slide-elastic;
+        animation-duration: 200ms;
+        animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+}
+
+.ToolbarSeparator {
+    width: 2px;
+    background-color: var(--gray-6);
+    margin: 0 10px;
+}
+
+.ToolbarLink {
+    color: var(--lime-11);
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.ToolbarLink:hover {
+    background-color: transparent;
+}
+
+.ToolbarButton {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+}
+
+.ToolbarToggleItem[aria-checked="true"] {
+    color: var(--accent-contrast);
 }

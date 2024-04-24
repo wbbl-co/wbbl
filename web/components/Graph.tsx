@@ -9,13 +9,13 @@ import {
   MiniMap,
   ReactFlowProvider,
   useReactFlow,
-  OnSelectionChangeFunc,
   useViewport,
   OnNodesChange,
   OnEdgesChange,
   EdgeSelectionChange,
   NodeSelectionChange,
   NodePositionChange,
+  Panel,
 } from "@xyflow/react";
 import React, {
   useContext,
@@ -60,6 +60,7 @@ import { transformKeybindingForReactFlow } from "../utils/transform-keybinding-f
 import { useElkJs } from "../hooks/use-elkjs";
 import { MousePositionContext } from "../hooks/use-card-wbbl";
 import { NodeGroupRenderer } from "./NodeGroupRenderer";
+import GraphToolbar from "./GraphToolbar";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -97,16 +98,6 @@ function Graph() {
     setTimeout(() => setIsSelecting(false), 4);
   }, [setIsSelecting]);
 
-  const onSelectionChange = useCallback<OnSelectionChangeFunc>(
-    (selection) => {
-      if (selection.nodes.some((x) => x.selected)) {
-        setIsSelectingTrue();
-      } else {
-        setIsSelectingFalse();
-      }
-    },
-    [setIsSelectingTrue, setIsSelectingFalse],
-  );
   const selectionKeybinding = useKeyBinding(
     preferencesStore,
     KeyboardShortcut.Selection,
@@ -147,7 +138,7 @@ function Graph() {
     (evt: React.MouseEvent<Element, MouseEvent>) => {
       const target = evt.target as HTMLElement;
       const rect = target.getBoundingClientRect();
-      if (!isConnecting && !isSelecting) {
+      if (!isConnecting && !isSelecting && !graphStore.has_local_selections()) {
         let nodeAdded = false;
         const nodeKeybindings = preferencesStore.get_node_keybindings() as Map<
           string,
@@ -218,10 +209,6 @@ function Graph() {
         (x) => x.type == "select" && !x.selected,
       ) as unknown[] as NodeSelectionChange[];
 
-      const position_changes = changes.filter(
-        (x) => x.type == "position",
-      ) as unknown[] as NodePositionChange[];
-
       if (selected_changes.length > 0) {
         graphStore.set_node_selections(
           selected_changes.map((x) => x.id),
@@ -234,6 +221,10 @@ function Graph() {
           false,
         );
       }
+      const position_changes = changes.filter(
+        (x) => x.type == "position",
+      ) as unknown[] as NodePositionChange[];
+
       if (position_changes.length > 0) {
         const ids = position_changes.map((x) => x.id);
         const dragging = new Float64Array(
@@ -307,13 +298,6 @@ function Graph() {
             graphStore.remove_edge(change.id);
             break;
           case "replace":
-            graphStore.add_edge(
-              change.item.source,
-              change.item.target,
-              BigInt(change.item.sourceHandle?.replace("s#", "") ?? "0"),
-              BigInt(change.item.targetHandle?.replace("t#", "") ?? "0"),
-            );
-            break;
           case "select":
             break;
         }
@@ -561,6 +545,8 @@ function Graph() {
                 onEdgeMouseMove={connectingHandlers.onPointerDown}
                 onPaneClick={onPaneClick}
                 onEdgeDoubleClick={removeEdge}
+                onSelectionDragStart={setIsSelectingTrue}
+                onSelectionDragStop={setIsSelectingFalse}
                 onConnectStart={onConnectStart}
                 onConnectEnd={onConnectEnd}
                 multiSelectionKeyCode={useMemo(
@@ -579,7 +565,6 @@ function Graph() {
                 )}
                 onSelectionStart={connectingHandlers.onSelectStart}
                 onSelectionEnd={connectingHandlers.onSelectEnd}
-                onSelectionChange={onSelectionChange}
                 onEdgesChange={onEdgesChange}
                 onEdgeUpdate={onEdgesUpdate}
                 onEdgeUpdateEnd={onEdgeUpdateEnd}
@@ -628,6 +613,9 @@ function Graph() {
                   position={nodeMenuPosition}
                   addNode={addNode}
                 />
+                <Panel className="GraphToolbarPanel" position="bottom-center">
+                  <GraphToolbar />
+                </Panel>
               </ReactFlow>
             </GraphCanvasContextMenu>
           </PortRefStoreContext.Provider>

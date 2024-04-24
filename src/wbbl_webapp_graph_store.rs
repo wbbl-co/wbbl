@@ -2360,6 +2360,10 @@ impl WbblWebappGraphStore {
             .collect();
     }
 
+    pub fn has_local_selections(&self) -> bool {
+        return self.locally_selected_entities.borrow().len() > 0;
+    }
+
     pub fn are_port_types_compatible(type_a: JsValue, type_b: JsValue) -> bool {
         match (
             serde_wasm_bindgen::from_value::<AbstractDataType>(type_a),

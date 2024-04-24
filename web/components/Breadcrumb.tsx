@@ -1,6 +1,6 @@
 import { Flex, Text, Link, Button } from "@radix-ui/themes";
 import { FocusEventHandler, useCallback, useRef, useState } from "react";
-import MicroChevronRight from "./icons/micro/MicroChevronRight";
+import CoreLineChevronRight from "./icons/core-line/CoreLineChevronRight";
 
 export default function Breadcrumb() {
   const [edit, setEdit] = useState(false);
@@ -67,7 +67,7 @@ export default function Breadcrumb() {
           Project Name
         </Text>
       </Link>
-      <MicroChevronRight
+      <CoreLineChevronRight
         color="var(--gray-6)"
         strokeWidth={"4"}
         width={"1.4em"}

@@ -2,9 +2,9 @@ import * as Toolbar from "@radix-ui/react-toolbar";
 import { Tooltip } from "@radix-ui/themes";
 import {
   CSSProperties,
+  memo,
   useCallback,
   useContext,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -14,12 +14,7 @@ import CoreLineComment from "./icons/core-line/CoreLineComment";
 import CoreLineZoomIn from "./icons/core-line/CoreLineZoomIn";
 import CoreLineZoomOut from "./icons/core-line/CoreLineZoomOut";
 import CoreLineResetZoom from "./icons/core-line/CoreLineRecenter";
-import {
-  Viewport,
-  useOnViewportChange,
-  useReactFlow,
-  useViewport,
-} from "@xyflow/react";
+import { useReactFlow, useViewport } from "@xyflow/react";
 import { useScopedShortcut } from "../hooks/use-shortcut";
 import { KeyboardShortcut } from "../../pkg/wbbl";
 import {
@@ -29,9 +24,13 @@ import {
 import formatKeybinding from "../utils/format-keybinding";
 import { useHotkeys } from "react-hotkeys-hook";
 
-const options = ["pointer", "box-select", "comment"] as const;
+export const modes = ["pointer", "box-select", "comment"] as const;
 
-export default function GraphToolbar() {
+export type GraphToolbarProps = {
+  setMode: (value: (typeof modes)[number]) => void;
+};
+
+function GraphToolbar({ setMode }: GraphToolbarProps) {
   const flow = useReactFlow();
   const viewport = useViewport();
   const preferencesStore = useContext(WbblPreferencesStoreContext);
@@ -59,12 +58,19 @@ export default function GraphToolbar() {
     KeyboardShortcut.AddComment,
   );
 
+  const useCursorKeybinding = useKeyBinding(
+    preferencesStore,
+    KeyboardShortcut.UseCusor,
+  );
+
   const [[position, prevPosition], setPosition] = useState([0, 0]);
 
   const onSelect = useCallback(
     (value: string) => {
-      const index = options.indexOf(value as (typeof options)[number]) ?? 0;
+      const mode = value as (typeof modes)[number];
+      const index = modes.indexOf(mode) ?? 0;
       if (index >= 0) {
+        setMode(mode);
         setPosition([index, position]);
       }
     },
@@ -100,6 +106,7 @@ export default function GraphToolbar() {
   useScopedShortcut(
     KeyboardShortcut.AddComment,
     () => {
+      setMode("comment");
       setPosition([2, position]);
     },
     [setPosition, position],
@@ -109,19 +116,22 @@ export default function GraphToolbar() {
     KeyboardShortcut.UseCusor,
     () => {
       setPosition([0, position]);
+      setMode("pointer");
     },
     [setPosition, position],
     { disabled: position == 0 },
   );
 
   const onButtonClicked = useCallback((button: HTMLButtonElement) => {
-    button.dataset.clicked = "true";
+    if (!button.hasAttribute("data-clicked")) {
+      button.setAttribute("data-clicked", "true");
+    }
   }, []);
 
   const onButtonAnimationEnd = useCallback<React.AnimationEventHandler>(
     (evt) => {
       const button = evt.currentTarget as HTMLButtonElement;
-      button.dataset.clicked = "false";
+      button.removeAttribute("data-clicked");
     },
     [],
   );
@@ -144,39 +154,35 @@ export default function GraphToolbar() {
   const zoomInRef = useRef<HTMLButtonElement>(null);
   const zoomIn = useCallback(() => {
     if (zoomInRef.current) {
-      flow.zoomIn({ duration: 200 });
       onButtonClicked(zoomInRef.current);
+      flow.zoomIn({ duration: 200 });
     }
   }, [flow, zoomInRef, onButtonClicked]);
 
   const zoomInDisabled = viewport.zoom >= 1.4;
   const zoomOutDisabled = viewport.zoom <= 0.25;
 
-  useScopedShortcut(KeyboardShortcut.ZoomOut, zoomOut, [zoomOut], {
-    disabled: zoomOutDisabled,
-  });
-  useScopedShortcut(KeyboardShortcut.ZoomIn, zoomIn, [zoomIn], {
-    disabled: zoomInDisabled,
-  });
-
-  const onViewportChange = useCallback(
-    (change: Viewport) => {
-      if (change.zoom > viewport.zoom && zoomInRef.current) {
-        onButtonClicked(zoomInRef.current);
-      } else if (change.zoom < viewport.zoom && zoomOutRef.current) {
-        onButtonClicked(zoomOutRef.current);
-      }
+  useScopedShortcut(
+    KeyboardShortcut.ZoomOut,
+    zoomOut,
+    [zoomOut, zoomOutDisabled],
+    {
+      disabled: zoomOutDisabled,
     },
-    [viewport, zoomInRef, zoomOutRef, onButtonClicked],
   );
-  useOnViewportChange({
-    onChange: onViewportChange,
-  });
+  useScopedShortcut(
+    KeyboardShortcut.ZoomIn,
+    zoomIn,
+    [zoomIn, zoomOutDisabled],
+    {
+      disabled: zoomInDisabled,
+    },
+  );
 
   return (
     <Toolbar.Root className="ToolbarRoot" aria-label="Formatting options">
       <Toolbar.ToggleGroup
-        value={options[position]}
+        value={modes[position]}
         style={
           {
             "--toggle-index": position,
@@ -189,7 +195,9 @@ export default function GraphToolbar() {
         aria-label="Text formatting"
         onValueChange={onSelect}
       >
-        <Tooltip content={"Cursor"}>
+        <Tooltip
+          content={`Cursor${useCursorKeybinding ? ` (${formatKeybinding(useCursorKeybinding)})` : ""}`}
+        >
           <Toolbar.ToggleItem
             className="ToolbarToggleItem"
             value="pointer"
@@ -263,3 +271,5 @@ export default function GraphToolbar() {
     </Toolbar.Root>
   );
 }
+
+export default memo(GraphToolbar);

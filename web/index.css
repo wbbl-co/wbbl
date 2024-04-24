@@ -673,48 +673,50 @@ path.react-flow__edge-path {
 }
 
 @keyframes wbbl-in {
-    from {
-        height: 0em;
-        width: 0em;
-        border-radius: 100%;
+    0% {
+        height: 0.5em;
+        width: 0.64em;
+        border-radius: 20px;
+        rotate: 30deg;
     }
-    25% {
-        height: 1.3em;
-        width: 0.8em;
-        rotate: 15deg;
-    }
-    50% {
+    70% {
         height: 1em;
         width: 1em;
-        rotate: -5deg;
-    }
-    75% {
-        height: 1em;
-        width: 1.5em;
-        border-radius: 50%;
-        rotate: 10deg;
-    }
-    to {
-        height: 1em;
-        width: 1em;
+        border-radius: var(--radius-5);
+        opacity: 1;
         rotate: 0deg;
-        padding: var(--space-1);
-        border-radius: 1000px;
+    }
+    80% {
+        height: 1em;
+        width: 1em;
+        border-radius: var(--radius-5);
+        opacity: 1;
+        rotate: 0deg;
+    }
+    100% {
+        border-radius: 20px;
+        opacity: 0;
+        rotate: -35deg;
+        height: 0.3em;
+        width: 0.3em;
     }
 }
 
 .ToolbarButton[data-clicked="true"] {
-    &::before {
-        content: " ";
-        position: fixed;
-        background-color: var(--accent-9);
-        animation-name: wbbl-in;
-        animation-duration: 150ms;
-        animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
     > * {
         color: var(--accent-contrast);
         z-index: 10;
+    }
+    &::before {
+        content: " ";
+        position: fixed;
+        width: 0;
+        padding: var(--space-1);
+        height: 0;
+        background-color: var(--accent-9);
+        animation-name: wbbl-in;
+        animation-duration: 200ms;
+        animation-timing-function: ease-in-out;
     }
 }
 

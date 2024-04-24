@@ -60,7 +60,7 @@ import { transformKeybindingForReactFlow } from "../utils/transform-keybinding-f
 import { useElkJs } from "../hooks/use-elkjs";
 import { MousePositionContext } from "../hooks/use-card-wbbl";
 import { NodeGroupRenderer } from "./NodeGroupRenderer";
-import GraphToolbar from "./GraphToolbar";
+import GraphToolbar, { modes } from "./GraphToolbar";
 
 const edgeTypes = {
   default: WbbleEdge,
@@ -84,6 +84,7 @@ function Graph() {
     right: number | undefined;
     bottom: number | undefined;
   }>(null);
+  const [mode, setMode] = useState<(typeof modes)[number]>("pointer");
   const [nodeMenuOpen, setNodeMenuOpen] = useState<boolean>(false);
   const flow = useReactFlow();
   const viewport = useViewport();
@@ -138,7 +139,12 @@ function Graph() {
     (evt: React.MouseEvent<Element, MouseEvent>) => {
       const target = evt.target as HTMLElement;
       const rect = target.getBoundingClientRect();
-      if (!isConnecting && !isSelecting && !graphStore.has_local_selections()) {
+      if (
+        !isConnecting &&
+        !isSelecting &&
+        !graphStore.has_local_selections() &&
+        mode === "pointer"
+      ) {
         let nodeAdded = false;
         const nodeKeybindings = preferencesStore.get_node_keybindings() as Map<
           string,
@@ -197,6 +203,7 @@ function Graph() {
       isConnecting,
       isSelecting,
       mousePos,
+      mode,
     ],
   );
   const onNodesChange = useCallback<OnNodesChange>(
@@ -383,7 +390,6 @@ function Graph() {
   );
 
   const connectingHandlers = useOnEdgeDragUpdater(graphStore, onConnectEnd);
-
   const { width, height } = useScreenDimensions();
 
   useScopedShortcut(
@@ -544,6 +550,9 @@ function Graph() {
                 nodeTypes={nodeTypes}
                 onConnect={onConnect}
                 deleteKeyCode={[]}
+                panOnDrag={mode === "pointer" ? true : [1]}
+                selectionOnDrag={mode === "box-select"}
+                nodesDraggable={mode === "pointer" || mode == "box-select"}
                 maxZoom={1.4}
                 minZoom={0.25}
                 draggable={false}
@@ -620,7 +629,7 @@ function Graph() {
                   addNode={addNode}
                 />
                 <Panel className="GraphToolbarPanel" position="bottom-center">
-                  <GraphToolbar />
+                  <GraphToolbar setMode={setMode} />
                 </Panel>
               </ReactFlow>
             </GraphCanvasContextMenu>

@@ -23,6 +23,8 @@ export default function formatKeybinding(binding: string) {
     .replace(/tab/g, "⇥")
     .replace(/home/g, "↖")
     .replace(/end/g, "↘")
+    .replace(/minus/g, "-")
+    .replace(/plus/g, "+")
     .replace(/(^space|(:?\+)space)/g, "␣")
     .split("+")
     .sort((a, b) => a.localeCompare(b))

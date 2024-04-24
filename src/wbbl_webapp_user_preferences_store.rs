@@ -87,6 +87,11 @@ pub enum KeyboardShortcut {
     AutoLayout,
     GroupNodes,
     UngroupNodes,
+    AddComment,
+    ZoomIn,
+    ZoomOut,
+    Recenter,
+    UseCusor,
 }
 
 impl KeyboardShortcut {
@@ -110,6 +115,11 @@ impl KeyboardShortcut {
             KeyboardShortcut::AutoLayout => "auto_layout",
             KeyboardShortcut::GroupNodes => "group_nodes",
             KeyboardShortcut::UngroupNodes => "ungroup_nodes",
+            KeyboardShortcut::AddComment => "add_comment",
+            KeyboardShortcut::ZoomIn => "zoom_in",
+            KeyboardShortcut::ZoomOut => "zoom_out",
+            KeyboardShortcut::Recenter => "recenter",
+            KeyboardShortcut::UseCusor => "cursor",
         }
         .to_owned()
     }
@@ -134,6 +144,11 @@ impl KeyboardShortcut {
             "auto_layout" => Some(KeyboardShortcut::AutoLayout),
             "group_nodes" => Some(KeyboardShortcut::GroupNodes),
             "ungroup_nodes" => Some(KeyboardShortcut::UngroupNodes),
+            "add_comment" => Some(KeyboardShortcut::AddComment),
+            "zoom_in" => Some(KeyboardShortcut::ZoomIn),
+            "zoom_out" => Some(KeyboardShortcut::ZoomOut),
+            "recenter" => Some(KeyboardShortcut::Recenter),
+            "cursor" => Some(KeyboardShortcut::UseCusor),
             _ => None,
         }
     }
@@ -164,6 +179,11 @@ fn get_default_keybindings() -> HashMap<KeyboardShortcut, Option<String>> {
             KeyboardShortcut::UngroupNodes,
             Some("mod+shift+g".to_owned()),
         ),
+        (KeyboardShortcut::AddComment, Some("c".to_owned())),
+        (KeyboardShortcut::ZoomIn, Some("=".to_owned())),
+        (KeyboardShortcut::ZoomOut, Some("minus".to_owned())),
+        (KeyboardShortcut::Recenter, Some("shift+=".to_owned())),
+        (KeyboardShortcut::UseCusor, Some("esc".to_owned())),
     ])
 }
 

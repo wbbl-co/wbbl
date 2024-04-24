@@ -19,6 +19,11 @@ const keybindingDescriptors: { [K in KeyboardShortcut]: string } = {
   [KeyboardShortcut.AutoLayout]: "Automatically Reposition Nodes",
   [KeyboardShortcut.GroupNodes]: "Group Nodes",
   [KeyboardShortcut.UngroupNodes]: "Ungroup Nodes",
+  [KeyboardShortcut.AddComment]: "Add Comment",
+  [KeyboardShortcut.ZoomIn]: "Zoom In",
+  [KeyboardShortcut.ZoomOut]: "Zoom Out",
+  [KeyboardShortcut.Recenter]: "Recenter Zoom",
+  [KeyboardShortcut.UseCusor]: "Use Cursor",
 };
 
 export default keybindingDescriptors;

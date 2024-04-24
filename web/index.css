@@ -544,12 +544,12 @@ path.react-flow__edge-path {
     }
 }
 
-a,
-button {
-    all: unset;
-}
-
 .GraphToolbarPanel {
+    & a,
+    & button {
+        background-color: transparent;
+        border: none;
+    }
     background: transparent;
     padding: 1em;
     width: max-content;
@@ -664,8 +664,68 @@ button {
 .ToolbarButton {
     padding-left: var(--space-3);
     padding-right: var(--space-3);
+    &:active,
+    &:focus-within,
+    &:focus-visible {
+        outline: none;
+        border: none;
+    }
 }
 
+@keyframes wbbl-in {
+    from {
+        height: 0em;
+        width: 0em;
+        border-radius: 100%;
+    }
+    25% {
+        height: 1.3em;
+        width: 0.8em;
+        rotate: 15deg;
+    }
+    50% {
+        height: 1em;
+        width: 1em;
+        rotate: -5deg;
+    }
+    75% {
+        height: 1em;
+        width: 1.5em;
+        border-radius: 50%;
+        rotate: 10deg;
+    }
+    to {
+        height: 1em;
+        width: 1em;
+        rotate: 0deg;
+        padding: var(--space-1);
+        border-radius: 1000px;
+    }
+}
+
+.ToolbarButton[data-clicked="true"] {
+    &::before {
+        content: " ";
+        position: fixed;
+        background-color: var(--accent-9);
+        animation-name: wbbl-in;
+        animation-duration: 150ms;
+        animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    > * {
+        color: var(--accent-contrast);
+        z-index: 10;
+    }
+}
+
+.ToolbarToggleItem {
+    &:active,
+    &:focus-within,
+    &:focus-visible {
+        outline: none;
+        border: none;
+    }
+}
 .ToolbarToggleItem[aria-checked="true"] {
     color: var(--accent-contrast);
 }

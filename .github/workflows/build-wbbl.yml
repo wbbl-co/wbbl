@@ -20,9 +20,9 @@ jobs:
       run: npm ci
     - name: Build WebApp WASM module
       run: wasm-pack build
-    - name: Build Appication
+    - name: Build WebApp
       run: npm run build
-    - name: Copy WebApp to pages-deployment branch
+    - name: Copy WebApp to pages-deployment Branch
       env:
         SRC_FOLDER_PATH: 'dist'
         TARGET_BRANCH: 'pages-deployment'

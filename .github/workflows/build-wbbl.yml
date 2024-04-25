@@ -2,9 +2,9 @@ name: Build Web Assembly
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,25 +13,25 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Install Wasm Pack
-      run: npm install -g wasm-pack
-    - name: Install NPM Dependencies
-      run: npm ci
-    - name: Build WebApp WASM module
-      run: wasm-pack build
-    - name: Build WebApp
-      run: npm run build
-    - name: Copy WebApp to pages-deployment Branch
-      env:
-        SRC_FOLDER_PATH: 'dist'
-        TARGET_BRANCH: 'pages-deployment'
-      run: |
-        files=$(find $SRC_FOLDER_PATH -type f) # get the file list
-        git config --global user.name 'GitHub Action'
-        git config --global user.email 'action@github.com'
-        git fetch                         # fetch branches
-        git checkout $TARGET_BRANCH       # checkout to your branch
-        git add $SRC_FOLDER_BRANCH/\*
-        git diff-index --quiet HEAD ||  git commit -am "deploy files"  # commit to the repository (ignore if no modification)
-        git push origin $TARGET_BRANCH # push to remote branch
+      - uses: actions/checkout@v3
+      - name: Install Wasm Pack
+        run: npm install -g wasm-pack
+      - name: Install NPM Dependencies
+        run: npm ci
+      - name: Build WebApp WASM module
+        run: wasm-pack build
+      - name: Build WebApp
+        run: npm run build
+      - name: Copy WebApp to pages-deployment Branch
+        env:
+          SRC_FOLDER_PATH: "dist"
+          TARGET_BRANCH: "pages-deployment"
+        run: |
+          files=$(find $SRC_FOLDER_PATH -type f) # get the file list
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git fetch                         # fetch branches
+          git checkout $TARGET_BRANCH       # checkout to your branch
+          git add $SRC_FOLDER_BRANCH
+          git diff-index --quiet HEAD ||  git commit -am "deploy files"  # commit to the repository (ignore if no modification)
+          git push origin $TARGET_BRANCH # push to remote branch

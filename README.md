@@ -1,2 +1,2 @@
 # wbbl
-* The future of realtime 3d materials *
+*The future of realtime 3d materials*

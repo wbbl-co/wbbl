@@ -550,7 +550,9 @@ function Graph() {
                 nodeTypes={nodeTypes}
                 onConnect={onConnect}
                 deleteKeyCode={[]}
-                panOnDrag={mode === "pointer" ? true : [1]}
+                panOnDrag={
+                  mode === "pointer" || mode === "comment" ? true : [1]
+                }
                 selectionOnDrag={mode === "box-select"}
                 nodesDraggable={mode === "pointer" || mode == "box-select"}
                 maxZoom={1.4}

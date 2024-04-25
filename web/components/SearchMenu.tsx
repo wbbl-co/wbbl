@@ -202,24 +202,47 @@ function ActionMenu(props: {
     useMousePosition: boolean;
   }) => void;
 }) {
+  const [position, setPosition] = useState<{
+    left?: string | number;
+    right?: string | number;
+    top?: string | number;
+    bottom?: string | number;
+  }>({});
+
+  const updatePosition = useCallback(() => {
+    const result: typeof position = {};
+    if (props.mousePosition.current.x > window.innerWidth - 400) {
+      result.right = "1em";
+    } else {
+      result.left = props.mousePosition.current.x;
+    }
+    if (props.mousePosition.current.y > window.innerHeight - 600) {
+      result.bottom = "1em";
+    } else {
+      result.top = props.mousePosition.current.y;
+    }
+    setPosition(result);
+  }, [props.mousePosition, setPosition]);
+
   useScopedShortcut(
     KeyboardShortcut.QuickActions,
     () => {
+      updatePosition();
       props.setActionMenuSettings({
         open: !props.open,
         useMousePosition: true,
       });
     },
-    [props.mousePosition, props.setActionMenuSettings, props.open],
+    [props.setActionMenuSettings, props.open],
   );
   const onOpenChange = useCallback(
     (open: boolean) => {
       props.setActionMenuSettings({
         open: open,
-        useMousePosition: true,
+        useMousePosition: props.useMousePosition,
       });
     },
-    [props.mousePosition, props.setActionMenuSettings],
+    [props.mousePosition, props.useMousePosition, props.setActionMenuSettings],
   );
 
   const close = useCallback(() => {
@@ -228,31 +251,6 @@ function ActionMenu(props: {
       useMousePosition: props.useMousePosition,
     });
   }, [props.useMousePosition, props.setActionMenuSettings]);
-
-  const [position, setPosition] = useState<{
-    left?: string | number;
-    right?: string | number;
-    top?: string | number;
-    bottom?: string | number;
-  }>({});
-
-  useEffect(() => {
-    if (props.open) {
-      const result: typeof position = {};
-      if (props.mousePosition.current.x > window.innerWidth - 400) {
-        result.right = "1em";
-      } else {
-        result.left = props.mousePosition.current.x;
-      }
-
-      if (props.mousePosition.current.y > window.innerHeight - 600) {
-        result.bottom = "1em";
-      } else {
-        result.top = props.mousePosition.current.y;
-      }
-      setPosition(result);
-    }
-  }, [props.mousePosition, props.open]);
 
   return (
     <Dialog.Root

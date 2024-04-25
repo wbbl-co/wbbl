@@ -24,9 +24,11 @@ jobs:
         run: wasm-pack build
       - name: Build WebApp
         run: npm run build
+      - name: Rename Dist Folder
+        run: mv ./dist ./app
       - name: Copy WebApp to pages-deployment Branch
         env:
-          SRC_FOLDER_PATH: "./dist"
+          SRC_FOLDER_PATH: "./app"
           TARGET_BRANCH: "pages-deployment"
         run: |
           files=$(find $SRC_FOLDER_PATH -type f) # get the file list

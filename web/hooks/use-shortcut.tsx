@@ -103,19 +103,19 @@ function ShortcutScopeImpl<Type extends keyof JSX.IntrinsicElements = "div">(
   const shortcutScope = useContext(ShortcutScopeContext);
   const newScope = useMemo(() => {
     return { scope: [...shortcutScope.scope, props.scope] };
-  }, [shortcutScope, props.scope]);
+  }, [...shortcutScope.scope, props.scope]);
 
   const deactivateScopeRef = useRef(() => {});
   const deactivateScope = useCallback(() => {
     disableHotkeysScope(newScope.scope.join("/"));
-  }, [disableHotkeysScope, newScope]);
+  }, [disableHotkeysScope, ...newScope.scope]);
   useEffect(() => {
     deactivateScopeRef.current = deactivateScope;
   }, [deactivateScope]);
 
   const activateScope = useCallback(() => {
     enableHotkeysScope(newScope.scope.join("/"));
-  }, [enableHotkeysScope, newScope]);
+  }, [enableHotkeysScope, ...newScope.scope]);
 
   useEffect(() => {
     return () => {
@@ -177,7 +177,7 @@ export function useScopedShortcut(
     };
   }, [
     ...Object.entries(options ?? {}).flatMap((kv) => kv),
-    shortcutScope,
+    ...shortcutScope.scope,
     dependencies,
     enabledScopes,
   ]);

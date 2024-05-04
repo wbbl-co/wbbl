@@ -528,11 +528,10 @@ path.react-flow__edge-path {
 
 .react-flow__viewport-portal {
     z-index: -100;
-    cursor: pointer;
 }
 
 .react-flow__pane.draggable {
-    cursor: default;
+    cursor: unset;
     &:active {
         cursor: grabbing;
     }

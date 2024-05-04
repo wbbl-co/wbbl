@@ -45,6 +45,7 @@ function SourcePort(props: SourcePortProps) {
         id={props.id}
         ref={setPortRef}
         position={Position.Right}
+        data-blobity
         style={{
           right: PORT_SIZE,
           width: PORT_SIZE,

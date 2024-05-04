@@ -23,8 +23,22 @@ import {
 } from "./hooks/use-actions-menu";
 import { ShortcutScope } from "./hooks/use-shortcut";
 import ActionMenu from "./components/SearchMenu";
+import useBlobity from "blobity/lib/react/useBlobity";
 
 function App() {
+  useBlobity({
+    licenseKey: "DA207C2D-99B04E50-BB399991-ED382D1C",
+    magnetic: false,
+    zIndex: 1,
+    opacity: 0.4,
+    kineticMorphing: true,
+    focusableElements:
+      "[data-blobity], a:not([data-no-blobity]), button:not([data-no-blobity])",
+    dotColor: "#FFF",
+    color: "#AAF05F",
+    mode: "bouncy",
+    invert: false,
+  });
   const [ready, setReady] = useState<boolean>(false);
   useEffect(() => {
     let timeout_handle: any = 0;

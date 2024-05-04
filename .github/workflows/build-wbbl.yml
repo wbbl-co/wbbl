@@ -37,7 +37,7 @@ jobs:
           git fetch                         # fetch branches
           git stash --include-untracked
           git checkout $TARGET_BRANCH       # checkout to your branch
-          git checkout stash -- .
+          git merge --squash --strategy-option=theirs stash
           cd $SRC_FOLDER_PATH && git add .
           git diff-index --quiet HEAD ||  git commit -am "deploy files"  # commit to the repository (ignore if no modification)
           git push origin $TARGET_BRANCH # push to remote branch

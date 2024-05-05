@@ -34,7 +34,7 @@ jobs:
           projectName: wbbl
           directory: ./dist
           # Optional: Enable this if you want to have GitHub Deployments triggered
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          gitHubToken: ${{ secrets.WBBL_DEPLOYMENT_GH_TOKEN }}
           # Optional: Switch what branch you are publishing to.
           # By default this will be the branch which triggered this workflow
           branch: main

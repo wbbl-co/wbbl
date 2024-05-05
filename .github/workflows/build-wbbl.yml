@@ -26,16 +26,17 @@ jobs:
         run: npm run build
       - name: Rename Dist Folder
         run: mv ./dist ./app
-      - name: Copy WebApp to pages-deployment Branch
-        env:
-          SRC_FOLDER_PATH: "./app"
-          TARGET_BRANCH: "pages-deployment"
-        run: |
-          files=$(find $SRC_FOLDER_PATH -type f) # get the file list
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
-          git fetch
-          git stash push --all -- $SRC_FOLDER_PATH
-          git checkout $TARGET_BRANCH       # checkout to your branch
-          git merge --allow-unrelated-histories --strategy-option=theirs stash
-          git push origin $TARGET_BRANCH # push to remote branch
+      - name: Deploy Cloudflare Pages
+        uses: cloudflare/pages-action@v1.5.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: "a78a3249b47f1720cfb08b03f3dbeef4"
+          projectName: wbbl
+          directory: ./dist
+          # Optional: Enable this if you want to have GitHub Deployments triggered
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: Switch what branch you are publishing to.
+          # By default this will be the branch which triggered this workflow
+          branch: main
+          # Optional: Change the Wrangler version, allows you to point to a specific version or a tag such as `beta`
+          wranglerVersion: "3"

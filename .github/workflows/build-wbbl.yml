@@ -25,14 +25,14 @@ jobs:
       - name: Build WebApp
         run: npm run build
       - name: Rename Dist Folder
-        run: mkdir ./dist/app && mv ./dist/* ./dist/app/
+        run: mkdir ./out && mkdir ./out/app && mv ./dist/* ./out/app/
       - name: Deploy Cloudflare Pages
         uses: cloudflare/pages-action@v1.5.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: "a78a3249b47f1720cfb08b03f3dbeef4"
           projectName: wbbl
-          directory: ./dist
+          directory: ./out
           # Optional: Enable this if you want to have GitHub Deployments triggered
           gitHubToken: ${{ secrets.WBBL_DEPLOYMENT_GH_TOKEN }}
           # Optional: Switch what branch you are publishing to.

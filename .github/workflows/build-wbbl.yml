@@ -35,7 +35,7 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           git fetch                         # fetch branches
-          git stash push --all -- SRC_FOLDER_PATH
+          git stash push --all -- $SRC_FOLDER_PATH
           git checkout $TARGET_BRANCH       # checkout to your branch
           git merge --allow-unrelated-histories --squash --strategy-option=theirs stash
           git push origin $TARGET_BRANCH # push to remote branch

@@ -144,4 +144,3 @@ dist
 .yarn/install-state.gz
 .pnp.*
 .DS_Store
-web/routeTree.gen.ts

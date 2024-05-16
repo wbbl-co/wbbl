@@ -8,7 +8,8 @@ export default defineConfig({
   plugins: [
     TanStackRouterVite({
       routesDirectory: './web/routes',
-      generatedRouteTree: './web/routeTree.gen.ts'
+      generatedRouteTree: './web/routeTree.gen.ts',
+      base: '/app'
     }),
     wasm(),
     topLevelAwait()

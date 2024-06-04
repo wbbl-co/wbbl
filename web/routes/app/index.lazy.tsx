@@ -14,15 +14,74 @@ export const Route = createLazyFileRoute("/app/")({
 
 })
 
-async function getProjects(): Promise<{ next_cursor: string | null, prev_cursor: string | null, results: { name: string, warrant: { relation: string, }, is_implicit: boolean, created_at: string }[] }> {
+async function getProjects(): Promise<{ next_cursor: string | null, prev_cursor: string | null, results: { name: string, created_at: string }[] }> {
     return {
         "results": [
             {
                 "name": "frogject",
-                "warrant": {
-                    "relation": "owner",
-                },
-                "is_implicit": true,
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+            {
+                "name": "frogject 22",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 3",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 4",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 5",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 6",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 7",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+            {
+                "name": "frogject 8",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 9",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 10",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 11",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 12",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 13",
+                "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
+            },
+
+            {
+                "name": "frogject 14",
                 "created_at": "Mon Jun 03 2024 14:42:59 GMT+0000 (Coordinated Universal Time)"
             }
         ],
@@ -35,9 +94,6 @@ function Index() {
     const { isPending, error, data } = useQuery({
         queryKey: ['projectData'],
         queryFn: () => getProjects()
-        // fetch('https://api.github.com/repos/TanStack/query').then((res) =>
-        //     res.json(),
-        // ),
     });
 
     const navigate = useNavigate();
@@ -61,10 +117,9 @@ function Index() {
                 </TextField.Root>
             </Flex>
             <div style={{ paddingTop: '2em', paddingLeft: 'var(--space-3)', paddingRight: 'var(--space-3)' }}>
-
-                <ScrollArea>
+                <ScrollArea size={'2'} scrollbars='vertical' style={{ maxHeight: 'calc(90vh - 2em - var(--space-6))' }}>
                     <Table.Root size={'3'} variant='ghost'>
-                        <Table.Header>
+                        <Table.Header style={{ position: 'sticky', top: 0 }}>
                             <Table.Row>
                                 <Table.ColumnHeaderCell>Project Name</Table.ColumnHeaderCell>
                                 <Table.ColumnHeaderCell>Owners</Table.ColumnHeaderCell>

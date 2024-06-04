@@ -122,9 +122,11 @@ path.react-flow__edge-path {
 .react-flow__minimap-node {
     color: var(--category-color);
     --card-background-color-weight: 65%;
-    fill: color-mix(in srgb,
-            currentColor,
-            var(--gray-contrast) var(--card-background-color-weight));
+    fill: color-mix(
+        in srgb,
+        currentColor,
+        var(--gray-contrast) var(--card-background-color-weight)
+    );
     stroke: currentColor;
     stroke-width: 2px;
 }
@@ -230,9 +232,11 @@ path.react-flow__edge-path {
         --card-background-color-weight: 30%;
     }
 
-    background-color: color-mix(in srgb,
+    background-color: color-mix(
+        in srgb,
         currentColor,
-        var(--card-background-color) var(--card-background-color-weight));
+        var(--card-background-color) var(--card-background-color-weight)
+    );
 
     color: var(--category-color);
 
@@ -367,7 +371,6 @@ path.react-flow__edge-path {
     left: 0;
     margin: 1em;
     z-index: 100;
-
 }
 
 .application-menu-trigger {
@@ -528,7 +531,6 @@ path.react-flow__edge-path {
 }
 
 .react-flow__viewport {
-
     &:active,
     &:focus-within,
     &:focus-visible {
@@ -556,7 +558,6 @@ path.react-flow__edge-path {
 }
 
 .GraphToolbarPanel {
-
     & a,
     & button {
         background-color: transparent;
@@ -636,7 +637,13 @@ path.react-flow__edge-path {
         pointer-events: none;
         position: absolute;
         background-color: var(--accent-9);
-        left: calc((1rem + var(--space-1)) + (var(--toggle-index) * (2rem + var(--space-1) + 2 * var(--space-2))));
+        left: calc(
+            (1rem + var(--space-1)) +
+                (
+                    var(--toggle-index) *
+                        (2rem + var(--space-1) + 2 * var(--space-2))
+                )
+        );
         transition-property: left;
         transition-duration: 100ms;
         transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -717,7 +724,7 @@ path.react-flow__edge-path {
 }
 
 .ToolbarButton[data-clicked="true"] {
-    >* {
+    > * {
         color: var(--accent-contrast);
         z-index: 10;
     }
@@ -736,7 +743,6 @@ path.react-flow__edge-path {
 }
 
 .ToolbarToggleItem {
-
     &:active,
     &:focus-within,
     &:focus-visible {
@@ -749,11 +755,10 @@ path.react-flow__edge-path {
     color: var(--accent-contrast);
 }
 
-
 .project-list-row {
     &:hover {
         background-color: var(--accent-1);
         cursor: pointer;
-        color: var(--accent-9);
+        color: var(--accent-11);
     }
 }

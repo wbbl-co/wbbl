@@ -2,7 +2,7 @@ import { Flex, Text, Link, Button } from "@radix-ui/themes";
 import { FocusEventHandler, useCallback, useRef, useState } from "react";
 import CoreLineChevronRight from "./icons/core-line/CoreLineChevronRight";
 
-export default function Breadcrumb() {
+export default function Breadcrumb(props: { path: [] | [string] | [string, string] }) {
   const [edit, setEdit] = useState(false);
   const documentTitleRef = useRef<HTMLSpanElement>(null);
   const oldValue = useRef<string>("");
@@ -63,36 +63,62 @@ export default function Breadcrumb() {
   return (
     <Flex className="breadcrumb" align={"center"}>
       <Link href="#">
-        <Text className="project-name-breadcrumb breadcrumb-item" size={"6"}>
-          Project Name
-        </Text>
+        {props.path.length > 0 ?
+          <Button
+            variant="ghost"
+            onClick={onEditStart}
+            size={"1"}
+            color="lime"
+            className="file-name-breadcrumb breadcrumb-item"
+            data-visible={!edit}
+          >
+            <Text
+              ref={documentTitleRef}
+              contentEditable={edit ? "plaintext-only" : false}
+              suppressContentEditableWarning={true}
+              onBlur={onBlur}
+              className="file-name-editable"
+              spellCheck="false"
+              size={"6"}
+            >
+              {props.path[0]}
+            </Text>
+          </Button> :
+          <Text className="project-name-breadcrumb breadcrumb-item" size={"6"}>
+            Projects
+          </Text>
+        }
       </Link>
-      <CoreLineChevronRight
-        color="var(--gray-6)"
-        strokeWidth={"4"}
-        width={"1.4em"}
-        height={"1.4em"}
-      />
-      <Button
-        variant="ghost"
-        onClick={onEditStart}
-        size={"1"}
-        color="lime"
-        className="file-name-breadcrumb breadcrumb-item"
-        data-visible={!edit}
-      >
-        <Text
-          ref={documentTitleRef}
-          contentEditable={edit ? "plaintext-only" : false}
-          suppressContentEditableWarning={true}
-          onBlur={onBlur}
-          className="file-name-editable"
-          spellCheck="false"
-          size={"6"}
-        >
-          Graph Name
-        </Text>
-      </Button>
+      {props.path.length > 1 ?
+        <>< CoreLineChevronRight
+          color="var(--gray-6)"
+          strokeWidth={"4"}
+          width={"1.4em"}
+          height={"1.4em"}
+        />
+          <Button
+            variant="ghost"
+            onClick={onEditStart}
+            size={"1"}
+            color="lime"
+            className="file-name-breadcrumb breadcrumb-item"
+            data-visible={!edit}
+          >
+            <Text
+              ref={documentTitleRef}
+              contentEditable={edit ? "plaintext-only" : false}
+              suppressContentEditableWarning={true}
+              onBlur={onBlur}
+              className="file-name-editable"
+              spellCheck="false"
+              size={"6"}
+            >
+              {props.path[1]}
+            </Text>
+          </Button>
+        </>
+        : undefined}
+
     </Flex>
   );
 }

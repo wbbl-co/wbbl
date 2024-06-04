@@ -25,16 +25,10 @@ import MicroSearchIcon from "./icons/micro/MicroSearchIcon";
 import MicroHomeIcon from "./icons/micro/MicroHomeIcon";
 import MicroSettingsIcon from "./icons/micro/MicroSettingsIcon";
 
-function ApplicationMenu(props: {
-  showNodesInActionMenu: boolean;
-  setActionMenuSettings: (settings: {
-    open: boolean;
-    showNodes: boolean;
-    useMousePosition: boolean;
-  }) => void;
-}) {
+function ApplicationMenu(props: { path: [] | [string, string] }) {
+  const globalContext = useContext(ApplicationMenuContext);
   const goHome = useCallback(() => {
-    window.location.assign("/");
+    window.location.assign("/app");
   }, []);
   const [currentDialog, setCurrentDialog] = useState<FunctionComponent<
     Record<string, never>
@@ -122,12 +116,12 @@ function ApplicationMenu(props: {
     KeyboardShortcut.OpenKeybindings,
   );
   const openActionMenu = useCallback(() => {
-    props.setActionMenuSettings({
+    globalContext.setActionMenuSettings({
       open: true,
-      showNodes: props.showNodesInActionMenu,
+      showNodes: globalContext.showNodesInActionMenu,
       useMousePosition: false,
     });
-  }, [props.setActionMenuSettings, props.showNodesInActionMenu]);
+  }, [globalContext.setActionMenuSettings, globalContext.showNodesInActionMenu]);
   return (
     <Dialog.Root open={currentDialog !== null} onOpenChange={onOpenChange}>
       <DropdownMenu.Root>
@@ -137,7 +131,7 @@ function ApplicationMenu(props: {
               <WbblLogo className="logo-button" />
             </Button>
           </DropdownMenu.Trigger>
-          <Breadcrumb />
+          <Breadcrumb path={props.path} />
         </Flex>
         <DropdownMenu.Content>
           <DropdownMenu.Item
@@ -221,5 +215,14 @@ function ApplicationMenu(props: {
     </Dialog.Root>
   );
 }
+
+export const ApplicationMenuContext = React.createContext<{
+  showNodesInActionMenu: boolean;
+  setActionMenuSettings: (settings: {
+    open: boolean;
+    showNodes: boolean;
+    useMousePosition: boolean;
+  }) => void
+}>({ showNodesInActionMenu: false, setActionMenuSettings: () => { } });
 
 export default memo(ApplicationMenu);

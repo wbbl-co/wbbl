@@ -22,7 +22,7 @@ import {
   AvailableActionsContext,
 } from "./hooks/use-actions-menu";
 import { ShortcutScope } from "./hooks/use-shortcut";
-import ActionMenu from "./components/SearchMenu";
+import SearchMenu from "./components/SearchMenu";
 import useBlobity from "blobity/lib/react/useBlobity";
 
 function App() {
@@ -98,10 +98,11 @@ function App() {
               {ready ? (
                 <div style={{ height: "100dvh", width: "100dvw" }}>
                   <ApplicationMenu
+                    path={[]}
                     showNodesInActionMenu={!!availableActionsContext.addNode}
                     setActionMenuSettings={setActionMenuSettings}
                   />
-                  <ActionMenu
+                  <SearchMenu
                     useMousePosition={actionMenuSettings.useMousePosition}
                     mousePosition={mousePosition}
                     open={actionMenuSettings.open}

@@ -21,6 +21,7 @@ body,
     padding: 0;
     margin: 0;
     border: 0;
+
     &:focus {
         border: none;
         outline: none;
@@ -96,6 +97,7 @@ path.react-flow__edge-path {
     fill: none;
     filter: drop-shadow(3px 5px 2px rgb(0 0 0 / 0.2));
     stroke: var(--type-color);
+
     &.selected {
         filter: drop-shadow(0px 0px 7px var(--type-color));
     }
@@ -104,6 +106,7 @@ path.react-flow__edge-path {
 .start-marker,
 .end-marker {
     fill: var(--type-color);
+
     &.selected {
         filter: drop-shadow(0px 0px 7px var(--type-color));
     }
@@ -119,11 +122,9 @@ path.react-flow__edge-path {
 .react-flow__minimap-node {
     color: var(--category-color);
     --card-background-color-weight: 65%;
-    fill: color-mix(
-        in srgb,
-        currentColor,
-        var(--gray-contrast) var(--card-background-color-weight)
-    );
+    fill: color-mix(in srgb,
+            currentColor,
+            var(--gray-contrast) var(--card-background-color-weight));
     stroke: currentColor;
     stroke-width: 2px;
 }
@@ -229,11 +230,9 @@ path.react-flow__edge-path {
         --card-background-color-weight: 30%;
     }
 
-    background-color: color-mix(
-        in srgb,
+    background-color: color-mix(in srgb,
         currentColor,
-        var(--card-background-color) var(--card-background-color-weight)
-    );
+        var(--card-background-color) var(--card-background-color-weight));
 
     color: var(--category-color);
 
@@ -300,6 +299,7 @@ path.react-flow__edge-path {
 
 .preview-node-menu-item {
     color: var(--category-color);
+
     &:hover,
     &:focus,
     &[data-state="instant-open"],
@@ -311,6 +311,7 @@ path.react-flow__edge-path {
 
 .favourites-node-menu-item {
     color: var(--yellow-11);
+
     &:hover,
     &:focus,
     &[data-state="instant-open"],
@@ -366,12 +367,14 @@ path.react-flow__edge-path {
     left: 0;
     margin: 1em;
     z-index: 100;
+
 }
 
 .application-menu-trigger {
     width: 4em;
     height: 4em;
     box-shadow: var(--shadow-4);
+
     .logo-button {
         width: 2rem;
         height: 2rem;
@@ -386,13 +389,16 @@ path.react-flow__edge-path {
     padding-left: var(--space-2);
     padding-right: var(--space-2);
     user-select: none;
+
     .action-menu-title {
         text-transform: capitalize;
     }
+
     &[data-highlighted="true"] {
         background-color: var(--accent-9);
         color: var(--accent-contrast);
         border-radius: var(--radius-2);
+
         .action-menu-description,
         .action-menu-shortcut {
             color: var(--accent-contrast);
@@ -450,14 +456,17 @@ path.react-flow__edge-path {
         color: var(--gray-10);
         font-family: var(--brand-font-family);
         user-select: none;
+
         &.file-name-breadcrumb {
             cursor: text !important;
         }
+
         &.file-name-breadcrumb:hover,
         &.file-name-breadcrumb:focus-within,
         &.file-name-breadcrumb:focus {
             color: var(--accent-11);
         }
+
         &.file-name-breadcrumb {
             outline: none;
         }
@@ -477,6 +486,7 @@ path.react-flow__edge-path {
         background-position-x: 200%;
     }
 }
+
 .junction::before {
     background-image: url("/web/junction-background.svg");
     background-size: 65%;
@@ -518,6 +528,7 @@ path.react-flow__edge-path {
 }
 
 .react-flow__viewport {
+
     &:active,
     &:focus-within,
     &:focus-visible {
@@ -532,6 +543,7 @@ path.react-flow__edge-path {
 
 .react-flow__pane.draggable {
     cursor: unset;
+
     &:active {
         cursor: grabbing;
     }
@@ -544,11 +556,13 @@ path.react-flow__edge-path {
 }
 
 .GraphToolbarPanel {
+
     & a,
     & button {
         background-color: transparent;
         border: none;
     }
+
     background: transparent;
     padding: 1em;
     width: max-content;
@@ -597,12 +611,14 @@ path.react-flow__edge-path {
         height: 2em;
         width: 2em;
     }
+
     50% {
         border-radius: 100%;
         top: 2rem;
         height: 0.75rem;
         width: 1.5rem;
     }
+
     to {
         height: 2em;
         width: 2em;
@@ -620,13 +636,7 @@ path.react-flow__edge-path {
         pointer-events: none;
         position: absolute;
         background-color: var(--accent-9);
-        left: calc(
-            (1rem + var(--space-1)) +
-                (
-                    var(--toggle-index) *
-                        (2rem + var(--space-1) + 2 * var(--space-2))
-                )
-        );
+        left: calc((1rem + var(--space-1)) + (var(--toggle-index) * (2rem + var(--space-1) + 2 * var(--space-2))));
         transition-property: left;
         transition-duration: 100ms;
         transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -636,6 +646,7 @@ path.react-flow__edge-path {
         width: 2rem;
         height: 2rem;
     }
+
     &.animating::before {
         animation-name: slide-elastic;
         animation-duration: 200ms;
@@ -663,6 +674,7 @@ path.react-flow__edge-path {
 .ToolbarButton {
     padding-left: var(--space-3);
     padding-right: var(--space-3);
+
     &:active,
     &:focus-within,
     &:focus-visible {
@@ -678,6 +690,7 @@ path.react-flow__edge-path {
         border-radius: 20px;
         rotate: 30deg;
     }
+
     70% {
         height: 1em;
         width: 1em;
@@ -685,6 +698,7 @@ path.react-flow__edge-path {
         opacity: 1;
         rotate: 0deg;
     }
+
     80% {
         height: 1em;
         width: 1em;
@@ -692,6 +706,7 @@ path.react-flow__edge-path {
         opacity: 1;
         rotate: 0deg;
     }
+
     100% {
         border-radius: 20px;
         opacity: 0;
@@ -702,10 +717,11 @@ path.react-flow__edge-path {
 }
 
 .ToolbarButton[data-clicked="true"] {
-    > * {
+    >* {
         color: var(--accent-contrast);
         z-index: 10;
     }
+
     &::before {
         content: " ";
         position: fixed;
@@ -720,6 +736,7 @@ path.react-flow__edge-path {
 }
 
 .ToolbarToggleItem {
+
     &:active,
     &:focus-within,
     &:focus-visible {
@@ -727,6 +744,16 @@ path.react-flow__edge-path {
         border: none;
     }
 }
+
 .ToolbarToggleItem[aria-checked="true"] {
     color: var(--accent-contrast);
+}
+
+
+.project-list-row {
+    &:hover {
+        background-color: var(--accent-1);
+        cursor: pointer;
+        color: var(--accent-9);
+    }
 }

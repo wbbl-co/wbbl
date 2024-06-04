@@ -22,20 +22,20 @@ import MicroSearchIcon from "./icons/micro/MicroSearchIcon";
 
 type ComboBoxItem =
   | {
-      type: "shortcut";
-      key: KeyboardShortcut;
-      f: () => void;
-      description: string;
-      binding: string | null | undefined;
-      tooltip?: string;
-    }
+    type: "shortcut";
+    key: KeyboardShortcut;
+    f: () => void;
+    description: string;
+    binding: string | null | undefined;
+    tooltip?: string;
+  }
   | {
-      type: "add-node";
-      key: WbblWebappNodeType;
-      description: string;
-      binding: string | null | undefined;
-      tooltip: string;
-    };
+    type: "add-node";
+    key: WbblWebappNodeType;
+    description: string;
+    binding: string | null | undefined;
+    tooltip: string;
+  };
 
 function ActionMenuCombobox(props: {
   close: () => void;
@@ -192,7 +192,7 @@ function ActionMenuCombobox(props: {
   );
 }
 
-function ActionMenu(props: {
+function SearchMenu(props: {
   open: boolean;
   useMousePosition: boolean;
   mousePosition: { current: { x: number; y: number } };
@@ -261,9 +261,9 @@ function ActionMenu(props: {
         style={
           props.useMousePosition
             ? {
-                position: "absolute",
-                ...position,
-              }
+              position: "absolute",
+              ...position,
+            }
             : {}
         }
         className="action-menu"
@@ -274,4 +274,4 @@ function ActionMenu(props: {
   );
 }
 
-export default memo(ActionMenu);
+export default memo(SearchMenu);

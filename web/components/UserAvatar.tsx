@@ -34,8 +34,21 @@ export type UserProfile = {
   userId: string;
   email: string;
   role: string;
+  lastSeen: number;
 };
-export function UserAvatar(props: UserProfile) {
+
+export function UserAvatarList(props: { users: UserProfile[], onClick?: (user: UserProfile) => void }) {
+  const first = props.users.slice(0, 3);
+  const rest = props.users.slice(3);
+  return <Flex>
+    {first.map(user => <UserAvatar key={user.userId} {...user} onClick={props.onClick ? () => { props.onClick!(user); } : undefined} />)}
+    {rest.length > 1 ?
+      <UserAvatarMore users={rest} />
+      : (rest.length > 0 ? <UserAvatar key={rest[0].userId} {...rest[0]} onClick={props.onClick ? () => { props.onClick!(rest[0]); } : undefined} /> : undefined)
+    }</Flex>;
+
+}
+export function UserAvatar(props: UserProfile & { onClick?: () => void }) {
   return (
     <HoverCard.Root>
       <HoverCard.Trigger
@@ -104,7 +117,7 @@ export function UserAvatar(props: UserProfile) {
   );
 }
 
-export function UserAvatarMore(props: { users: UserProfile[] }) {
+export function UserAvatarMore(props: { users: UserProfile[], onClick?: (user: UserProfile) => void }) {
   return (
     <HoverCard.Root>
       <HoverCard.Trigger

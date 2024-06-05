@@ -1,5 +1,4 @@
 import {
-  Avatar,
   Flex,
   ScrollArea,
   Table,
@@ -7,13 +6,6 @@ import {
   Text,
   Button,
   IconButton,
-  HoverCard,
-  Box,
-  Heading,
-  Link,
-  DataList,
-  Badge,
-  Code,
 } from "@radix-ui/themes";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import ApplicationMenu from "../../components/ApplicationMenu";
@@ -23,7 +15,7 @@ import Fuse from "fuse.js";
 import { useMemo, useState } from "react";
 import CoreLineNewFolder from "../../components/icons/core-line/CoreLineNewFolder";
 import CoreLineRefresh from "../../components/icons/core-line/CoreLineRefresh";
-import { UserAvatar, UserAvatarMore } from "../../components/UserAvatar";
+import { UserAvatarList } from "../../components/UserAvatar";
 
 export const Route = createLazyFileRoute("/app/")({
   component: Index,
@@ -123,20 +115,6 @@ async function getProjects(): Promise<{
   };
 }
 
-function stringToHash(string: string): number {
-  let hash = 0;
-
-  if (string.length == 0) return hash;
-
-  for (let i = 0; i < string.length; i++) {
-    let char = string.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-
-  return hash;
-}
-
 function Index() {
   const { isPending, error, data, refetch } = useQuery({
     queryKey: ["projectData"],
@@ -173,13 +151,13 @@ function Index() {
             refetch();
           }}
           color="gray"
-          variant="soft"
+          variant="surface"
           size={"3"}
         >
           <CoreLineRefresh />
         </IconButton>
-        <Button size={"3"}>
-          <CoreLineNewFolder /> New Project
+        <Button size={"3"} variant="surface">
+          <CoreLineNewFolder /> New
         </Button>
         <TextField.Root
           placeholder="Search"
@@ -228,45 +206,63 @@ function Index() {
                       <Text size={"4"}>{x.name}</Text>
                     </Table.RowHeaderCell>
                     <Table.Cell>
-                      <UserAvatar
-                        email="abc@example.com"
-                        name="Abigail Thorne"
-                        userId="abc"
-                        role="admin"
+                      <UserAvatarList
+                        users={[{
+                        email:"abc@example.com",
+                        name:"Abigail Thorne",
+                        userId:"abc",
+                        role:"admin",
+                        lastSeen: Date.now()
+                      }]}
                       />
                     </Table.Cell>
                     <Table.Cell>
-                      <Flex>
-                        <UserAvatar
-                          email="abc@example.com"
-                          name="Emily Tudor"
-                          userId="def"
-                          role="admin"
-                        />
-                        <UserAvatar
-                          email="abc@example.com"
-                          name="Jody Forster"
-                          userId="ghi"
-                          role="member"
-                        />
-
-                        <UserAvatarMore
-                          users={[
-                            {
-                              name: "Geoff Reiner",
-                              email: "geoff@gmail.com",
-                              role: "member",
-                              userId: "abc",
-                            },
-                            {
-                              name: "Nancy Stuart",
-                              email: "nstuart@google.com",
-                              role: "member",
-                              userId: "abc",
-                            },
-                          ]}
-                        />
-                      </Flex>
+                      <UserAvatarList
+                        users={[
+                          {
+                            name: "Geoff Reiner",
+                            email: "geoff@gmail.com",
+                            role: "member",
+                            userId: "def",
+                            lastSeen: Date.now()
+                          },
+                          {
+                            name: "Nancy Stuart",
+                            email: "nstuart@google.com",
+                            role: "member",
+                            userId: "ghi",
+                            lastSeen: Date.now()
+                          },
+                          {
+                            name: "Geoff Reiner",
+                            email: "geoff@gmail.com",
+                            role: "member",
+                            userId: "jkl",
+                            lastSeen: Date.now()
+                          },
+                          {
+                            name: "Nancy Stuart",
+                            email: "nstuart@google.com",
+                            role: "member",
+                            userId: "lmn",
+                            lastSeen: Date.now()
+                          },
+                          {
+                            name: "Geoff Reiner",
+                            email: "geoff@gmail.com",
+                            role: "member",
+                            userId: "nop",
+                            lastSeen: Date.now()
+                          },
+                          {
+                            name: "Nancy Stuart",
+                            email: "nstuart@google.com",
+                            role: "member",
+                            userId: "abc",
+                            lastSeen: Date.now()
+                          },
+                        ]}
+                      />
                     </Table.Cell>
                   </Table.Row>
                 );

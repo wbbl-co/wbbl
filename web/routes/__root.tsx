@@ -21,7 +21,7 @@ import { BaseTheme, WbblWebappPreferencesStore } from "../../pkg/wbbl";
 import { ApplicationMenuContext } from "../components/ApplicationMenu";
 import SearchMenu from "../components/SearchMenu";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import useBlobity from "blobity/lib/react/useBlobity";
+// import useBlobity from "blobity/lib/react/useBlobity";
 
 const queryClient = new QueryClient();
 
@@ -32,19 +32,19 @@ export const Route = createRootRoute({
       [],
     );
     const { currentTheme } = useThemePreferences(preferencesStore);
-    useBlobity({
-      licenseKey: "DA207C2D-99B04E50-BB399991-ED382D1C",
-      magnetic: false,
-      zIndex: 1,
-      opacity: 0.4,
-      kineticMorphing: true,
-      focusableElements:
-        "[data-blobity], a:not([data-no-blobity]), button:not([data-no-blobity])",
-      dotColor: "#FFF",
-      color: "#AAF05F",
-      mode: "bouncy",
-      invert: false,
-    });
+    // useBlobity({
+    //   licenseKey: "DA207C2D-99B04E50-BB399991-ED382D1C",
+    //   magnetic: false,
+    //   zIndex: 1,
+    //   opacity: 0.4,
+    //   kineticMorphing: true,
+    //   focusableElements:
+    //     "[data-blobity], a:not([data-no-blobity]), button:not([data-no-blobity])",
+    //   dotColor: "#FFF",
+    //   color: "#AAF05F",
+    //   mode: "bouncy",
+    //   invert: false,
+    // });
     const availableActionsContext: AvailableActions = useMemo(
       () => ({ actions: new Map() }),
       [],

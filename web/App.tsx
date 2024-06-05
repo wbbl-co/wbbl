@@ -99,8 +99,6 @@ function App() {
                 <div style={{ height: "100dvh", width: "100dvw" }}>
                   <ApplicationMenu
                     path={[]}
-                    showNodesInActionMenu={!!availableActionsContext.addNode}
-                    setActionMenuSettings={setActionMenuSettings}
                   />
                   <SearchMenu
                     useMousePosition={actionMenuSettings.useMousePosition}

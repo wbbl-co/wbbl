@@ -17,7 +17,7 @@ import { Route as rootRoute } from './routes/__root'
 // Create Virtual Routes
 
 const AppIndexLazyImport = createFileRoute('/app/')()
-const AppAboutLazyImport = createFileRoute('/app/about')()
+const AppTestLazyImport = createFileRoute('/app/test')()
 
 // Create/Update Routes
 
@@ -26,20 +26,20 @@ const AppIndexLazyRoute = AppIndexLazyImport.update({
   getParentRoute: () => rootRoute,
 } as any).lazy(() => import('./routes/app/index.lazy').then((d) => d.Route))
 
-const AppAboutLazyRoute = AppAboutLazyImport.update({
-  path: '/app/about',
+const AppTestLazyRoute = AppTestLazyImport.update({
+  path: '/app/test',
   getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/app/about.lazy').then((d) => d.Route))
+} as any).lazy(() => import('./routes/app/test.lazy).then((d) => d.Route))
 
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/app/about': {
-      id: '/app/about'
-      path: '/app/about'
-      fullPath: '/app/about'
-      preLoaderRoute: typeof AppAboutLazyImport
+    '/app/test': {
+      id: '/app/test'
+      path: '/app/test'
+      fullPath: '/app/test'
+      preLoaderRoute: typeof AppTestLazyImport
       parentRoute: typeof rootRoute
     }
     '/app/': {
@@ -55,7 +55,7 @@ declare module '@tanstack/react-router' {
 // Create and export the route tree
 
 export const routeTree = rootRoute.addChildren({
-  AppAboutLazyRoute,
+  AppTestLazyRoute,
   AppIndexLazyRoute,
 })
 

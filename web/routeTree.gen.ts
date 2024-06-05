@@ -29,7 +29,7 @@ const AppIndexLazyRoute = AppIndexLazyImport.update({
 const AppTestLazyRoute = AppTestLazyImport.update({
   path: '/app/test',
   getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/app/test.lazy).then((d) => d.Route))
+} as any).lazy(() => import('./routes/app/test.lazy').then((d) => d.Route))
 
 // Populate the FileRoutesByPath interface
 

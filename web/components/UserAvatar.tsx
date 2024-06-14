@@ -7,8 +7,10 @@ import {
   Heading,
   HoverCard,
   Link,
+  Skeleton,
   Text,
 } from "@radix-ui/themes";
+import { useQueries, useQuery } from "@tanstack/react-query";
 
 const colors = [
   "red",
@@ -37,18 +39,66 @@ export type UserProfile = {
   lastSeen: number;
 };
 
-export function UserAvatarList(props: { users: UserProfile[], onClick?: (user: UserProfile) => void }) {
+export function UserAvatarList(props: {
+  users: string[];
+  onClick?: (user: UserProfile) => void;
+}) {
   const first = props.users.slice(0, 3);
   const rest = props.users.slice(3);
-  return <Flex>
-    {first.map(user => <UserAvatar key={user.userId} {...user} onClick={props.onClick ? () => { props.onClick!(user); } : undefined} />)}
-    {rest.length > 1 ?
-      <UserAvatarMore users={rest} />
-      : (rest.length > 0 ? <UserAvatar key={rest[0].userId} {...rest[0]} onClick={props.onClick ? () => { props.onClick!(rest[0]); } : undefined} /> : undefined)
-    }</Flex>;
-
+  return (
+    <Flex>
+      {first.map((user) => (
+        <UserAvatar
+          userId={user}
+          key={user}
+          onClick={
+            props.onClick
+              ? () => {
+                  props.onClick!(user);
+                }
+              : undefined
+          }
+        />
+      ))}
+      {rest.length > 1 ? (
+        <UserAvatarMore users={rest} />
+      ) : rest.length > 0 ? (
+        <UserAvatar
+          key={rest[0].userId}
+          userId={user}
+          onClick={
+            props.onClick
+              ? () => {
+                  props.onClick!(rest[0]);
+                }
+              : undefined
+          }
+        />
+      ) : undefined}
+    </Flex>
+  );
 }
-export function UserAvatar(props: UserProfile & { onClick?: () => void }) {
+
+async function getUser(user_id: string): Promise<{
+  user_id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  has_profile_picture: boolean;
+  last_seen: number;
+  role: string;
+}> {
+  return fetch(`/api/users/${user_id}`, {
+    method: "GET",
+    credentials: "same-origin",
+  }).then((x) => x.json());
+}
+
+export function UserAvatar(props: { userId: string; onClick?: () => void }) {
+  const query = useQuery({
+    queryKey: ["user", props.userId],
+    queryFn: () => getUser(props.userId),
+  });
   return (
     <HoverCard.Root>
       <HoverCard.Trigger
@@ -57,16 +107,26 @@ export function UserAvatar(props: UserProfile & { onClick?: () => void }) {
           evt.stopPropagation();
         }}
       >
-        <Link href={`#`}>
-          <Avatar
-            src={`/auth/api/avatars/${props.userId}.png`}
-            style={{ marginLeft: "-0.4em" }}
-            variant="solid"
-            color={uuidToColor(props.userId)}
-            radius="full"
-            fallback={props.name[0]}
-          />
-        </Link>
+        <Skeleton loading={!query.isSuccess}>
+          <Link href={`#`}>
+            <Avatar
+              src={
+                query.isSuccess && query.data.has_profile_picture
+                  ? `/api/users/${props.userId}/profile_pic`
+                  : undefined
+              }
+              style={{ marginLeft: "-0.4em" }}
+              variant="solid"
+              color={uuidToColor(props.userId)}
+              radius="full"
+              fallback={
+                query.isSuccess
+                  ? `${query.data.first_name?.[0]}${query.data.last_name?.[0]}`
+                  : "AC"
+              }
+            />
+          </Link>
+        </Skeleton>
       </HoverCard.Trigger>
       <HoverCard.Content
         maxWidth="300px"
@@ -77,31 +137,41 @@ export function UserAvatar(props: UserProfile & { onClick?: () => void }) {
       >
         <Flex gap="4">
           <Avatar
-            src={`/auth/api/avatars/${props.userId}.png`}
+            src={
+              query.isSuccess && query.data.has_profile_picture
+                ? `/api/users/${props.userId}/profile_pic`
+                : undefined
+            }
             style={{ marginLeft: "-0.4em" }}
             variant="solid"
             color={uuidToColor(props.userId)}
             radius="full"
-            fallback={props.name[0]}
+            fallback={
+              query.isSuccess
+                ? `${query.data.first_name?.[0]}${query.data.last_name?.[0]}`
+                : "AC"
+            }
           />
           <Box>
             <Heading size="3" as="h3">
-              {props.name}
+              {`${query.data?.first_name} ${query.data?.last_name}`}
             </Heading>
             <Text as="div" size="2" color="gray" mb="2">
-              <Link href={`mailto:${props.email}`}>{props.email}</Link>
+              <Link href={`mailto:${query.data?.email}`}>
+                {query.data?.email}
+              </Link>
             </Text>
             <DataList.Root size={"1"}>
               <DataList.Item align="center">
                 <DataList.Label minWidth="88px">Role</DataList.Label>
                 <DataList.Value>
                   <Badge
-                    color={props.role === "admin" ? "amber" : "green"}
+                    color={query.data?.role === "admin" ? "amber" : "green"}
                     variant="soft"
                     radius="full"
                     style={{ textTransform: "capitalize" }}
                   >
-                    {props.role}
+                    {query.data?.role}
                   </Badge>
                 </DataList.Value>
               </DataList.Item>
@@ -117,7 +187,16 @@ export function UserAvatar(props: UserProfile & { onClick?: () => void }) {
   );
 }
 
-export function UserAvatarMore(props: { users: UserProfile[], onClick?: (user: UserProfile) => void }) {
+export function UserAvatarMore(props: {
+  users: UserProfile[];
+  onClick?: (user: UserProfile) => void;
+}) {
+  const queries = useQueries({
+    queries: props.users.map((x) => ({
+      queryKey: ["user", x],
+      queryFn: () => getUser(x),
+    })),
+  });
   return (
     <HoverCard.Root>
       <HoverCard.Trigger
@@ -143,11 +222,18 @@ export function UserAvatarMore(props: { users: UserProfile[], onClick?: (user: U
         }}
       >
         <Flex direction={"column"} gap={"1"}>
-          {props.users.map((user) => (
-            <Link size={"2"} key={user.userId} href={`mailto:${user.email}`}>
-              {user.email}
-            </Link>
-          ))}
+          {queries
+            .map((x) => x.data)
+            .filter((x) => !!x)
+            .map((user) => (
+              <Link
+                size={"2"}
+                key={user?.user_id}
+                href={`mailto:${user?.email}`}
+              >
+                {user?.email}
+              </Link>
+            ))}
         </Flex>
       </HoverCard.Content>
     </HoverCard.Root>

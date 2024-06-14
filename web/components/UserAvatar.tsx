@@ -11,6 +11,7 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { timeAgo } from "../utils/time-ago";
 
 const colors = [
   "red",
@@ -41,7 +42,7 @@ export type UserProfile = {
 
 export function UserAvatarList(props: {
   users: string[];
-  onClick?: (user: UserProfile) => void;
+  onClick?: (user: string) => void;
 }) {
   const first = props.users.slice(0, 3);
   const rest = props.users.slice(3);
@@ -64,8 +65,8 @@ export function UserAvatarList(props: {
         <UserAvatarMore users={rest} />
       ) : rest.length > 0 ? (
         <UserAvatar
-          key={rest[0].userId}
-          userId={user}
+          key={rest[0]}
+          userId={rest[0]}
           onClick={
             props.onClick
               ? () => {
@@ -100,33 +101,33 @@ export function UserAvatar(props: { userId: string; onClick?: () => void }) {
     queryFn: () => getUser(props.userId),
   });
   return (
-    <HoverCard.Root>
+    <HoverCard.Root open={!query.isSuccess ? false : undefined}>
       <HoverCard.Trigger
         onClick={(evt) => {
           evt.preventDefault();
           evt.stopPropagation();
         }}
       >
-        <Skeleton loading={!query.isSuccess}>
           <Link href={`#`}>
-            <Avatar
-              src={
-                query.isSuccess && query.data.has_profile_picture
-                  ? `/api/users/${props.userId}/profile_pic`
-                  : undefined
-              }
-              style={{ marginLeft: "-0.4em" }}
-              variant="solid"
-              color={uuidToColor(props.userId)}
-              radius="full"
-              fallback={
-                query.isSuccess
-                  ? `${query.data.first_name?.[0]}${query.data.last_name?.[0]}`
-                  : "AC"
-              }
-            />
+            <Skeleton style={{ borderRadius: 'var(--radius-full)'}} loading={!query.isSuccess}>
+              <Avatar
+                src={
+                  query.isSuccess && query.data.has_profile_picture
+                    ? `/api/users/${props.userId}/profile_pic`
+                    : undefined
+                }
+                style={{ marginLeft: "-0.4em" }}
+                variant="solid"
+                color={uuidToColor(props.userId)}
+                radius="full"
+                fallback={
+                  query.isSuccess
+                    ? `${query.data.first_name?.[0]}${query.data.last_name?.[0]}`
+                    : "AC"
+                }
+              />
+            </Skeleton>
           </Link>
-        </Skeleton>
       </HoverCard.Trigger>
       <HoverCard.Content
         maxWidth="300px"
@@ -148,7 +149,7 @@ export function UserAvatar(props: { userId: string; onClick?: () => void }) {
             radius="full"
             fallback={
               query.isSuccess
-                ? `${query.data.first_name?.[0]}${query.data.last_name?.[0]}`
+                ? `${query.data.first_name?.[0]} ${query.data.last_name?.[0]}`
                 : "AC"
             }
           />
@@ -177,7 +178,7 @@ export function UserAvatar(props: { userId: string; onClick?: () => void }) {
               </DataList.Item>
               <DataList.Item align="center">
                 <DataList.Label minWidth="88px">Last Seen</DataList.Label>
-                <DataList.Value>2 days ago</DataList.Value>
+                <DataList.Value>{query.isSuccess? timeAgo(query.data.last_seen!) : ''}</DataList.Value>
               </DataList.Item>
             </DataList.Root>
           </Box>
@@ -188,8 +189,8 @@ export function UserAvatar(props: { userId: string; onClick?: () => void }) {
 }
 
 export function UserAvatarMore(props: {
-  users: UserProfile[];
-  onClick?: (user: UserProfile) => void;
+  users: string[];
+  onClick?: (user: string) => void;
 }) {
   const queries = useQueries({
     queries: props.users.map((x) => ({

@@ -11,20 +11,13 @@ import {
   Progress,
   Heading,
   Dialog,
-  Switch,
 } from "@radix-ui/themes";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import ApplicationMenu from "../../components/ApplicationMenu";
 import MicroSearchIcon from "../../components/icons/micro/MicroSearchIcon";
 import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
-import {
-  FormEvent,
-  FormEventHandler,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import React from "react";
 import CoreLineRefresh from "../../components/icons/core-line/CoreLineRefresh";
 import { UserAvatarList } from "../../components/UserAvatar";
 import CoreLinePlus from "../../components/icons/core-line/CoreLinePlus";
@@ -32,6 +25,8 @@ import CoreLineHorizontalMenu from "../../components/icons/core-line/CoreLineHor
 import MicroWarniningIcon from "../../components/icons/micro/MicroWarningIcon";
 import CoreLineClose from "../../components/icons/core-line/CoreLineClose";
 import * as Form from "@radix-ui/react-form";
+import MicroTrashIcon from "../../components/icons/micro/MicroTrashIcon";
+import MicroBookmarkIcon from "../../components/icons/micro/MicroBookmarkIcon";
 
 export const Route = createLazyFileRoute("/app/")({
   component: Index,
@@ -54,15 +49,17 @@ async function getProjectsUsers(
   return fetch(`/api/projects/${project_name}/users`, {
     method: "GET",
     credentials: "same-origin",
-  }).then((x) => x.json());
+  }).then((x) => { console.log(x); return x.json()});
 }
 
-function ProjectEntry(props: { name: string; created_at: string }) {
+function ProjectEntry(props: { name: string; }) {
   const navigate = useNavigate();
   const { data: projectData } = useQuery({
     queryKey: ["projectData", props.name],
     queryFn: () => getProjectsUsers(props.name),
   });
+
+  console.log(projectData);
 
   return (
     <Table.Row
@@ -88,11 +85,9 @@ function ProjectEntry(props: { name: string; created_at: string }) {
                 evt.stopPropagation();
               }}
             >
-              <Flex justify={"center"} align={"center"}>
-                <IconButton size={"4"} variant="ghost">
+                <IconButton mt={'1'} size={"4"} variant="ghost">
                   <CoreLineHorizontalMenu />
                 </IconButton>
-              </Flex>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
               onClick={(evt) => {
@@ -100,10 +95,12 @@ function ProjectEntry(props: { name: string; created_at: string }) {
               }}
             >
               <DropdownMenu.Item>Share</DropdownMenu.Item>
-              <DropdownMenu.Item>Favourite</DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item shortcut="⌘ ⌫" color="red">
-                Delete
+              <DropdownMenu.Item>
+                Rename
+              </DropdownMenu.Item>
+              <DropdownMenu.Item color="red">
+                <MicroTrashIcon /> Delete
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -116,13 +113,17 @@ function ProjectEntry(props: { name: string; created_at: string }) {
 function NewProjectButton() {
   const navigate = useNavigate();
 
-  const createProject = useCallback(
-    (evt: FormEvent<HTMLFormElement>) => {
+  const createProject = React.useCallback(
+    async (evt: React.FormEvent<HTMLFormElement>) => {
       console.log("evt", evt);
       const projectName = (
         evt.target as unknown as { projectName: { value: string } }
       ).projectName.value;
       console.log("projectName", projectName);
+      const result = await fetch('/api/projects', { headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: projectName}), method: 'POST', credentials: 'same-origin'});
+      if(result.ok) {
+        navigate({ to: `/app/${projectName}`});
+      }
       evt.preventDefault();
       evt.stopPropagation();
     },
@@ -185,16 +186,16 @@ function Index() {
     queryFn: () => getProjects(),
   });
 
-  const index = useMemo(() => {
-    return new Fuse(data?.results ?? [], { keys: ["name"] });
+  const index = React.useMemo<Fuse<{name:string}>>(() => {
+    return new Fuse<{name:string}>(data?.results ?? [], { keys: ["name"] });
   }, [data?.results]);
 
-  const [query, setQuery] = useState("");
-  const items = useMemo(() => {
+  const [query, setQuery] = React.useState("");
+  const items = React.useMemo(() => {
     if (query.length === 0) {
       return data?.results ?? [];
     }
-    return index.search(query).map((x) => ({ ...x.item }));
+    return index.search(query).map((x: {item:{name:string}}) => ({ ...x.item }));
   }, [query, index]);
 
   if (error) {
@@ -290,7 +291,7 @@ function Index() {
                 </Table.Header>
 
                 <Table.Body>
-                  {items.map((x) => (
+                  {items.map((x: {name:string}) => (
                     <ProjectEntry key={x.name} {...x} />
                   ))}
                 </Table.Body>

@@ -762,3 +762,9 @@ path.react-flow__edge-path {
         color: var(--accent-11);
     }
 }
+
+form :has(:invalid) {
+    & .rt-Button {
+        opacity: 40%;
+    }
+}

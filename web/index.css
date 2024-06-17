@@ -21,6 +21,7 @@ body,
     padding: 0;
     margin: 0;
     border: 0;
+
     &:focus {
         border: none;
         outline: none;
@@ -96,6 +97,7 @@ path.react-flow__edge-path {
     fill: none;
     filter: drop-shadow(3px 5px 2px rgb(0 0 0 / 0.2));
     stroke: var(--type-color);
+
     &.selected {
         filter: drop-shadow(0px 0px 7px var(--type-color));
     }
@@ -104,6 +106,7 @@ path.react-flow__edge-path {
 .start-marker,
 .end-marker {
     fill: var(--type-color);
+
     &.selected {
         filter: drop-shadow(0px 0px 7px var(--type-color));
     }
@@ -300,6 +303,7 @@ path.react-flow__edge-path {
 
 .preview-node-menu-item {
     color: var(--category-color);
+
     &:hover,
     &:focus,
     &[data-state="instant-open"],
@@ -311,6 +315,7 @@ path.react-flow__edge-path {
 
 .favourites-node-menu-item {
     color: var(--yellow-11);
+
     &:hover,
     &:focus,
     &[data-state="instant-open"],
@@ -372,6 +377,7 @@ path.react-flow__edge-path {
     width: 4em;
     height: 4em;
     box-shadow: var(--shadow-4);
+
     .logo-button {
         width: 2rem;
         height: 2rem;
@@ -386,13 +392,16 @@ path.react-flow__edge-path {
     padding-left: var(--space-2);
     padding-right: var(--space-2);
     user-select: none;
+
     .action-menu-title {
         text-transform: capitalize;
     }
+
     &[data-highlighted="true"] {
         background-color: var(--accent-9);
         color: var(--accent-contrast);
         border-radius: var(--radius-2);
+
         .action-menu-description,
         .action-menu-shortcut {
             color: var(--accent-contrast);
@@ -450,14 +459,17 @@ path.react-flow__edge-path {
         color: var(--gray-10);
         font-family: var(--brand-font-family);
         user-select: none;
+
         &.file-name-breadcrumb {
             cursor: text !important;
         }
+
         &.file-name-breadcrumb:hover,
         &.file-name-breadcrumb:focus-within,
         &.file-name-breadcrumb:focus {
             color: var(--accent-11);
         }
+
         &.file-name-breadcrumb {
             outline: none;
         }
@@ -477,6 +489,7 @@ path.react-flow__edge-path {
         background-position-x: 200%;
     }
 }
+
 .junction::before {
     background-image: url("/web/junction-background.svg");
     background-size: 65%;
@@ -532,6 +545,7 @@ path.react-flow__edge-path {
 
 .react-flow__pane.draggable {
     cursor: unset;
+
     &:active {
         cursor: grabbing;
     }
@@ -549,6 +563,7 @@ path.react-flow__edge-path {
         background-color: transparent;
         border: none;
     }
+
     background: transparent;
     padding: 1em;
     width: max-content;
@@ -597,12 +612,14 @@ path.react-flow__edge-path {
         height: 2em;
         width: 2em;
     }
+
     50% {
         border-radius: 100%;
         top: 2rem;
         height: 0.75rem;
         width: 1.5rem;
     }
+
     to {
         height: 2em;
         width: 2em;
@@ -636,6 +653,7 @@ path.react-flow__edge-path {
         width: 2rem;
         height: 2rem;
     }
+
     &.animating::before {
         animation-name: slide-elastic;
         animation-duration: 200ms;
@@ -663,6 +681,7 @@ path.react-flow__edge-path {
 .ToolbarButton {
     padding-left: var(--space-3);
     padding-right: var(--space-3);
+
     &:active,
     &:focus-within,
     &:focus-visible {
@@ -678,6 +697,7 @@ path.react-flow__edge-path {
         border-radius: 20px;
         rotate: 30deg;
     }
+
     70% {
         height: 1em;
         width: 1em;
@@ -685,6 +705,7 @@ path.react-flow__edge-path {
         opacity: 1;
         rotate: 0deg;
     }
+
     80% {
         height: 1em;
         width: 1em;
@@ -692,6 +713,7 @@ path.react-flow__edge-path {
         opacity: 1;
         rotate: 0deg;
     }
+
     100% {
         border-radius: 20px;
         opacity: 0;
@@ -706,6 +728,7 @@ path.react-flow__edge-path {
         color: var(--accent-contrast);
         z-index: 10;
     }
+
     &::before {
         content: " ";
         position: fixed;
@@ -727,6 +750,21 @@ path.react-flow__edge-path {
         border: none;
     }
 }
+
 .ToolbarToggleItem[aria-checked="true"] {
     color: var(--accent-contrast);
+}
+
+.project-list-row {
+    &:hover {
+        background-color: var(--accent-1);
+        cursor: pointer;
+        color: var(--accent-11);
+    }
+}
+
+form :has(:invalid) {
+    & .rt-Button {
+        opacity: 40%;
+    }
 }

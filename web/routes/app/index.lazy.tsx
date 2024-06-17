@@ -11,15 +11,14 @@ import {
   Progress,
   Heading,
   Dialog,
-  Em,
+  Skeleton
 } from "@radix-ui/themes";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import ApplicationMenu from "../../components/ApplicationMenu";
 import MicroSearchIcon from "../../components/icons/micro/MicroSearchIcon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Fuse from "fuse.js";
-import React, { useState } from "react";
-import CoreLineRefresh from "../../components/icons/core-line/CoreLineRefresh";
+import React, { Suspense, useState } from "react";
 import { UserAvatarList } from "../../components/UserAvatar";
 import CoreLinePlus from "../../components/icons/core-line/CoreLinePlus";
 import CoreLineHorizontalMenu from "../../components/icons/core-line/CoreLineHorizontalMenu";
@@ -29,6 +28,8 @@ import * as Form from "@radix-ui/react-form";
 import MicroTrashIcon from "../../components/icons/micro/MicroTrashIcon";
 import MicroPencilIcon from "../../components/icons/micro/MicroPencilIcon";
 import MicroShareIcon from "../../components/icons/micro/MicroShareIcon";
+import ProjectCheck from "../../components/ProjectCheck";
+import OrganizationCheck from "../../components/OrganizationCheck";
 
 export const Route = createLazyFileRoute("/app/")({
   component: Index,
@@ -69,9 +70,9 @@ function ProjectEntry(props: { name: string }) {
     <Dialog.Root open={dialog !== null} onOpenChange={() => setDialog(null)}>
       {dialog !== null
         ? {
-            delete: <DeleteProjectDialog projectName={props.name} />,
-            rename: <RenameProjectDialog projectName={props.name} />,
-          }[dialog]
+          delete: <DeleteProjectDialog projectName={props.name} />,
+          rename: <RenameProjectDialog projectName={props.name} />,
+        }[dialog]
         : undefined}
       <Table.Row
         style={{ height: "var(--space-9)" }}
@@ -91,46 +92,55 @@ function ProjectEntry(props: { name: string }) {
         <Table.Cell>
           <Flex justify={"between"}>
             <UserAvatarList users={projectData?.recent_viewers ?? []} />
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger
-                onClick={(evt) => {
-                  evt.stopPropagation();
-                }}
-              >
-                <IconButton mt={"1"} size={"4"} variant="ghost">
-                  <CoreLineHorizontalMenu />
-                </IconButton>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content
-                onClick={(evt) => {
-                  evt.stopPropagation();
-                }}
-              >
-                <DropdownMenu.Item>
-                  <MicroShareIcon /> Share
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item
+            <Suspense>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger
                   onClick={(evt) => {
-                    setDialog("rename");
                     evt.stopPropagation();
-                    evt.preventDefault();
                   }}
                 >
-                  <MicroPencilIcon /> Rename
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  color="red"
+                  <IconButton mt={"1"} size={"4"} variant="ghost">
+                    <CoreLineHorizontalMenu />
+                  </IconButton>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content
                   onClick={(evt) => {
-                    setDialog("delete");
                     evt.stopPropagation();
-                    evt.preventDefault();
                   }}
                 >
-                  <MicroTrashIcon /> Delete
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
+                  <ProjectCheck projectName={props.name} relation={'manage-settings'}>
+
+                    <>
+                      <DropdownMenu.Item>
+                        <MicroShareIcon /> Share
+                      </DropdownMenu.Item>
+                      <>
+                        <DropdownMenu.Separator />
+                        <DropdownMenu.Item
+                          onClick={(evt) => {
+                            setDialog("rename");
+                            evt.stopPropagation();
+                            evt.preventDefault();
+                          }}
+                        >
+                          <MicroPencilIcon /> Rename
+                        </DropdownMenu.Item>
+                      </>
+                      <DropdownMenu.Item
+                        color="red"
+                        onClick={(evt) => {
+                          setDialog("delete");
+                          evt.stopPropagation();
+                          evt.preventDefault();
+                        }}
+                      >
+                        <MicroTrashIcon /> Delete
+                      </DropdownMenu.Item>
+                    </>
+                  </ProjectCheck>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+            </Suspense>
           </Flex>
         </Table.Cell>
       </Table.Row>
@@ -214,7 +224,7 @@ function NewProjectButton() {
           }[loadingOrError]
         ) : (
           <Dialog.Description size={"2"} mb={"4"}>
-            Once you've created a new project you'll be able to invite
+            Once you&apos;ve created a new project you&apos;ll be able to invite
             additional owners, editors and viewers via the share dialog.
           </Dialog.Description>
         )}
@@ -410,7 +420,7 @@ function DeleteProjectDialog(props: { projectName: string }) {
             <em>all</em> assets contained within this project.
           </p>
           <p>
-            If you are sure, enter <strong>"{props.projectName}"</strong> in the
+            If you are sure, enter <strong>&quot;{props.projectName}&quot;</strong> in the
             box below
           </p>
         </Dialog.Description>
@@ -561,8 +571,18 @@ function Index() {
                       gap: "var(--space-3)",
                     }}
                   >
-                    You have no projects. Click "New" to get started!
-                    <NewProjectButton />
+                    You have no projects.
+                    <Suspense fallback={<>
+                      <div><Skeleton loading={true}>Click &quot;New&quot; to get started!</Skeleton></div>
+                      <Skeleton loading={true}><NewProjectButton /></Skeleton>
+                    </>}>
+                      <OrganizationCheck relation={'create-project'}>
+                        <>
+                          <div>Click &quot;New&quot; to get started!</div>
+                          <NewProjectButton />
+                        </>
+                      </OrganizationCheck>
+                    </Suspense>
                   </Callout.Text>
                 </Callout.Root>
               )
@@ -590,8 +610,9 @@ function Index() {
               </Table.Root>
             )}
           </ScrollArea>
-        )}
-      </div>
-    </div>
+        )
+        }
+      </div >
+    </div >
   );
 }

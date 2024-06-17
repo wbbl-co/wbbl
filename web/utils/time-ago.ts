@@ -1,20 +1,21 @@
 // takes either a unix time number in seconds, string or a Date object and returns time string
 
-export function timeAgo(time: number | string | Date): string {
-    switch (typeof time) {
+export function timeAgo(t: number | string | Date): string {
+    let time: number = 0;
+    switch (typeof t) {
         case "number":
-            time = new Date(time * 1000);
+            time = +(new Date(t * 1000));
             break;
         case "string":
-            time = +new Date(time);
+            time = +new Date(t);
             break;
         case "object":
-            if (time.constructor === Date) time = time.getTime();
+            if (t.constructor === Date) time = t.getTime();
             break;
         default:
             time = +new Date();
     }
-    const time_formats = [
+    const timeFormats = [
         [60, "seconds", 1], // 60
         [120, "1 minute ago", "1 minute from now"], // 60*2
         [3600, "minutes", 60], // 60*60, 60
@@ -31,10 +32,9 @@ export function timeAgo(time: number | string | Date): string {
         [5806080000, "last century", "next century"], // 60*60*24*7*4*12*100*2
         [58060800000, "centuries", 2903040000], // 60*60*24*7*4*12*100*20, 60*60*24*7*4*12*100
     ] as const;
-    /* @ts-ignore */
-    let seconds = (Date.now() - time) / 1000,
-        token = "ago",
-        list_choice = 1;
+    let seconds = (Date.now() - time) / 1000;
+    let token = "ago";
+    let list_choice = 1;
 
     if (seconds == 0) {
         return "Just now";
@@ -44,7 +44,7 @@ export function timeAgo(time: number | string | Date): string {
         token = "from now";
         list_choice = 2;
     }
-    for (let format of time_formats) {
+    for (const format of timeFormats) {
         if (seconds < format[0]) {
             if (typeof format[2] == "string") {
                 return String(format[list_choice]);

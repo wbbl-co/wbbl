@@ -26,6 +26,7 @@
     "@radix-ui/themes": "^3.0.1",
     "@tanstack/react-query": "^5.40.1",
     "@tanstack/react-router": "^1.32.12",
+    "@use-gesture/react": "^10.3.1",
     "@xyflow/react": "12.0.0-next.15",
     "@xyflow/system": "0.0.24",
     "blobity": "^0.2.3",
@@ -38,7 +39,9 @@
     "react": "^18.2.0",
     "react-complex-tree": "^2.4.4",
     "react-dom": "^18.2.0",
-    "react-hotkeys-hook": "^4.5.0"
+    "react-hotkeys-hook": "^4.5.0",
+    "react-tile-pane": "^0.5.1",
+    "react-use-measure": "^2.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

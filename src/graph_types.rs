@@ -28,12 +28,8 @@ impl Node {
     pub fn port_ids(&self) -> Vec<PortId> {
         self.input_ports_ids()
             .into_iter()
-            .map(|p| PortId::Input(p))
-            .chain(
-                self.output_ports_ids()
-                    .into_iter()
-                    .map(|p| PortId::Output(p)),
-            )
+            .map(PortId::Input)
+            .chain(self.output_ports_ids().into_iter().map(PortId::Output))
             .collect()
     }
 
@@ -57,7 +53,7 @@ impl Node {
 
     fn make_input_ports(
         &self,
-        edges: &Vec<&Edge>,
+        edges: &[&Edge],
         ports: &[(AbstractDataType, Option<u128>, Option<u128>)],
     ) -> Vec<InputPort> {
         ports
@@ -79,7 +75,7 @@ impl Node {
             .collect()
     }
 
-    fn make_output_ports(&self, edges: &Vec<&Edge>, ports: &[AbstractDataType]) -> Vec<OutputPort> {
+    fn make_output_ports(&self, edges: &[&Edge], ports: &[AbstractDataType]) -> Vec<OutputPort> {
         ports
             .iter()
             .enumerate()
@@ -95,7 +91,7 @@ impl Node {
                         .map(|e| e.id)
                         .collect(),
                     id: port_id,
-                    abstract_data_type: p.clone(),
+                    abstract_data_type: *p,
                 }
             })
             .collect()
@@ -109,13 +105,13 @@ impl Node {
             NodeType::BuiltIn(_) => vec![],
             NodeType::BinaryOperation(op) => op.constraints(self),
             NodeType::Junction => vec![Constraint::SameTypes(SameTypesConstraint {
-                ports: self.port_ids().iter().map(|p| p.clone()).collect(),
+                ports: self.port_ids().iter().cloned().collect(),
             })],
             NodeType::Frame => vec![],
         }
     }
 
-    pub fn input_ports(&self, incoming_edges: &Vec<&Edge>) -> Vec<InputPort> {
+    pub fn input_ports(&self, incoming_edges: &[&Edge]) -> Vec<InputPort> {
         match &self.node_type {
             NodeType::Output => self.make_input_ports(
                 incoming_edges,
@@ -130,7 +126,7 @@ impl Node {
                 incoming_edges,
                 &op.input_port_types(self)
                     .iter()
-                    .map(|t| (t.clone(), None, None))
+                    .map(|t| (*t, None, None))
                     .collect::<Vec<(AbstractDataType, Option<u128>, Option<u128>)>>(),
             ),
             NodeType::BuiltIn(_) => vec![],
@@ -141,7 +137,7 @@ impl Node {
         }
     }
 
-    pub fn output_ports(&self, outgoing_edges: &Vec<&Edge>) -> Vec<OutputPort> {
+    pub fn output_ports(&self, outgoing_edges: &[&Edge]) -> Vec<OutputPort> {
         match &self.node_type {
             NodeType::Output => vec![],
             NodeType::Slab => self.make_output_ports(
@@ -343,7 +339,7 @@ impl BinaryOperation {
             | BinaryOperation::Multiply
             | BinaryOperation::Divide
             | BinaryOperation::Modulo => {
-                let ports: HashSet<PortId> = node.port_ids().iter().map(|p| p.clone()).collect();
+                let ports: HashSet<PortId> = node.port_ids().iter().cloned().collect();
                 vec![Constraint::SameTypes(SameTypesConstraint { ports })]
             }
             BinaryOperation::Equal
@@ -360,7 +356,7 @@ impl BinaryOperation {
                 vec![Constraint::SameTypes(SameTypesConstraint { ports })]
             }
             BinaryOperation::And | BinaryOperation::Or => {
-                let ports: HashSet<PortId> = node.port_ids().iter().map(|p| p.clone()).collect();
+                let ports: HashSet<PortId> = node.port_ids().iter().cloned().collect();
                 vec![Constraint::SameTypes(SameTypesConstraint { ports })]
             }
             BinaryOperation::ShiftLeft | BinaryOperation::ShiftRight => {
@@ -427,11 +423,7 @@ pub enum NodeType {
 }
 
 impl NodeType {
-    pub fn input_port_count(
-        &self,
-        _incoming_edges: &Vec<&Edge>,
-        _outgoing_edges: &Vec<&Edge>,
-    ) -> u8 {
+    pub fn input_port_count(&self, _incoming_edges: &[&Edge], _outgoing_edges: &[&Edge]) -> u8 {
         match self {
             NodeType::Output => 1,
             NodeType::Slab => 0,
@@ -443,11 +435,7 @@ impl NodeType {
         }
     }
 
-    pub fn output_port_count(
-        &self,
-        _incoming_edges: &Vec<&Edge>,
-        _outgoing_edges: &Vec<&Edge>,
-    ) -> u8 {
+    pub fn output_port_count(&self, _incoming_edges: &[&Edge], _outgoing_edges: &[&Edge]) -> u8 {
         match self {
             NodeType::Output => 0,
             NodeType::Slab => 1,
@@ -574,8 +562,8 @@ impl Node {
         }
         let node_transfer_type = node_transfer_type.unwrap();
         let node_type = Self::node_type_from_webapp_node(node_transfer_type, &data);
-        let input_port_count = node_type.input_port_count(&vec![], &vec![]);
-        let output_port_count = node_type.output_port_count(&vec![], &vec![]);
+        let input_port_count = node_type.input_port_count(&[], &[]);
+        let output_port_count = node_type.output_port_count(&[], &[]);
         let node = Node {
             id,
             input_port_count,
@@ -583,11 +571,11 @@ impl Node {
             node_type,
         };
 
-        for port in node.input_ports(&vec![]) {
+        for port in node.input_ports(&[]) {
             graph.input_ports.insert(port.id.clone(), port);
         }
 
-        for port in node.output_ports(&vec![]) {
+        for port in node.output_ports(&[]) {
             graph.output_ports.insert(port.id.clone(), port);
         }
         graph.nodes.insert(node.id, node);
@@ -634,7 +622,7 @@ impl Node {
                     port_index: i,
                 }) {
                     for edge_id in output_port.outgoing_edges.iter() {
-                        if let Some(outgoing_edge) = graph.edges.get(&edge_id) {
+                        if let Some(outgoing_edge) = graph.edges.get(edge_id) {
                             outgoing_edges.push(outgoing_edge);
                         }
                     }
@@ -669,7 +657,7 @@ impl Node {
                     };
                     if let Some(port) = graph.output_ports.remove(&port_id) {
                         for edge_id in port.outgoing_edges.iter() {
-                            graph.edges.remove(&edge_id);
+                            graph.edges.remove(edge_id);
                         }
                     }
                 }
@@ -681,7 +669,7 @@ impl Node {
                 output_port_count: new_output_port_count,
                 node_type,
             };
-            for mut port in node.input_ports(&vec![]) {
+            for mut port in node.input_ports(&[]) {
                 if let Some(prev_port) = graph.input_ports.remove(&port.id) {
                     if prev_port.abstract_data_type == port.abstract_data_type {
                         // If abstract data type is same, keep edge
@@ -692,7 +680,7 @@ impl Node {
                     graph.input_ports.insert(port.id.clone(), port);
                 }
             }
-            for mut port in node.output_ports(&vec![]) {
+            for mut port in node.output_ports(&[]) {
                 if let Some(prev_port) = graph.output_ports.remove(&port.id) {
                     if prev_port.abstract_data_type == port.abstract_data_type {
                         // If abstract data type is same, keep edge
@@ -703,7 +691,7 @@ impl Node {
                     graph.output_ports.insert(port.id.clone(), port);
                 }
             }
-            graph.nodes.insert(node.id.clone(), node);
+            graph.nodes.insert(node.id, node);
             graph.dirty = true;
             Ok(())
         } else {
@@ -726,15 +714,15 @@ impl Edge {
         let edge = Edge {
             id,
             input_port: InputPortId {
-                node_id: target.clone(),
+                node_id: target,
                 port_index: target_handle,
             },
             output_port: OutputPortId {
-                node_id: source.clone(),
+                node_id: source,
                 port_index: source_handle,
             },
         };
-        graph.edges.insert(edge.id.clone(), edge.clone());
+        graph.edges.insert(edge.id, edge.clone());
         if let Some(input_port) = graph.input_ports.get_mut(&edge.input_port) {
             input_port.incoming_edge = Some(edge.id);
 
@@ -762,7 +750,7 @@ impl Edge {
                         port_index: i,
                     }) {
                         for edge_id in output_port.outgoing_edges.iter() {
-                            if let Some(outgoing_edge) = graph.edges.get(&edge_id) {
+                            if let Some(outgoing_edge) = graph.edges.get(edge_id) {
                                 outgoing_edges.push(outgoing_edge);
                             }
                         }
@@ -802,7 +790,7 @@ impl Edge {
                         port_index: i,
                     }) {
                         for edge_id in output_port.outgoing_edges.iter() {
-                            if let Some(outgoing_edge) = graph.edges.get(&edge_id) {
+                            if let Some(outgoing_edge) = graph.edges.get(edge_id) {
                                 outgoing_edges.push(outgoing_edge);
                             }
                         }

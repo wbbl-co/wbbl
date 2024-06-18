@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys;
 use yrs::{Map, Subscription, Transact};
@@ -22,8 +22,8 @@ const THEME_MAP_KEY: &str = "theme";
 #[allow(unused)]
 pub struct WbblWebappPreferencesStore {
     next_listener_handle: u32,
-    listeners: Arc<RefCell<Vec<(u32, js_sys::Function)>>>,
-    preferences: Arc<yrs::Doc>,
+    listeners: Rc<RefCell<Vec<(u32, js_sys::Function)>>>,
+    preferences: Rc<yrs::Doc>,
     general_settings: yrs::MapRef,
     keyboard_shortcuts: yrs::MapRef,
     node_keyboard_shortcuts: yrs::MapRef,
@@ -226,10 +226,10 @@ impl WbblWebappPreferencesStore {
         let node_keyboard_shortcuts =
             preferences.get_or_insert_map(NODE_KEYBOARD_SHORTCUTS_MAP_KEY.to_owned());
 
-        let preferences = Arc::new(preferences);
-        let listeners = Arc::new(RefCell::new(Vec::<(u32, js_sys::Function)>::new()));
+        let preferences = Rc::new(preferences);
+        let listeners = Rc::new(RefCell::new(Vec::<(u32, js_sys::Function)>::new()));
         let preferences_subscription = preferences
-            .observe_update_v2({
+            .observe_update_v1({
                 let listeners = listeners.clone();
                 move |_, _| {
                     for (_, listener) in listeners.borrow().iter() {
@@ -257,7 +257,7 @@ impl WbblWebappPreferencesStore {
     pub fn subscribe(&mut self, subscriber: js_sys::Function) -> u32 {
         let handle = self.next_listener_handle;
         self.listeners.borrow_mut().push((handle, subscriber));
-        self.next_listener_handle = self.next_listener_handle + 1;
+        self.next_listener_handle += 1;
         handle
     }
 
@@ -283,7 +283,7 @@ impl WbblWebappPreferencesStore {
 
     pub fn get_base_theme(&self) -> BaseTheme {
         let txn = self.preferences.transact();
-        match self.theme.get(&txn, &"base") {
+        match self.theme.get(&txn, "base") {
             Some(yrs::Value::Any(yrs::Any::BigInt(x))) if x == BaseTheme::Dark as i64 => {
                 BaseTheme::Dark
             }
@@ -328,9 +328,8 @@ impl WbblWebappPreferencesStore {
         let txn = self.preferences.transact();
         let mut result: Vec<WbblWebappNodeType> = Vec::new();
         for (key, _) in self.favourites.iter(&txn) {
-            match from_type_name(key) {
-                Some(t) => result.push(t),
-                None => {}
+            if let Some(t) = from_type_name(key) {
+                result.push(t)
             };
         }
         Ok(result)
@@ -355,10 +354,9 @@ impl WbblWebappPreferencesStore {
 
     pub fn is_favourite(&self, node_type: WbblWebappNodeType) -> bool {
         let txn = self.preferences.transact();
-        match self.favourites.get(&txn, &get_type_name(node_type)) {
-            Some(_) => true,
-            None => false,
-        }
+        self.favourites
+            .get(&txn, &get_type_name(node_type))
+            .is_some()
     }
 
     pub fn get_keybindings(&self) -> Result<JsValue, WbblWebappStoreError> {

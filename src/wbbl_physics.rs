@@ -33,7 +33,7 @@ pub struct VelocityVertlet {
 }
 
 impl VelocityVertlet {
-    pub fn gather_forces(&self, forces: &Vec<Force>) -> Vec2 {
+    pub fn gather_forces(&self, forces: &[Force]) -> Vec2 {
         forces.iter().fold(Vec2::ZERO, |result, force| {
             result + force.get_accelleration(self)
         })
@@ -79,7 +79,7 @@ pub struct PositionVertlet {
 
 impl Vertlet for PositionVertlet {
     fn update(&mut self, _delta_time: f64, delta_time_squared: f64) {
-        let position_copy: Vec2 = self.position.clone();
+        let position_copy: Vec2 = self.position;
         self.position = (Vec2::splat(2.0) * self.position) - self.previous_position
             + (Vec2::new(
                 (delta_time_squared * (self.acceleration.x as f64)) as f32,
@@ -150,7 +150,7 @@ pub enum Constraint {
 }
 
 impl Constraint {
-    pub fn relax<Vertlet: GetPosition + SetPosition>(&self, vertlets: &mut Vec<Vertlet>) {
+    pub fn relax<Vertlet: GetPosition + SetPosition>(&self, vertlets: &mut [Vertlet]) {
         match self {
             Constraint::LockPosition { position, v } => {
                 let v_verlet = &mut vertlets[*v];
@@ -325,8 +325,7 @@ impl WbblBox {
         let delta_time_squared = delta_time * delta_time;
 
         for _ in 0..UPDATE_ITERATIONS {
-            for i in 0..self.vertlets.len() {
-                let vertlet = &mut self.vertlets[i];
+            for (i, vertlet) in self.vertlets.iter_mut().enumerate() {
                 let force_for_verlet = &forces[i];
                 vertlet.new_acceleration = vertlet.gather_forces(force_for_verlet);
                 vertlet.update(delta_time, delta_time_squared);
@@ -405,8 +404,8 @@ impl WbblRope {
         for i in 0..ROPE_VERTLET_COUNT {
             let position = start.lerp(end, i as f32 / ((ROPE_VERTLET_COUNT - 1) as f32));
             result.vertlets.push(PositionVertlet {
-                previous_position: position.clone(),
-                position: position.clone(),
+                previous_position: position,
+                position,
                 acceleration: if i > 0 && i < (ROPE_VERTLET_COUNT - 1) {
                     Vec2::new(0.0, ROPE_GRAVITY)
                 } else {

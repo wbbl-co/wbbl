@@ -21,15 +21,14 @@ pub fn compile_to_naga_ir(
         .filter(|subgraph| {
             let domains = computation_domains.get(*subgraph).unwrap_or(&empty_domain);
             domains.contains(&model_dependant)
-        })
-        .map(|subgraph| *subgraph)
+        }).copied()
         .collect();
     if !model_dependent_subgraphs.is_empty() {
         let compute_rasterizer = generate_compute_rasterizer(BaseSizeMultiplier(2.0), true);
         let mut rasterizer_stage = Stage {
             id: 0,
             dependencies: vec![],
-            dependants: model_dependent_subgraphs.clone().into(),
+            dependants: model_dependent_subgraphs.clone(),
             shader: ComputeRasterizer(compute_rasterizer),
             domain: HashSet::new(),
         };

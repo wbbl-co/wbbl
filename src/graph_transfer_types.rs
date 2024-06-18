@@ -32,15 +32,15 @@ pub enum Any {
     Map(Arc<HashMap<String, Any>>),
 }
 
-impl Into<String> for PortId {
-    fn into(self) -> String {
-        match self {
+impl From<PortId> for String {
+    fn from(val: PortId) -> Self {
+        match val {
             PortId::Output(OutputPortId {
                 node_id,
                 port_index,
             }) => format!(
                 "{}#s#{}",
-                uuid::Uuid::from_u128(node_id).to_string(),
+                uuid::Uuid::from_u128(node_id),
                 port_index
             ),
             PortId::Input(InputPortId {
@@ -48,7 +48,7 @@ impl Into<String> for PortId {
                 port_index,
             }) => format!(
                 "{}#t#{}",
-                uuid::Uuid::from_u128(node_id).to_string(),
+                uuid::Uuid::from_u128(node_id),
                 port_index
             ),
         }
@@ -70,7 +70,7 @@ impl TryFrom<String> for PortId {
     type Error = TryFromStringToPortIdError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let res: &Vec<&str> = &value.split("#").collect();
+        let res: &Vec<&str> = &value.split('#').collect();
         if res.len() != 3 {
             return Err(TryFromStringToPortIdError::MalformedId);
         }
@@ -101,7 +101,7 @@ impl Any {
             Any::BigInt(b) => yrs::Any::BigInt(*b),
             Any::String(str) => yrs::Any::String(str.clone()),
             Any::Buffer(b) => yrs::Any::Buffer(b.clone()),
-            Any::Array(arr) => yrs::Any::Array(arr.iter().map(|a| Self::to_yrs(a)).collect()),
+            Any::Array(arr) => yrs::Any::Array(arr.iter().map(Self::to_yrs).collect()),
             Any::Map(map) => yrs::Any::Map(
                 map.iter()
                     .map(|(k, v)| (k.to_owned(), Self::to_yrs(v)))
@@ -122,7 +122,7 @@ impl From<&yrs::Any> for Any {
             yrs::Any::BigInt(b) => Any::BigInt(*b),
             yrs::Any::String(str) => Any::String(str.clone()),
             yrs::Any::Buffer(b) => Any::Buffer(b.clone()),
-            yrs::Any::Array(arr) => Any::Array(arr.iter().map(|a| Self::from(a)).collect()),
+            yrs::Any::Array(arr) => Any::Array(arr.iter().map(Self::from).collect()),
             yrs::Any::Map(map) => Any::Map(
                 map.iter()
                     .map(|(k, v)| (k.to_owned(), Self::from(v)))
@@ -238,17 +238,17 @@ pub struct WbblePosition {
     pub y: f64,
 }
 
-impl Into<Vec2> for WbblePosition {
-    fn into(self) -> Vec2 {
-        Vec2::new(self.x as f32, self.y as f32)
+impl From<WbblePosition> for Vec2 {
+    fn from(val: WbblePosition) -> Self {
+        Vec2::new(val.x as f32, val.y as f32)
     }
 }
 
-impl Into<Point2<f32>> for WbblePosition {
-    fn into(self) -> Point2<f32> {
+impl From<WbblePosition> for Point2<f32> {
+    fn from(val: WbblePosition) -> Self {
         Point2 {
-            x: self.x as f32,
-            y: self.y as f32,
+            x: val.x as f32,
+            y: val.y as f32,
         }
     }
 }
@@ -307,7 +307,7 @@ where
     let buf: HashSet<String> = HashSet::deserialize(deserializer)?;
     let mut result: HashSet<u128> = HashSet::new();
     for id in buf.iter() {
-        let id = match uuid::Uuid::from_str(&id) {
+        let id = match uuid::Uuid::from_str(id) {
             Ok(t) => Ok(t.as_u128()),
             Err(_) => Err(Error::custom("Malformed Id")),
         }?;
@@ -604,9 +604,7 @@ impl WbblWebappGraphSnapshot {
             n.id = new_id;
             new_node_ids.insert(old_id, new_id);
             if let Some(group_id) = n.group_id {
-                if !new_group_ids.contains_key(&group_id) {
-                    new_group_ids.insert(group_id, uuid::Uuid::new_v4().as_u128());
-                }
+                new_group_ids.entry(group_id).or_insert_with(|| uuid::Uuid::new_v4().as_u128());
                 let new_group_id = new_group_ids.get(&group_id).unwrap();
                 n.group_id = Some(*new_group_id);
             }
@@ -616,13 +614,12 @@ impl WbblWebappGraphSnapshot {
             .iter()
             .filter(|x| {
                 new_node_ids.contains_key(&x.source) && new_node_ids.contains_key(&x.target)
-            })
-            .map(|x| x.clone())
+            }).cloned()
             .collect();
         for e in self.edges.iter_mut() {
             e.id = uuid::Uuid::new_v4().as_u128();
-            e.source = new_node_ids.get(&e.source).map(|s| *s).unwrap();
-            e.target = new_node_ids.get(&e.target).map(|t| *t).unwrap();
+            e.source = new_node_ids.get(&e.source).copied().unwrap();
+            e.target = new_node_ids.get(&e.target).copied().unwrap();
             if let Some(group_id) = e.group_id {
                 e.group_id = new_group_ids.get(&group_id).cloned();
             }
@@ -637,7 +634,7 @@ impl WbblWebappGraphSnapshot {
                 output_node_ids.insert(n.id);
                 return false;
             }
-            return true;
+            true
         });
         self.edges
             .retain_mut(|e| !output_node_ids.contains(&e.target));
@@ -646,7 +643,7 @@ impl WbblWebappGraphSnapshot {
     pub(crate) fn offset(&mut self, offset: &Vec2) {
         for node in self.nodes.iter_mut() {
             let new_position =
-                Vec2::new(node.position.x as f32, node.position.y as f32) + offset.clone();
+                Vec2::new(node.position.x as f32, node.position.y as f32) + *offset;
             node.position = WbblePosition {
                 x: new_position.x as f64,
                 y: new_position.y as f64,
@@ -657,11 +654,10 @@ impl WbblWebappGraphSnapshot {
     pub(crate) fn recenter(&mut self, position: &Vec2) {
         let mut accumulated_position = Vec2::ZERO;
         for node in self.nodes.iter() {
-            accumulated_position =
-                accumulated_position + Vec2::new(node.position.x as f32, node.position.y as f32);
+            accumulated_position += Vec2::new(node.position.x as f32, node.position.y as f32);
         }
         let average_position = accumulated_position / (self.nodes.len() as f32);
-        let delta_position = position.clone() - average_position;
+        let delta_position = *position - average_position;
         for node in self.nodes.iter_mut() {
             let final_position =
                 Vec2::new(node.position.x as f32, node.position.y as f32) + delta_position;
@@ -756,7 +752,7 @@ impl RTreeObject for WbblWebappGraphEntity {
     fn envelope(&self) -> Self::Envelope {
         match self {
             WbblWebappGraphEntity::Node(node) => {
-                let top_left: Vec2 = node.position.clone().into();
+                let top_left: Vec2 = node.position.into();
                 let size = Vec2::new(node.width as f32, node.height as f32);
                 AABB::from_corners(top_left.into(), (top_left + size).into())
             }
@@ -768,7 +764,7 @@ impl RTreeObject for WbblWebappGraphEntity {
                 let points = group
                     .bounds
                     .iter()
-                    .map(|x| -> Point2<f32> { x.clone().into() })
+                    .map(|x| -> Point2<f32> { (*x).into() })
                     .collect::<Vec<Point2<f32>>>();
                 AABB::from_points(&points)
             }

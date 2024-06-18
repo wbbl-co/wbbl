@@ -13,22 +13,22 @@ use crate::{
     yrs_utils::get_map,
 };
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, collections::HashMap, panic, rc::Rc, str::FromStr, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, panic, rc::Rc, str::FromStr};
 use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, OffscreenCanvas, Window};
 use yrs::{updates::decoder::Decode, DeepObservable, Subscription, Transact, Update};
 
 #[allow(unused)]
 pub struct WbblGraphWebWorkerMain {
-    doc: Arc<yrs::Doc>,
-    graph: Arc<RefCell<Graph>>,
-    preview_resources: HashMap<u128, Arc<RefCell<PreviewRendererResources>>>,
-    shared_preview_resources: Arc<SharedPreviewRendererResources>,
-    animation_frame_handler: Arc<RefCell<AnimationFrameHandler>>,
-    worker_scope: Arc<DedicatedWorkerGlobalScope>,
+    doc: Rc<yrs::Doc>,
+    graph: Rc<RefCell<Graph>>,
+    preview_resources: HashMap<u128, Rc<RefCell<PreviewRendererResources>>>,
+    shared_preview_resources: Rc<SharedPreviewRendererResources>,
+    animation_frame_handler: Rc<RefCell<AnimationFrameHandler>>,
+    worker_scope: Rc<DedicatedWorkerGlobalScope>,
     subscriptions: Vec<Subscription>,
-    nodes: Arc<yrs::MapRef>,
-    edges: Arc<yrs::MapRef>,
+    nodes: Rc<yrs::MapRef>,
+    edges: Rc<yrs::MapRef>,
 }
 
 #[wasm_bindgen]
@@ -42,9 +42,9 @@ impl WbblGraphWebWorkerJsWrapper {
         window: Window,
         worker_scope: DedicatedWorkerGlobalScope,
     ) -> WbblGraphWebWorkerJsWrapper {
-        let animation_frame_handler: Arc<RefCell<AnimationFrameHandler>> =
-            Arc::new(AnimationFrameHandler::new(window).into());
-        let worker_scope = Arc::new(worker_scope);
+        let animation_frame_handler: Rc<RefCell<AnimationFrameHandler>> =
+            Rc::new(AnimationFrameHandler::new(window).into());
+        let worker_scope = Rc::new(worker_scope);
         let main: Rc<RefCell<WbblGraphWebWorkerMain>> = Rc::new(
             WbblGraphWebWorkerMain::new(animation_frame_handler.clone(), worker_scope.clone())
                 .await
@@ -105,14 +105,14 @@ pub enum WbblGraphWebWorkerError {
 
 impl WbblGraphWebWorkerMain {
     pub async fn new(
-        animation_frame_handler: Arc<RefCell<AnimationFrameHandler>>,
-        worker_scope: Arc<DedicatedWorkerGlobalScope>,
+        animation_frame_handler: Rc<RefCell<AnimationFrameHandler>>,
+        worker_scope: Rc<DedicatedWorkerGlobalScope>,
     ) -> WbblGraphWebWorkerMain {
         panic::set_hook(Box::new(console_error_panic_hook::hook));
         let shared_preview_resources = SharedPreviewRendererResources::new()
             .await
             .expect("Expected success");
-        let graph = Arc::new(RefCell::new(Graph {
+        let graph = Rc::new(RefCell::new(Graph {
             id: uuid::Uuid::new_v4().as_u128(),
             nodes: HashMap::new(),
             edges: HashMap::new(),
@@ -120,9 +120,9 @@ impl WbblGraphWebWorkerMain {
             input_ports: HashMap::new(),
             output_ports: HashMap::new(),
         }));
-        let doc = Arc::new(yrs::Doc::new());
-        let nodes = Arc::new(doc.get_or_insert_map(GRAPH_YRS_NODES_MAP_KEY.to_owned()));
-        let edges = Arc::new(doc.get_or_insert_map(GRAPH_YRS_EDGES_MAP_KEY.to_owned()));
+        let doc = Rc::new(yrs::Doc::new());
+        let nodes = Rc::new(doc.get_or_insert_map(GRAPH_YRS_NODES_MAP_KEY.to_owned()));
+        let edges = Rc::new(doc.get_or_insert_map(GRAPH_YRS_EDGES_MAP_KEY.to_owned()));
 
         let nodes_subscription = nodes.observe_deep({
             let graph = graph.clone();
@@ -131,22 +131,19 @@ impl WbblGraphWebWorkerMain {
                 for evt in evts.iter() {
                     if let yrs::types::Event::Map(map_evt) = evt {
                         let path = map_evt.path();
-                        if path.len() == 0 {
+                        if path.is_empty() {
                             // Add/Remove node
                             for (key, change) in map_evt.keys(txn) {
                                 if let Ok(key) = try_into_u128(key) {
                                     let mut graph = graph.borrow_mut();
                                     match change {
                                         yrs::types::EntryChange::Inserted(new_node) => {
-                                            match new_node {
-                                                yrs::Value::YMap(new_node) => {
-                                                    let _ =
-                                                        Node::insert_new(txn, new_node, &mut graph)
-                                                            .inspect_err(|err| {
-                                                                log!("Nodes Err 3 {:?}", err)
-                                                            });
-                                                }
-                                                _ => {}
+                                            if let yrs::Value::YMap(new_node) = new_node {
+                                                let _ =
+                                                    Node::insert_new(txn, new_node, &mut graph)
+                                                        .inspect_err(|err| {
+                                                            log!("Nodes Err 3 {:?}", err)
+                                                        });
                                             };
                                         }
                                         yrs::types::EntryChange::Removed(_) => {
@@ -162,7 +159,7 @@ impl WbblGraphWebWorkerMain {
                                                                     .iter()
                                                                 {
                                                                     if let Some(edge) =
-                                                                        graph.edges.remove(&edge_id)
+                                                                        graph.edges.remove(edge_id)
                                                                     {
                                                                         if let Some(input_port) =
                                                                             graph
@@ -204,8 +201,7 @@ impl WbblGraphWebWorkerMain {
                                                                                     .iter()
                                                                                     .filter(|x| {
                                                                                         *x != &edge_id
-                                                                                    })
-                                                                                    .map(|x| *x)
+                                                                                    }).copied()
                                                                                     .collect();
                                                                         }
                                                                     }
@@ -223,8 +219,8 @@ impl WbblGraphWebWorkerMain {
                                     }
                                 }
                             }
-                        } else if path.len() >= 1 {
-                            match (path.get(0), path.get(1)) {
+                        } else if !path.is_empty() {
+                            match (path.front(), path.get(1)) {
                                 // Here we need to test if fields on the data were replaced
                                 (
                                     Some(yrs::types::PathSegment::Key(key)),
@@ -232,7 +228,7 @@ impl WbblGraphWebWorkerMain {
                                 ) if field.to_string() == "data" => {
                                     // Only update node if data changed.
                                     // We don't care about the other node properties
-                                    if let Ok(_) = try_into_u128(key) {
+                                    if try_into_u128(key).is_ok() {
                                         let mut graph = graph.borrow_mut();
                                         if let Ok(new_node) = get_map(key, txn, &nodes) {
                                             let _ =
@@ -245,7 +241,7 @@ impl WbblGraphWebWorkerMain {
                                 }
                                 // Here we need to test if the data was replaced as a whole
                                 (Some(yrs::types::PathSegment::Key(key)), None) => {
-                                    if let Ok(_) = try_into_u128(key) {
+                                    if try_into_u128(key).is_ok() {
                                         let mut graph = graph.borrow_mut();
                                         // Node updated
                                         let keys = map_evt.keys(txn);
@@ -285,7 +281,7 @@ impl WbblGraphWebWorkerMain {
                 for evt in evts.iter() {
                     if let yrs::types::Event::Map(map_evt) = evt {
                         let path = map_evt.path();
-                        if path.len() == 0 {
+                        if path.is_empty() {
                             for (key, change) in map_evt.keys(txn).iter() {
                                 if let Ok(edge_uuid) = try_into_u128(key) {
                                     match change {
@@ -293,7 +289,7 @@ impl WbblGraphWebWorkerMain {
                                             new_edge,
                                         )) => {
                                             let mut graph = graph.borrow_mut();
-                                            let _ = Edge::insert_new(txn, &new_edge, &mut graph)
+                                            let _ = Edge::insert_new(txn, new_edge, &mut graph)
                                                 .inspect_err(|err| log!("Edges Err {:?}", err));
                                         }
                                         yrs::types::EntryChange::Removed(_) => {
@@ -343,7 +339,7 @@ impl WbblGraphWebWorkerMain {
                         graph.dirty = false;
                         match graph_functions::narrow_abstract_types(&graph) {
                             Ok(types) => {
-                                let _ = worker_scope
+                                worker_scope
                                     .post_message(
                                         &serde_wasm_bindgen::to_value(
                                             &WbblGraphWebWorkerResponseMessage::TypesUpdated(types),
@@ -353,7 +349,7 @@ impl WbblGraphWebWorkerMain {
                                     .unwrap();
                             }
                             Err(_) => {
-                                let _ = worker_scope
+                                worker_scope
                                 .post_message(
                                     &serde_wasm_bindgen::to_value(
                                         &WbblGraphWebWorkerResponseMessage::TypeUnificationFailure,
@@ -368,18 +364,18 @@ impl WbblGraphWebWorkerMain {
             })
             .unwrap();
         // doc.integrate(&mut txn, update);
-        let result = WbblGraphWebWorkerMain {
+
+        WbblGraphWebWorkerMain {
             doc,
             graph,
             shared_preview_resources: shared_preview_resources.into(),
-            preview_resources: HashMap::new().into(),
+            preview_resources: HashMap::new(),
             animation_frame_handler,
             worker_scope: worker_scope.clone(),
             subscriptions: vec![nodes_subscription, edges_subscription, doc_subscription],
             nodes,
             edges,
-        };
-        result
+        }
     }
 
     fn post_message(
@@ -433,7 +429,7 @@ impl WbblGraphWebWorkerMain {
     pub fn deregister_canvas(&mut self, node_id: &str) -> Result<(), WbblGraphWebWorkerError> {
         let id = uuid::Uuid::from_str(node_id).map_err(|_| WbblGraphWebWorkerError::MalformedId)?;
         self.preview_resources.remove(&id.as_u128());
-        if self.preview_resources.len() == 0 {
+        if self.preview_resources.is_empty() {
             self.animation_frame_handler.as_ref().borrow_mut().cancel();
         }
         Ok(())
@@ -448,6 +444,6 @@ impl AnimationFrameProcessor for WbblGraphWebWorkerMain {
                 .borrow_mut()
                 .render(self.shared_preview_resources.clone());
         }
-        self.preview_resources.len() > 0
+        !self.preview_resources.is_empty()
     }
 }

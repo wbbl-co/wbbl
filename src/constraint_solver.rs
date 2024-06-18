@@ -46,13 +46,13 @@ where
     Ok(())
 }
 
-fn assign_types<Value: Debug>(
-    topologically_ordered_ports: &Vec<PortId>,
+fn assign_types<Value>(
+    topologically_ordered_ports: &[PortId],
     domains: im::HashMap<PortId, Rc<Vec<Value>>>,
     constraints: &HashMap<PortId, Vec<Constraint>>,
 ) -> Result<im::HashMap<PortId, Value>, ConstraintSolverError>
 where
-    Value: Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking,
+    Value: Debug + Copy + Hash + Eq + HasCompositeSize + HasDimensionality + HasRanking,
 {
     let mut assignments_stack: VecDeque<im::HashMap<PortId, Value>> =
         VecDeque::from([im::HashMap::<PortId, Value>::new()]);
@@ -68,7 +68,7 @@ where
         let current_port = topologically_ordered_ports[i].clone();
         let maybe_assignment = assignments.get(&current_port);
         if maybe_assignment.is_some() {
-            i = i + 1;
+            i += 1;
             continue 'outer;
         }
         let domains = domains_stack.front().unwrap();
@@ -93,7 +93,7 @@ where
             }
 
             // We have a candidate type. Go to the next port
-            i = i + 1;
+            i += 1;
             assignments_stack.push_front(next_assignments);
             domains_stack.push_front(next_domains);
             continue 'outer;
@@ -101,7 +101,7 @@ where
         if i == 0 {
             return Err(ContradictionFound);
         } else {
-            i = i - 1;
+            i -= 1;
             assignments_stack.pop_front();
             domains_stack.pop_front();
         }
@@ -109,7 +109,7 @@ where
 }
 
 pub fn assign_concrete_types(
-    topologically_ordered_ports: &Vec<PortId>,
+    topologically_ordered_ports: &[PortId],
     port_types: &HashMap<PortId, AbstractDataType>,
     constraints: &HashMap<PortId, Vec<Constraint>>,
 ) -> Result<HashMap<PortId, ConcreteDataType>, ConstraintSolverError> {
@@ -126,7 +126,7 @@ pub fn assign_concrete_types(
 }
 
 pub fn narrow_abstract_types(
-    topologically_ordered_ports: &Vec<PortId>,
+    topologically_ordered_ports: &[PortId],
     port_types: &HashMap<PortId, AbstractDataType>,
     constraints: &HashMap<PortId, Vec<Constraint>>,
 ) -> Result<HashMap<PortId, AbstractDataType>, ConstraintSolverError> {

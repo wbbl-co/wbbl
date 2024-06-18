@@ -459,7 +459,7 @@ impl AbstractDataType {
         let mut concrete_domain: Vec<AbstractDataType> = self
             .get_concrete_domain()
             .into_iter()
-            .map(|t| ConcreteType(t))
+            .map(ConcreteType)
             .collect();
         domain.append(&mut concrete_domain);
 

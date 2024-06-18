@@ -2,12 +2,12 @@ use std::{
     cell::RefCell,
     future::Future,
     pin::Pin,
-    sync::Arc,
+    rc::Rc,
     task::{Context, Poll, Waker},
 };
 
 #[derive(Default, Clone)]
-pub struct CallbackFuture<T>(Arc<CallbackFutureInner<T>>);
+pub struct CallbackFuture<T>(Rc<CallbackFutureInner<T>>);
 
 struct CallbackFutureInner<T> {
     waker: RefCell<Option<Waker>>,
@@ -27,13 +27,15 @@ impl<T> CallbackFuture<T> {
     // call this from your callback
     pub fn publish(&self, result: T) {
         self.0.result.replace(Some(result));
-        self.0.waker.take().map(|w| w.wake());
+        if let Some(w) = self.0.waker.take() {
+            w.wake()
+        }
     }
 }
 
 impl<T> CallbackFuture<T> {
     pub fn new() -> Self {
-        Self(Arc::new(CallbackFutureInner::<T>::default()))
+        Self(Rc::new(CallbackFutureInner::<T>::default()))
     }
 }
 

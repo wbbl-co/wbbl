@@ -20,19 +20,16 @@ impl AnimationFrameHandler {
         let handle = Rc::new(Cell::new(None));
         let window: Rc<web_sys::Window> = window.into();
         let closure = Rc::new(RefCell::new(Closure::new(move || {})));
-        let result = Self {
+
+        Self {
             window,
             closure,
             handle,
-        };
-
-        result
+        }
     }
 
-    pub fn set_processor<Processor: AnimationFrameProcessor>(
-        &mut self,
-        processor: Rc<RefCell<Processor>>,
-    ) where
+    pub fn set_processor<Processor>(&mut self, processor: Rc<RefCell<Processor>>)
+    where
         Processor: 'static + AnimationFrameProcessor,
     {
         self.closure.replace(Closure::new({

@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 fn has_no_dependencies(node: u128, graph: &Graph, visited_nodes: &HashSet<u128>) -> bool {
     let node = graph.nodes.get(&node).unwrap();
     node.input_ports_ids().iter().all(|p| {
-        let input_port = graph.input_ports.get(&p).unwrap();
+        let input_port = graph.input_ports.get(p).unwrap();
         if input_port.incoming_edge.is_none() {
             return true;
         }
@@ -30,7 +30,7 @@ pub fn topologically_order_nodes(graph: &Graph) -> Vec<u128> {
         .nodes
         .keys()
         .filter(|n| has_no_dependencies(**n, graph, &visited_nodes))
-        .map(|n| *n)
+        .copied()
         .collect();
     let mut i: usize = 0;
     while i < results.len() {
@@ -40,7 +40,7 @@ pub fn topologically_order_nodes(graph: &Graph) -> Vec<u128> {
         let successor_nodes: Vec<u128> = node
             .output_ports_ids()
             .iter()
-            .map(|p| graph.output_ports.get(&p).unwrap())
+            .map(|p| graph.output_ports.get(p).unwrap())
             .flat_map(|p| p.outgoing_edges.clone())
             .map(|e| graph.edges.get(&e).unwrap().input_port.clone())
             .map(|p| graph.input_ports.get(&p).unwrap().id.node_id)
@@ -55,11 +55,11 @@ pub fn topologically_order_nodes(graph: &Graph) -> Vec<u128> {
     results
 }
 
-pub fn topologically_order_ports(graph: &Graph, ordered_nodes: &Vec<u128>) -> Vec<PortId> {
+pub fn topologically_order_ports(graph: &Graph, ordered_nodes: &[u128]) -> Vec<PortId> {
     ordered_nodes
         .iter()
         .flat_map(|n| {
-            let node = graph.nodes.get(&n).unwrap();
+            let node = graph.nodes.get(n).unwrap();
             node.port_ids()
         })
         .collect()
@@ -74,7 +74,7 @@ where
     let mut queue: VecDeque<(u128, InputPortId)> = start_node
         .input_ports_ids()
         .iter()
-        .filter_map(|p| graph.input_ports.get(&p))
+        .filter_map(|p| graph.input_ports.get(p))
         .filter(|p| p.incoming_edge.is_some())
         .map(|p| (label_selector(p).unwrap(), p.id.clone()))
         .collect();
@@ -92,11 +92,11 @@ where
             .clone();
         let node_id = graph.output_ports.get(&output_port_id).unwrap().id.node_id;
         let node = graph.nodes.get(&node_id).unwrap();
-        let branch_tags = result.entry(node_id).or_insert(HashSet::new());
+        let branch_tags = result.entry(node_id).or_default();
         branch_tags.insert(label);
         for port_id in node.input_ports_ids().iter() {
-            let port = graph.input_ports.get(&port_id).unwrap();
-            if let Some(_) = port.incoming_edge {
+            let port = graph.input_ports.get(port_id).unwrap();
+            if port.incoming_edge.is_some() {
                 let new_label = label_selector(port).unwrap_or(label);
                 queue.push_back((new_label, port_id.clone()));
             }
@@ -115,14 +115,14 @@ pub fn label_subgraphs(graph: &Graph) -> HashMap<u128, HashSet<u128>> {
 
 pub fn label_computation_domains(
     graph: &Graph,
-    node_ordering: &Vec<u128>,
+    node_ordering: &[u128],
 ) -> HashMap<u128, HashSet<ComputationDomain>> {
     let mut result: HashMap<u128, HashSet<ComputationDomain>> = HashMap::new();
     for node_id in node_ordering.iter() {
         let mut domain: HashSet<ComputationDomain> = HashSet::new();
         let node = graph.nodes.get(node_id).unwrap();
         if let Some(node_domain) = node.get_computation_domain() {
-            domain = domain.union(&node_domain).map(|d| *d).collect();
+            domain = domain.union(&node_domain).copied().collect();
         }
         for input_port_id in node.input_ports_ids().iter() {
             let input_port = graph.input_ports.get(input_port_id).unwrap();
@@ -132,7 +132,7 @@ pub fn label_computation_domains(
                 let output_port = graph.output_ports.get(&output_port_id).unwrap();
                 let other_node_id = output_port.id.node_id;
                 if let Some(other_domain) = result.get(&other_node_id) {
-                    domain = domain.union(&other_domain.clone()).map(|d| *d).collect();
+                    domain = domain.union(&other_domain.clone()).copied().collect();
                 }
             }
         }
@@ -171,7 +171,7 @@ fn map_constraints_to_ports(graph: &Graph) -> HashMap<PortId, Vec<Constraint>> {
         HashMap::new(),
         |mut map: HashMap<PortId, Vec<Constraint>>, kv: &(PortId, Constraint)| {
             let clone = kv.1.clone();
-            let entry = map.entry(kv.0.clone()).or_insert(Vec::new());
+            let entry = map.entry(kv.0.clone()).or_default();
             entry.push(clone);
             map
         },
@@ -181,7 +181,7 @@ fn map_constraints_to_ports(graph: &Graph) -> HashMap<PortId, Vec<Constraint>> {
 
 pub fn concretise_types_in_graph(
     graph: &Graph,
-    node_ordering: &Vec<u128>,
+    node_ordering: &[u128],
 ) -> Result<HashMap<PortId, ConcreteDataType>, ConstraintSolverError> {
     let ordered_ports = topologically_order_ports(graph, node_ordering);
     let constraints = map_constraints_to_ports(graph);
@@ -201,7 +201,7 @@ pub fn concretise_types_in_graph(
 }
 
 pub fn prune_graph(graph: &mut Graph, subgraph_tags: &HashMap<u128, Vec<u128>>) {
-    let node_ids: Vec<u128> = graph.nodes.keys().map(|n| *n).collect();
+    let node_ids: Vec<u128> = graph.nodes.keys().copied().collect();
     for node_id in node_ids {
         let node = graph.nodes.get(&node_id).unwrap().clone();
         if !subgraph_tags.contains_key(&node_id) || node_id != graph.id {
@@ -210,7 +210,7 @@ pub fn prune_graph(graph: &mut Graph, subgraph_tags: &HashMap<u128, Vec<u128>>) 
             let output_ports = node.output_ports_ids();
             for input_port_id in input_ports {
                 let input_port = graph.input_ports.get(&input_port_id).unwrap();
-                if let Some(edge_id) = input_port.incoming_edge.clone() {
+                if let Some(edge_id) = input_port.incoming_edge {
                     let edge = graph.edges.get(&edge_id).unwrap();
                     let input_port_id = edge.input_port.clone();
                     let output_port_id = edge.output_port.clone();
@@ -221,7 +221,7 @@ pub fn prune_graph(graph: &mut Graph, subgraph_tags: &HashMap<u128, Vec<u128>>) 
                         .outgoing_edges
                         .iter()
                         .filter(|e| **e != edge_id)
-                        .map(|e| *e)
+                        .copied()
                         .collect();
                 }
                 graph.input_ports.remove(&input_port_id);
@@ -239,7 +239,7 @@ pub fn prune_graph(graph: &mut Graph, subgraph_tags: &HashMap<u128, Vec<u128>>) 
                         .outgoing_edges
                         .iter()
                         .filter(|e| **e != edge_id)
-                        .map(|e| *e)
+                        .copied()
                         .collect();
                 }
                 graph.output_ports.remove(&output_port_id);
@@ -251,7 +251,7 @@ pub fn prune_graph(graph: &mut Graph, subgraph_tags: &HashMap<u128, Vec<u128>>) 
 pub fn decompose_subgraphs(
     graph: Graph,
     subgraph_tags: &HashMap<u128, HashSet<u128>>,
-    node_ordering: &Vec<u128>,
+    node_ordering: &[u128],
 ) -> MultiGraph {
     let mut result: MultiGraph = MultiGraph {
         graph,
@@ -316,10 +316,7 @@ pub fn decompose_branches(
             let these_branch_tags = branch_tags.get(node_id).unwrap_or(&empty_set);
             if these_branch_tags.len() == 1 {
                 let branch_tag = these_branch_tags.iter().next().unwrap();
-                let branch = branched_subgraph
-                    .branches
-                    .entry(*branch_tag)
-                    .or_insert(Vec::new());
+                let branch = branched_subgraph.branches.entry(*branch_tag).or_default();
                 branch.push(*node_id);
             } else {
                 branched_subgraph.nodes.push(*node_id);
@@ -340,17 +337,16 @@ pub fn narrow_abstract_types(
     let mut port_types: Vec<(PortId, AbstractDataType)> = graph
         .input_ports
         .values()
-        .map(|p| (PortId::Input(p.id.clone()), p.abstract_data_type.clone()))
+        .map(|p| (PortId::Input(p.id.clone()), p.abstract_data_type))
         .collect();
     let mut output_port_types: Vec<(PortId, AbstractDataType)> = graph
         .output_ports
         .values()
-        .map(|p| (PortId::Output(p.id.clone()), p.abstract_data_type.clone()))
+        .map(|p| (PortId::Output(p.id.clone()), p.abstract_data_type))
         .collect();
     port_types.append(&mut output_port_types);
     let port_types: HashMap<PortId, AbstractDataType> = port_types.into_iter().collect();
     let constraints = map_constraints_to_ports(graph);
-    let result =
-        constraint_solver::narrow_abstract_types(&ordered_ports, &port_types, &constraints);
-    result.into()
+
+    constraint_solver::narrow_abstract_types(&ordered_ports, &port_types, &constraints)
 }

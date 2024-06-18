@@ -32,23 +32,26 @@ where
     Input: Pod,
     Output: Pod + From<Input>,
 {
-    let items: &[Input] =
-        bytemuck::try_cast_slice(&input).map_err(|err| EncodingError::PodCastError(err))?;
+    let items: &[Input] = bytemuck::try_cast_slice(input).map_err(EncodingError::PodCastError)?;
     Ok(items.iter().map(|item| (*item).into()).collect())
 }
 
 fn reconstruct_sparse(
-    buffer_blobs: &Vec<&[u8]>,
+    buffer_blobs: &[&[u8]],
     accessor: &Accessor,
     sparse: &Sparse,
 ) -> Result<Vec<u8>, EncodingError> {
     let component_size = accessor.data_type().size() * accessor.dimensions().multiplicity();
     let result_length = component_size * accessor.count();
-    let mut result: Vec<u8> = [0..result_length].iter().map(|_| 0 as u8).collect();
+    let mut result: Vec<u8> = (0..result_length)
+        .collect::<std::vec::Vec<usize>>()
+        .iter()
+        .map(|_| 0_u8)
+        .collect();
 
-    let indices = (&sparse).indices();
-    let count = (&sparse).count();
-    let values = (&sparse).values();
+    let indices = sparse.indices();
+    let count = sparse.count();
+    let values = sparse.values();
 
     let indices_offset = indices.offset();
     let indices_view_buffer_index = indices.view().buffer().index();
@@ -79,7 +82,7 @@ fn reconstruct_sparse(
             let pos = values_offset + i;
             let mut input_slice = value_view_blob[pos..pos + component_size].to_vec();
             value_view_data.append(&mut input_slice);
-            i = i + stride;
+            i += stride;
         }
         value_view_data
     } else {
@@ -91,7 +94,7 @@ fn reconstruct_sparse(
         let result_byte_offset = (index as usize) * component_size;
         for j in 0..component_size {
             let position: usize = result_byte_offset + j;
-            result[position] = value_view_data[i * component_size + j] as u8;
+            result[position] = value_view_data[i * component_size + j];
         }
     }
 
@@ -99,7 +102,7 @@ fn reconstruct_sparse(
 }
 
 fn gather_data<Type>(
-    buffer_blobs: &Vec<&[u8]>,
+    buffer_blobs: &[&[u8]],
     accessor: &Accessor,
     converter: fn(&[u8], DataType) -> Result<Vec<Type>, EncodingError>,
 ) -> Result<Vec<Type>, EncodingError> {
@@ -113,9 +116,9 @@ fn gather_data<Type>(
             while i < length {
                 let pos = offset + i;
                 let input_slice = &buffer_blobs[view.buffer().index()][pos..pos + size];
-                let mut items = converter(&input_slice, accessor.data_type())?;
+                let mut items = converter(input_slice, accessor.data_type())?;
                 result.append(&mut items);
-                i = i + stride;
+                i += stride;
             }
             Ok(result)
         } else {
@@ -126,7 +129,7 @@ fn gather_data<Type>(
             Ok(cast_slice)
         }
     } else if let Some(sparse) = accessor.sparse() {
-        let buffer = reconstruct_sparse(&buffer_blobs, &accessor, &sparse)?;
+        let buffer = reconstruct_sparse(buffer_blobs, accessor, &sparse)?;
         let cast_slice: Vec<Type> = converter(&buffer, accessor.data_type())?;
         Ok(cast_slice)
     } else {
@@ -136,14 +139,14 @@ fn gather_data<Type>(
 
 fn convert_to_f32(slice: &[u8], data_type: DataType) -> Result<Vec<f32>, EncodingError> {
     match data_type {
-        DataType::I8 => cast_slice_with_change_in_precision::<i8, f32>(&slice),
-        DataType::U8 => cast_slice_with_change_in_precision::<u8, f32>(&slice),
-        DataType::I16 => cast_slice_with_change_in_precision::<i8, f32>(&slice),
-        DataType::U16 => cast_slice_with_change_in_precision::<u16, f32>(&slice),
+        DataType::I8 => cast_slice_with_change_in_precision::<i8, f32>(slice),
+        DataType::U8 => cast_slice_with_change_in_precision::<u8, f32>(slice),
+        DataType::I16 => cast_slice_with_change_in_precision::<i8, f32>(slice),
+        DataType::U16 => cast_slice_with_change_in_precision::<u16, f32>(slice),
         DataType::U32 => Err(EncodingError::ExpectedFloat),
         DataType::F32 => {
             let casted: &[f32] =
-                bytemuck::try_cast_slice(&slice).map_err(|err| EncodingError::PodCastError(err))?;
+                bytemuck::try_cast_slice(slice).map_err(EncodingError::PodCastError)?;
             Ok(casted.to_vec())
         }
     }
@@ -151,29 +154,26 @@ fn convert_to_f32(slice: &[u8], data_type: DataType) -> Result<Vec<f32>, Encodin
 fn convert_to_u32(slice: &[u8], data_type: DataType) -> Result<Vec<u32>, EncodingError> {
     match data_type {
         DataType::I8 => {
-            let casted = cast_slice_with_change_in_precision::<i8, i32>(&slice)?;
+            let casted = cast_slice_with_change_in_precision::<i8, i32>(slice)?;
             Ok(casted.iter().map(|i| *i as u32).collect())
         }
-        DataType::U8 => cast_slice_with_change_in_precision::<u8, u32>(&slice),
+        DataType::U8 => cast_slice_with_change_in_precision::<u8, u32>(slice),
         DataType::I16 => {
-            let casted = cast_slice_with_change_in_precision::<i16, i32>(&slice)?;
+            let casted = cast_slice_with_change_in_precision::<i16, i32>(slice)?;
             Ok(casted.iter().map(|i| *i as u32).collect())
         }
-        DataType::U16 => cast_slice_with_change_in_precision::<u16, u32>(&slice),
+        DataType::U16 => cast_slice_with_change_in_precision::<u16, u32>(slice),
         DataType::U32 => {
             let casted: &[u32] =
-                bytemuck::try_cast_slice(&slice).map_err(|err| EncodingError::PodCastError(err))?;
+                bytemuck::try_cast_slice(slice).map_err(EncodingError::PodCastError)?;
             Ok(casted.to_vec())
         }
         DataType::F32 => Err(EncodingError::ExpectedInteger),
     }
 }
 
-fn gather_vec3(
-    buffer_blobs: &Vec<&[u8]>,
-    accessor: &Accessor,
-) -> Result<Vec<Vec3A>, EncodingError> {
-    let intermediate: Vec<f32> = gather_data(&buffer_blobs, &accessor, convert_to_f32)?;
+fn gather_vec3(buffer_blobs: &[&[u8]], accessor: &Accessor) -> Result<Vec<Vec3A>, EncodingError> {
+    let intermediate: Vec<f32> = gather_data(buffer_blobs, accessor, convert_to_f32)?;
     let mut results: Vec<Vec3A> = vec![];
     for i in (0..intermediate.len() - 2).step_by(3) {
         results.push(Vec3A {
@@ -185,8 +185,8 @@ fn gather_vec3(
     Ok(results)
 }
 
-fn gather_vec2(buffer_blobs: &Vec<&[u8]>, accessor: &Accessor) -> Result<Vec<Vec2>, EncodingError> {
-    let intermediate: Vec<f32> = gather_data(&buffer_blobs, &accessor, convert_to_f32)?;
+fn gather_vec2(buffer_blobs: &[&[u8]], accessor: &Accessor) -> Result<Vec<Vec2>, EncodingError> {
+    let intermediate: Vec<f32> = gather_data(buffer_blobs, accessor, convert_to_f32)?;
     let mut results: Vec<Vec2> = vec![];
     for i in (0..intermediate.len() - 1).step_by(2) {
         results.push(Vec2 {
@@ -198,7 +198,7 @@ fn gather_vec2(buffer_blobs: &Vec<&[u8]>, accessor: &Accessor) -> Result<Vec<Vec
 }
 
 fn get_vertices(
-    buffer_blobs: &Vec<&[u8]>,
+    buffer_blobs: &[&[u8]],
     primative: &Primitive,
 ) -> Result<Vec<Vertex>, EncodingError> {
     let mut positions: Vec<Vec3A> = vec![];
@@ -231,30 +231,18 @@ fn get_vertices(
             }
         }
     }
-    for i in 0..positions.len() {
-        let tangent = tangents
-            .get(i)
-            .map(|p| p.clone())
-            .unwrap_or(Vec3A::default());
-        let normal = normals
-            .get(i)
-            .map(|p| p.clone())
-            .unwrap_or(Vec3A::default());
+    for (i, position) in positions.into_iter().enumerate() {
+        let tangent = tangents.get(i).copied().unwrap_or(Vec3A::default());
+        let normal = normals.get(i).copied().unwrap_or(Vec3A::default());
         result.push(Vertex {
-            position: positions[i],
+            position,
             normal,
             tangent,
             bitangent: tangent
                 .normalize_or_zero()
                 .cross(normal.normalize_or_zero()),
-            tex_coord: tex_coords
-                .get(i)
-                .map(|p| p.clone())
-                .unwrap_or(Vec2::default()),
-            tex_coord_2: tex_coords_2
-                .get(i)
-                .map(|p| p.clone())
-                .unwrap_or(Vec2::default()),
+            tex_coord: tex_coords.get(i).copied().unwrap_or(Vec2::default()),
+            tex_coord_2: tex_coords_2.get(i).copied().unwrap_or(Vec2::default()),
         });
     }
 
@@ -272,12 +260,12 @@ pub fn encode(document: &mut Gltf) -> Result<EncodedSceneFile, EncodingError> {
             None,
             &mut document.blob.clone(),
         )
-        .map_err(|err| EncodingError::GltfError(err))?;
+        .map_err(EncodingError::GltfError)?;
         buffer_blobs_vec.push(buffer.0);
     }
     let buffer_blobs: Vec<&[u8]> = buffer_blobs_vec.iter().map(|b| b.as_slice()).collect();
 
-    for mesh in (&document).meshes() {
+    for mesh in document.meshes() {
         let name = mesh.name().map(|n| n.to_string());
         let mut primatives: Vec<EncodedPrimative> = vec![];
         for primative in mesh.primitives() {

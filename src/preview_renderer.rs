@@ -7,12 +7,11 @@ use crate::{
     model_scene_file_abstractions::EncodedSceneFile,
     shader_layouts::{self, frame::Frame},
 };
-use std::sync::Arc;
+use std::rc::Rc;
 
 use glam::{Mat3, Mat4, Vec4};
 use std::{
     borrow::Cow, collections::HashMap, error::Error, fmt::Display, mem::size_of, num::NonZeroU64,
-    rc::Rc,
 };
 use web_sys::OffscreenCanvas;
 use wgpu::{
@@ -96,8 +95,8 @@ impl SharedPreviewRendererResources {
             .await?;
 
         let vertices_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some(&"vertices_layout"),
-            entries: &vec![BindGroupLayoutEntry {
+            label: Some("vertices_layout"),
+            entries: &[BindGroupLayoutEntry {
                 binding: VERTICES_BINDING,
                 visibility: ShaderStages::FRAGMENT | ShaderStages::VERTEX,
                 ty: BindingType::Buffer {
@@ -110,8 +109,8 @@ impl SharedPreviewRendererResources {
         });
 
         let frame_data_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some(&"frame_data_layout"),
-            entries: &vec![
+            label: Some("frame_data_layout"),
+            entries: &[
                 BindGroupLayoutEntry {
                     binding: FRAME_BINDING,
                     visibility: ShaderStages::FRAGMENT | ShaderStages::VERTEX,
@@ -196,7 +195,7 @@ pub struct PreviewRendererResources {
 impl PreviewRendererResources {
     #[cfg(target_arch = "wasm32")]
     pub fn new_from_offscreen_canvas(
-        shared_resources: Arc<SharedPreviewRendererResources>,
+        shared_resources: Rc<SharedPreviewRendererResources>,
         geometry: BuiltInGeometry,
         canvas: OffscreenCanvas,
         vertex_shader: wgpu::naga::Module,
@@ -289,7 +288,7 @@ impl PreviewRendererResources {
         })
     }
 
-    pub fn render(&mut self, shared_resources: Arc<SharedPreviewRendererResources>) {
+    pub fn render(&mut self, shared_resources: Rc<SharedPreviewRendererResources>) {
         // Create the logical device and command queue
 
         let model_matrix = Mat4::default();
@@ -305,7 +304,7 @@ impl PreviewRendererResources {
                 .device
                 .create_buffer_init(&BufferInitDescriptor {
                     label: Some("model_transform_data_buffer"),
-                    contents: &bytemuck::bytes_of(&model_transform_data),
+                    contents: bytemuck::bytes_of(&model_transform_data),
                     usage: BufferUsages::STORAGE,
                 });
 
@@ -313,7 +312,7 @@ impl PreviewRendererResources {
             .device
             .create_buffer_init(&BufferInitDescriptor {
                 label: Some("frame_data_buffer"),
-                contents: &bytemuck::bytes_of(self.frame.as_ref()),
+                contents: bytemuck::bytes_of(self.frame.as_ref()),
                 usage: BufferUsages::STORAGE,
             });
 
@@ -324,7 +323,7 @@ impl PreviewRendererResources {
             let mut groups: Vec<BindGroup> = vec![];
             frame_data_bind_groups.push(shared_resources.device.create_bind_group(
                 &BindGroupDescriptor {
-                    label: Some(&"frame_data_bind_group"),
+                    label: Some("frame_data_bind_group"),
                     layout: &shared_resources.frame_data_layout,
                     entries: &[
                         BindGroupEntry {
@@ -351,7 +350,7 @@ impl PreviewRendererResources {
                     shared_resources
                         .device
                         .create_bind_group(&BindGroupDescriptor {
-                            label: Some(&"vertices_bind_group"),
+                            label: Some("vertices_bind_group"),
                             layout: &shared_resources.vertices_layout,
                             entries: &[BindGroupEntry {
                                 binding: VERTICES_BINDING,

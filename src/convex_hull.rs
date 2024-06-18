@@ -8,16 +8,14 @@ fn ccw(a: &Vec2, b: &Vec2, c: &Vec2) -> f32 {
     delta_ba.cross(delta_ca).z
 }
 
-pub fn get_convex_hull(points: &mut Vec<Vec2>) -> Vec<Vec2> {
-    if points.len() == 0 {
+pub fn get_convex_hull(points: &mut [Vec2]) -> Vec<Vec2> {
+    if points.is_empty() {
         return vec![];
     }
     let mut lowest_point = Vec2::MAX;
     for p in points.iter() {
-        if p.y < lowest_point.y {
-            lowest_point = p.clone();
-        } else if p.y == lowest_point.y && p.x < lowest_point.x {
-            lowest_point = p.clone();
+        if p.y < lowest_point.y || (p.y == lowest_point.y && p.x < lowest_point.x) {
+            lowest_point = *p;
         }
     }
     let x_axis = Vec2::new(1.0, 0.0);
@@ -61,9 +59,9 @@ pub fn get_convex_hull(points: &mut Vec<Vec2>) -> Vec<Vec2> {
             }
             stack.pop_front();
         }
-        stack.push_front(p.clone());
+        stack.push_front(*p);
     }
-    return stack.into_iter().collect();
+    stack.into_iter().collect()
 }
 
 pub fn get_ray_ray_intersection(
@@ -72,12 +70,8 @@ pub fn get_ray_ray_intersection(
     start_2: &Vec2,
     end_2: &Vec2,
 ) -> Option<Vec2> {
-    let current_line_mat = Mat2::from_cols(start_1.clone(), end_1.clone())
-        .transpose()
-        .determinant();
-    let next_line_mat = Mat2::from_cols(start_2.clone(), end_2.clone())
-        .transpose()
-        .determinant();
+    let current_line_mat = Mat2::from_cols(*start_1, *end_1).transpose().determinant();
+    let next_line_mat = Mat2::from_cols(*start_2, *end_2).transpose().determinant();
     let current_line_xs = Mat2::from_cols(Vec2::new(start_1.x, end_1.x), Vec2::splat(1.0))
         .transpose()
         .determinant();
@@ -122,10 +116,10 @@ pub fn get_line_line_intersection(
     end_2: &Vec2,
 ) -> Option<Vec2> {
     if let Some(intersection) = get_ray_ray_intersection(start_1, end_1, start_2, end_2) {
-        let start_1_intersection = intersection.clone() - start_1.clone();
-        let start_2_intersection = intersection.clone() - start_2.clone();
-        let line_1 = end_1.clone() - start_1.clone();
-        let line_2 = end_2.clone() - start_2.clone();
+        let start_1_intersection = intersection - *start_1;
+        let start_2_intersection = intersection - *start_2;
+        let line_1 = *end_1 - *start_1;
+        let line_2 = *end_2 - *start_2;
         let t_1 = start_1_intersection.length() / line_1.length();
         let t_2 = start_2_intersection.length() / line_2.length();
 

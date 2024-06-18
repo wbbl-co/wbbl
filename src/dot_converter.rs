@@ -35,13 +35,13 @@ pub enum DotFileError {
 }
 
 fn parse_escaped_id(id: &str) -> Result<u128, DotFileError> {
-    uuid::Uuid::from_str(&id.replace("\"", ""))
+    uuid::Uuid::from_str(&id.replace('"', ""))
         .map(|x| x.as_u128())
         .map_err(|_| DotFileError::MalformedId)
 }
 
 fn unquote_string(id: &str) -> String {
-    id.replace("\"", "").to_owned()
+    id.replace('"', "").to_owned()
 }
 
 pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> {
@@ -79,7 +79,7 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                                 Attribute(Id::Plain(id), Id::Escaped(data))
                                     if id.starts_with("data_") =>
                                 {
-                                    let decoded: String = unescape(&unquote_string(&data)).into();
+                                    let decoded: String = unescape(&unquote_string(data)).into();
                                     let value: Any =
                                         serde_json::from_str(&decoded).map_err(|err| {
                                             log!("json_err {:?}", err);
@@ -90,23 +90,23 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                                 Attribute(Id::Plain(id), Id::Escaped(group))
                                     if id.starts_with("group") =>
                                 {
-                                    let unquoted: String = unquote_string(&group);
+                                    let unquoted: String = unquote_string(group);
                                     let id = uuid::Uuid::parse_str(&unquoted)
                                         .map_err(|_| DotFileError::MalformedId)?;
                                     group_id = Some(id.as_u128());
                                 }
                                 Attribute(Id::Plain(id), Id::Plain(x)) if id == "x" => {
-                                    position_x = str::parse(&x)
+                                    position_x = str::parse(x)
                                         .map_err(|_| DotFileError::MalformedAttribute)?;
                                 }
                                 Attribute(Id::Plain(id), Id::Plain(x)) if id == "y" => {
-                                    position_y = str::parse(&x)
+                                    position_y = str::parse(x)
                                         .map_err(|_| DotFileError::MalformedAttribute)?;
                                 }
                                 Attribute(Id::Plain(id), Id::Escaped(node_type_str))
                                     if id == "label" =>
                                 {
-                                    match from_type_name(&unquote_string(&node_type_str)) {
+                                    match from_type_name(&unquote_string(node_type_str)) {
                                         Some(t) => node_type = Some(t),
                                         None => return Err(DotFileError::MalformedTypeName),
                                     }
@@ -158,9 +158,9 @@ pub fn from_dot(dotfile: &str) -> Result<WbblWebappGraphSnapshot, DotFileError> 
                     }) => {
                         let source = parse_escaped_id(from_id)?;
                         let target = parse_escaped_id(to_id)?;
-                        let source_handle: i64 = str::parse(&from_port)
+                        let source_handle: i64 = str::parse(from_port)
                             .map_err(|_| DotFileError::ParseError(from_port.to_owned()))?;
-                        let target_handle: i64 = str::parse(&to_port)
+                        let target_handle: i64 = str::parse(to_port)
                             .map_err(|_| DotFileError::ParseError(to_port.to_owned()))?;
                         edges.push(WbblWebappEdge {
                             id: uuid::Uuid::new_v4().as_u128(),

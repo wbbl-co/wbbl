@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use wasm_bindgen::prelude::*;
-use web_sys::js_sys;
-use yrs::{Map, Subscription, Transact};
+use web_sys::{js_sys, window, WebSocket};
+use yrs::{
+    sync::{Message, SyncMessage},
+    Map, Subscription, Transact,
+};
 
 use crate::{
     graph_transfer_types::{from_type_name, get_type_name, WbblWebappNodeType},
@@ -23,7 +26,7 @@ const THEME_MAP_KEY: &str = "theme";
 pub struct WbblWebappPreferencesStore {
     next_listener_handle: u32,
     listeners: Rc<RefCell<Vec<(u32, js_sys::Function)>>>,
-    preferences: Rc<yrs::Doc>,
+    awareness: Rc<yrs::sync::Awareness>,
     general_settings: yrs::MapRef,
     keyboard_shortcuts: yrs::MapRef,
     node_keyboard_shortcuts: yrs::MapRef,
@@ -218,37 +221,66 @@ pub struct KeybindingSnapshot {
 impl WbblWebappPreferencesStore {
     pub fn empty() -> Result<WbblWebappPreferencesStore, WbblWebappStoreError> {
         let preferences = yrs::Doc::new();
-        let general_settings = preferences.get_or_insert_map(GENERAL_SETTINGS_MAP_KEY.to_owned());
-        let theme = preferences.get_or_insert_map(THEME_MAP_KEY.to_owned());
-        let keyboard_shortcuts =
-            preferences.get_or_insert_map(KEYBOARD_SHORTCUTS_MAP_KEY.to_owned());
-        let favourites = preferences.get_or_insert_map(FAVOURITES_MAP_KEY.to_owned());
-        let node_keyboard_shortcuts =
-            preferences.get_or_insert_map(NODE_KEYBOARD_SHORTCUTS_MAP_KEY.to_owned());
+        let preferences = yrs::sync::Awareness::new(preferences);
+        let general_settings = preferences
+            .doc()
+            .get_or_insert_map(GENERAL_SETTINGS_MAP_KEY.to_owned());
+        let theme = preferences
+            .doc()
+            .get_or_insert_map(THEME_MAP_KEY.to_owned());
+        let keyboard_shortcuts = preferences
+            .doc()
+            .get_or_insert_map(KEYBOARD_SHORTCUTS_MAP_KEY.to_owned());
+        let favourites = preferences
+            .doc()
+            .get_or_insert_map(FAVOURITES_MAP_KEY.to_owned());
+        let node_keyboard_shortcuts = preferences
+            .doc()
+            .get_or_insert_map(NODE_KEYBOARD_SHORTCUTS_MAP_KEY.to_owned());
 
-        let preferences = Rc::new(preferences);
+        let awareness = Rc::new(preferences);
         let listeners = Rc::new(RefCell::new(Vec::<(u32, js_sys::Function)>::new()));
-        let preferences_subscription = preferences
+
+        let preferences_subscription = awareness
+            .doc()
             .observe_update_v1({
                 let listeners = listeners.clone();
-                move |_, _| {
+                move |_, update_evt| {
                     for (_, listener) in listeners.borrow().iter() {
                         let _ = listener.call0(&JsValue::UNDEFINED);
                     }
+
+                    let message = Message::Sync(SyncMessage::Update(update_evt.update.to_vec()));
                 }
             })
             .map_err(|_| WbblWebappStoreError::SubscriptionFailure)?;
 
+        // let location = window().map(|x| x.location()).map(|x| format!("{}://{}",));
+        // let socket = WebSocket::new("/api/preferences/connect");
+        let awareness_subscription = awareness.on_update(|evt| {
+            if let Some(update) = evt.awareness_update() {
+                let message = Message::Awareness(update.clone());
+
+                // let state = state_container.state();
+                // let read = state.lock().unwrap();
+                // for socket in read.get_websockets().iter() {
+                //     if let Err(err) = socket.send_with_bytes(message.encode_v1()) {
+                //         console_error!("Error Could Not Send Update Due to Err: {}", err);
+                //     }
+                // }
+            }
+        });
+
         let store = WbblWebappPreferencesStore {
             next_listener_handle: 0,
             listeners: listeners.clone(),
-            preferences: preferences.clone(),
+            awareness: awareness.clone(),
             general_settings,
             keyboard_shortcuts,
             node_keyboard_shortcuts,
             favourites,
             theme,
-            subscriptions: Vec::from([preferences_subscription]),
+            subscriptions: Vec::from([preferences_subscription, awareness_subscription]),
         };
 
         Ok(store)
@@ -274,7 +306,7 @@ impl WbblWebappPreferencesStore {
 
     pub fn set_base_theme(&mut self, theme: BaseTheme) -> Result<(), WbblWebappStoreError> {
         {
-            let mut txn = self.preferences.transact_mut();
+            let mut txn = self.awareness.doc().transact_mut();
             self.theme
                 .insert(&mut txn, "base", yrs::Any::BigInt(theme as i64));
         }
@@ -282,7 +314,7 @@ impl WbblWebappPreferencesStore {
     }
 
     pub fn get_base_theme(&self) -> BaseTheme {
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
         match self.theme.get(&txn, "base") {
             Some(yrs::Value::Any(yrs::Any::BigInt(x))) if x == BaseTheme::Dark as i64 => {
                 BaseTheme::Dark
@@ -299,7 +331,7 @@ impl WbblWebappPreferencesStore {
         command: KeyboardShortcut,
     ) -> Result<(), WbblWebappStoreError> {
         {
-            let mut txn = self.preferences.transact_mut();
+            let mut txn = self.awareness.doc().transact_mut();
             let command_key = command.get_string_representation();
             self.keyboard_shortcuts.remove(&mut txn, &command_key);
         }
@@ -312,7 +344,7 @@ impl WbblWebappPreferencesStore {
         binding: Option<String>,
     ) -> Result<(), WbblWebappStoreError> {
         {
-            let mut txn = self.preferences.transact_mut();
+            let mut txn = self.awareness.doc().transact_mut();
             let command_key = command.get_string_representation();
             match binding {
                 Some(binding) => self
@@ -325,7 +357,7 @@ impl WbblWebappPreferencesStore {
     }
 
     pub fn get_favourites(&self) -> Result<Vec<WbblWebappNodeType>, WbblWebappStoreError> {
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
         let mut result: Vec<WbblWebappNodeType> = Vec::new();
         for (key, _) in self.favourites.iter(&txn) {
             if let Some(t) = from_type_name(key) {
@@ -341,7 +373,7 @@ impl WbblWebappPreferencesStore {
         value: bool,
     ) -> Result<(), WbblWebappStoreError> {
         {
-            let mut txn = self.preferences.transact_mut();
+            let mut txn = self.awareness.doc().transact_mut();
             if value {
                 self.favourites
                     .insert(&mut txn, get_type_name(node_type), true);
@@ -353,7 +385,7 @@ impl WbblWebappPreferencesStore {
     }
 
     pub fn is_favourite(&self, node_type: WbblWebappNodeType) -> bool {
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
         self.favourites
             .get(&txn, &get_type_name(node_type))
             .is_some()
@@ -361,7 +393,7 @@ impl WbblWebappPreferencesStore {
 
     pub fn get_keybindings(&self) -> Result<JsValue, WbblWebappStoreError> {
         let mut bindings = get_default_keybindings();
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
         for binding in self.keyboard_shortcuts.iter(&txn) {
             match (
                 KeyboardShortcut::from_string_representation(binding.0),
@@ -385,7 +417,7 @@ impl WbblWebappPreferencesStore {
         shortcut: KeyboardShortcut,
     ) -> Result<Option<String>, WbblWebappStoreError> {
         let bindings = get_default_keybindings();
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
 
         match self
             .keyboard_shortcuts
@@ -405,7 +437,7 @@ impl WbblWebappPreferencesStore {
         node_type: WbblWebappNodeType,
     ) -> Result<Option<String>, WbblWebappStoreError> {
         let bindings = get_default_node_keybindings();
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
 
         let type_name = get_type_name(node_type);
         match self.node_keyboard_shortcuts.get(&txn, &type_name) {
@@ -420,7 +452,7 @@ impl WbblWebappPreferencesStore {
 
     pub fn get_node_keybindings(&self) -> Result<JsValue, WbblWebappStoreError> {
         let mut bindings = get_default_node_keybindings();
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
         for binding in self.node_keyboard_shortcuts.iter(&txn) {
             match (from_type_name(binding.0), binding.1) {
                 (Some(shortcut), yrs::Value::Any(yrs::Any::String(b))) => {
@@ -441,7 +473,7 @@ impl WbblWebappPreferencesStore {
         node_type: WbblWebappNodeType,
     ) -> Result<(), WbblWebappStoreError> {
         {
-            let mut txn = self.preferences.transact_mut();
+            let mut txn = self.awareness.doc().transact_mut();
 
             self.node_keyboard_shortcuts
                 .remove(&mut txn, &get_type_name(node_type));
@@ -455,7 +487,7 @@ impl WbblWebappPreferencesStore {
         binding: Option<String>,
     ) -> Result<(), WbblWebappStoreError> {
         {
-            let mut txn = self.preferences.transact_mut();
+            let mut txn = self.awareness.doc().transact_mut();
             let key = get_type_name(node_type);
             match binding {
                 Some(binding) => self.node_keyboard_shortcuts.insert(&mut txn, key, binding),
@@ -467,7 +499,7 @@ impl WbblWebappPreferencesStore {
 
     pub fn toggle_wobble(&mut self) -> Result<(), WbblWebappStoreError> {
         {
-            let mut txn = self.preferences.transact_mut();
+            let mut txn = self.awareness.doc().transact_mut();
             match get_bool("allow_wobble", &txn, &self.general_settings) {
                 Ok(allowed) => {
                     self.general_settings
@@ -486,7 +518,7 @@ impl WbblWebappPreferencesStore {
     }
 
     pub fn get_allow_wobble(&self) -> Result<bool, WbblWebappStoreError> {
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
         match get_bool("allow_wobble", &txn, &self.general_settings) {
             Ok(allowed) => Ok(allowed),
             Err(WbblWebappStoreError::NotFound) => Ok(true),
@@ -495,7 +527,7 @@ impl WbblWebappPreferencesStore {
     }
 
     pub fn get_edge_style(&self) -> Result<EdgeStyle, WbblWebappStoreError> {
-        let txn = self.preferences.transact();
+        let txn = self.awareness.doc().transact();
         match get_atomic_string("edge_style", &txn, &self.general_settings) {
             Ok(str) => {
                 if let Some(style) = EdgeStyle::from_string_representation(&str) {
@@ -511,7 +543,7 @@ impl WbblWebappPreferencesStore {
 
     pub fn set_edge_style(&self, style: EdgeStyle) -> Result<(), WbblWebappStoreError> {
         {
-            let mut txn = self.preferences.transact_mut();
+            let mut txn = self.awareness.doc().transact_mut();
             if let EdgeStyle::Default = style {
                 self.general_settings.remove(&mut txn, "edge_style");
             } else {

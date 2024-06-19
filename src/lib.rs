@@ -1,4 +1,5 @@
 pub mod animation_frame;
+pub mod awareness_ws_sync;
 pub mod builtin_geometry;
 pub mod callback_future;
 pub mod compiler;
@@ -26,5 +27,4 @@ pub mod wbbl_graph_web_worker;
 pub mod wbbl_physics;
 pub mod wbbl_webapp_graph_store;
 pub mod wbbl_webapp_user_preferences_store;
-pub mod websocket_protocol;
 pub(crate) mod yrs_utils;

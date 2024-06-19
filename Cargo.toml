@@ -42,6 +42,7 @@ web-sys = { version = "0.3", features = [
     "HtmlDocument",
     "Blob",
     "WebSocket",
+    "CloseEvent",
     "Location",
 ] }
 bytemuck = { version = "1.14.3", features = ["wasm_simd"] }

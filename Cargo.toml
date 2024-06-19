@@ -40,10 +40,10 @@ web-sys = { version = "0.3", features = [
     "Clipboard",
     "ClipboardItem",
     "HtmlDocument",
-    "Blob",
     "WebSocket",
     "CloseEvent",
     "Location",
+    "BinaryType",
 ] }
 bytemuck = { version = "1.14.3", features = ["wasm_simd"] }
 wgpu = { version = "0.19.3", default-features = false, features = [

@@ -312,7 +312,7 @@ function WbbleEdge({
   selected,
 }: EdgeProps) {
   const preferencesStore = useContext(WbblPreferencesStoreContext);
-  const edgeStyle = useEdgeStyle(preferencesStore);
+  const edgeStyle = useEdgeStyle(preferencesStore!);
   const sourceType = usePortTypeWithNodeId(
     source,
     sourceHandleId as `${"s" | "t"}#${number}`,

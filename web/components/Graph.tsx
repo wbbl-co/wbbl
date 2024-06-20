@@ -146,7 +146,7 @@ function Graph() {
         mode === "pointer"
       ) {
         let nodeAdded = false;
-        const nodeKeybindings = preferencesStore.get_node_keybindings() as Map<
+        const nodeKeybindings = preferencesStore!.get_node_keybindings() as Map<
           string,
           string | null | undefined
         >;

@@ -24,8 +24,9 @@ export default function useIsWbblEffectEnabled() {
   // TODO add additional check for visible node count
   const viewport = useViewport();
   const preferencesStore = useContext(WbblPreferencesStoreContext);
-  const isWbblEnabledInPreferences =
-    useIsWobbleEffectEnabledInPreferences(preferencesStore);
+  const isWbblEnabledInPreferences = useIsWobbleEffectEnabledInPreferences(
+    preferencesStore!,
+  );
   const prefersReducedMotion = usePrefersReducedMotion();
   return (
     isWbblEnabledInPreferences && !prefersReducedMotion && viewport.zoom > 0.5

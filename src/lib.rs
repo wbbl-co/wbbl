@@ -1,4 +1,5 @@
 pub mod animation_frame;
+pub mod awareness_sync;
 pub mod builtin_geometry;
 pub mod callback_future;
 pub mod compiler;

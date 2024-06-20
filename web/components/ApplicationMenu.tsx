@@ -54,13 +54,13 @@ function ApplicationMenu(props: { path: [] | [string, string] }) {
     (edgeStyle: string) => {
       switch (edgeStyle) {
         case "bezier":
-          preferencesStore.set_edge_style(EdgeStyle.Bezier);
+          preferencesStore!.set_edge_style(EdgeStyle.Bezier);
           break;
         case "metropolis":
-          preferencesStore.set_edge_style(EdgeStyle.Metropolis);
+          preferencesStore!.set_edge_style(EdgeStyle.Metropolis);
           break;
         case "default":
-          preferencesStore.set_edge_style(EdgeStyle.Default);
+          preferencesStore!.set_edge_style(EdgeStyle.Default);
           break;
         default:
           // DO NOTHING
@@ -74,11 +74,11 @@ function ApplicationMenu(props: { path: [] | [string, string] }) {
     (mode: string) => {
       try {
         if (mode === "light") {
-          preferencesStore.set_base_theme(BaseTheme.Light);
+          preferencesStore!.set_base_theme(BaseTheme.Light);
         } else if (mode === "dark") {
-          preferencesStore.set_base_theme(BaseTheme.Dark);
+          preferencesStore!.set_base_theme(BaseTheme.Dark);
         } else if (mode === "system") {
-          preferencesStore.set_base_theme(BaseTheme.System);
+          preferencesStore!.set_base_theme(BaseTheme.System);
         }
       } catch (e) {
         console.error(e);
@@ -121,7 +121,10 @@ function ApplicationMenu(props: { path: [] | [string, string] }) {
       showNodes: globalContext.showNodesInActionMenu,
       useMousePosition: false,
     });
-  }, [globalContext.setActionMenuSettings, globalContext.showNodesInActionMenu]);
+  }, [
+    globalContext.setActionMenuSettings,
+    globalContext.showNodesInActionMenu,
+  ]);
   return (
     <Dialog.Root open={currentDialog !== null} onOpenChange={onOpenChange}>
       <DropdownMenu.Root>
@@ -180,7 +183,7 @@ function ApplicationMenu(props: { path: [] | [string, string] }) {
               <DropdownMenu.CheckboxItem
                 checked={!isWbblEnabledInPreferences}
                 onCheckedChange={useCallback(() => {
-                  preferencesStore.toggle_wobble();
+                  preferencesStore!.toggle_wobble();
                 }, [])}
               >
                 Disable Wobble
@@ -222,7 +225,7 @@ export const ApplicationMenuContext = React.createContext<{
     open: boolean;
     showNodes: boolean;
     useMousePosition: boolean;
-  }) => void
-}>({ showNodesInActionMenu: false, setActionMenuSettings: () => { } });
+  }) => void;
+}>({ showNodesInActionMenu: false, setActionMenuSettings: () => {} });
 
 export default memo(ApplicationMenu);

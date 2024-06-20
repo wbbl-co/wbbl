@@ -33,7 +33,7 @@ mod builtin_geometry_tests {
                 };
             }
             gltf::buffer::Source::Uri(_) => {
-                assert!(false, "Data should be embedded for this view");
+                panic!("Data should be embedded for this view");
             }
         }
         Ok(())

@@ -22,20 +22,20 @@ import MicroSearchIcon from "./icons/micro/MicroSearchIcon";
 
 type ComboBoxItem =
   | {
-    type: "shortcut";
-    key: KeyboardShortcut;
-    f: () => void;
-    description: string;
-    binding: string | null | undefined;
-    tooltip?: string;
-  }
+      type: "shortcut";
+      key: KeyboardShortcut;
+      f: () => void;
+      description: string;
+      binding: string | null | undefined;
+      tooltip?: string;
+    }
   | {
-    type: "add-node";
-    key: WbblWebappNodeType;
-    description: string;
-    binding: string | null | undefined;
-    tooltip: string;
-  };
+      type: "add-node";
+      key: WbblWebappNodeType;
+      description: string;
+      binding: string | null | undefined;
+      tooltip: string;
+    };
 
 function ActionMenuCombobox(props: {
   close: () => void;
@@ -46,7 +46,7 @@ function ActionMenuCombobox(props: {
   const data = useMemo<ComboBoxItem[]>(() => {
     let nodeItems: ComboBoxItem[] = [];
     if (availableActions.addNode) {
-      const nodeBindings = preferencesStore.get_node_keybindings() as Map<
+      const nodeBindings = preferencesStore!.get_node_keybindings() as Map<
         string,
         string | null | undefined
       >;
@@ -63,7 +63,7 @@ function ActionMenuCombobox(props: {
           binding: nodeBindings.get(k),
         }));
     }
-    const bindings = preferencesStore.get_keybindings() as Map<
+    const bindings = preferencesStore!.get_keybindings() as Map<
       KeyboardShortcut,
       string | null | undefined
     >;
@@ -261,9 +261,9 @@ function SearchMenu(props: {
         style={
           props.useMousePosition
             ? {
-              position: "absolute",
-              ...position,
-            }
+                position: "absolute",
+                ...position,
+              }
             : {}
         }
         className="action-menu"

@@ -31,7 +31,7 @@ export const Route = createRootRoute({
       () => WbblWebappPreferencesStore.empty(),
       [],
     );
-    const { currentTheme } = useThemePreferences(preferencesStore);
+    const { currentTheme } = useThemePreferences(preferencesStore!);
     // useBlobity({
     //   licenseKey: "DA207C2D-99B04E50-BB399991-ED382D1C",
     //   magnetic: false,

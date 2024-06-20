@@ -85,7 +85,7 @@ function NodeOrEdgeContextMenu(
   }, [isFavourite, setIsFavouriteDeferred]);
   const toggleFavourites = useCallback(() => {
     if (!props.isEdge) {
-      preferencesStore.set_favourite(
+      preferencesStore!.set_favourite(
         nodeMetaData[props.type as keyof typeof nodeMetaData].type,
         !isFavourite,
       );
@@ -278,7 +278,7 @@ function NodeOrEdgeContextMenu(
   );
 
   const deleteShortcut = useKeyBinding(
-    preferencesStore,
+    preferencesStore!,
     KeyboardShortcut.Delete,
   );
   const blockNestedContextMenu = useCallback<MouseEventHandler>((evt) => {
@@ -287,14 +287,14 @@ function NodeOrEdgeContextMenu(
   }, []);
 
   const groupNodesShortcut = useKeyBinding(
-    preferencesStore,
+    preferencesStore!,
     KeyboardShortcut.GroupNodes,
   );
   const groupNodes = useCallback(() => {
     graphStore.group_selected_nodes();
   }, [graphStore]);
   const ungroupNodesShortcut = useKeyBinding(
-    preferencesStore,
+    preferencesStore!,
     KeyboardShortcut.UngroupNodes,
   );
   const ungroupNodes = useCallback(() => {

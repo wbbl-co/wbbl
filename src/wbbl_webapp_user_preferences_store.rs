@@ -1,8 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use wasm_bindgen::prelude::*;
-use web_sys::{js_sys};
+use web_sys::{
+    js_sys::{self, Date},
+    window,
+};
 use yrs::{
+    sync::{Clock, Timestamp},
     Map, Subscription, Transact,
 };
 
@@ -218,11 +222,20 @@ pub struct KeybindingSnapshot {
     pub keys: HashMap<KeyboardShortcut, Option<String>>,
 }
 
+struct WasmPackClock;
+
+impl Clock for WasmPackClock {
+    fn now(&self) -> yrs::sync::Timestamp {
+        let now = Date::now();
+        now as Timestamp
+    }
+}
+
 #[wasm_bindgen]
 impl WbblWebappPreferencesStore {
     pub fn empty() -> Result<WbblWebappPreferencesStore, WbblWebappStoreError> {
         let preferences = yrs::Doc::new();
-        let preferences = yrs::sync::Awareness::new(preferences);
+        let preferences = yrs::sync::Awareness::with_clock(preferences, WasmPackClock);
         let general_settings = preferences
             .doc()
             .get_or_insert_map(GENERAL_SETTINGS_MAP_KEY.to_owned());
@@ -249,9 +262,19 @@ impl WbblWebappPreferencesStore {
                 .observe_update_v1({
                     let listeners = listeners.clone();
                     move |_, _| {
-                        for (_, listener) in listeners.borrow().iter() {
-                            let _ = listener.call0(&JsValue::UNDEFINED);
-                        }
+                        let listeners = listeners.clone();
+                        let closure = Closure::once(Box::new(move || {
+                            for (_, listener) in listeners.borrow().iter() {
+                                let _ = listener.call0(&JsValue::UNDEFINED);
+                            }
+                        }) as Box<dyn FnMut()>);
+                        let _ = window()
+                            .expect("EXPECTED WINDOW")
+                            .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                closure.as_ref().unchecked_ref(),
+                                100,
+                            );
+                        std::mem::forget(closure);
                     }
                 })
                 .map_err(|_| WbblWebappStoreError::SubscriptionFailure)?

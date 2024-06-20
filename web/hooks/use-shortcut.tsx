@@ -33,7 +33,7 @@ function useShortcut(
 ) {
   const preferencesStore = useContext(WbblPreferencesStoreContext);
   const availableActions = useContext(AvailableActionsContext);
-  const keybinding = useKeyBinding(preferencesStore, shortcut);
+  const keybinding = useKeyBinding(preferencesStore!, shortcut);
   const f = useCallback(callback, dependencies);
   const guardedF = useCallback(() => {
     const handlers = availableActions.actions.get(shortcut) ?? [];

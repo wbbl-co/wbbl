@@ -177,7 +177,7 @@ export function useElkJs() {
         storeApi.getState().nodeLookup,
         thisSnapshot.nodes,
         thisSnapshot.edges,
-        preferencesStore.get_edge_style(),
+        preferencesStore!.get_edge_style(),
       );
       const ids = results.nodes.map((x) => x.id);
       const dragging = results.nodes.map(() => 0.0);

@@ -59,11 +59,17 @@ pub struct AwarenessWebsocketSync {
     subscriptions: Vec<yrs::Subscription>,
 }
 
-fn create_websocket_connection(relative_path: &str) -> Result<WebSocket, WebSocketError> {
+fn create_websocket_connection(
+    relative_path: &str,
+    client_id: u64,
+) -> Result<WebSocket, WebSocketError> {
     if let Some((Ok(protocol), Ok(hostname))) =
-        window().map(|x| (x.location().protocol(), x.location().hostname()))
+        window().map(|x| (x.location().protocol(), x.location().host()))
     {
-        let socket = WebSocket::new(&format!("{}://{}{}", protocol, hostname, relative_path));
+        let socket = WebSocket::new(&format!(
+            "{}//{}{}/{}",
+            protocol, hostname, relative_path, client_id
+        ));
         if let Ok(socket) = &socket {
             socket.set_binary_type(web_sys::BinaryType::Arraybuffer);
         }
@@ -92,7 +98,10 @@ impl AwarenessWebsocketSync {
         awareness: Rc<RefCell<Awareness>>,
         connect_path: &str,
     ) -> Result<AwarenessWebsocketSync, WebSocketError> {
-        let websocket = Rc::new(RefCell::new(create_websocket_connection(connect_path)?));
+        let websocket = Rc::new(RefCell::new(create_websocket_connection(
+            connect_path,
+            awareness.borrow().client_id(),
+        )?));
 
         let keep_alive = Rc::new(RefCell::new({
             let websocket = websocket.clone();
@@ -108,11 +117,11 @@ impl AwarenessWebsocketSync {
             .expect("Expected Window")
             .set_interval_with_callback_and_timeout_and_arguments_0(
                 keep_alive.borrow().as_ref().unchecked_ref(),
-                1200,
+                120_000,
             )
             .map_err(WebSocketError::JsError)?;
 
-        let on_message = Rc::new(RefCell::new({
+        let on_message_processor = {
             let websocket = websocket.clone();
             let awareness = awareness.clone();
             Closure::wrap(Box::new(move |message: web_sys::MessageEvent| {
@@ -135,11 +144,13 @@ impl AwarenessWebsocketSync {
                             Ok(message) => match message {
                                 yrs::sync::Message::Sync(SyncMessage::SyncStep1(sv)) => {
                                     // Reply with sync step 2
-                                    let update = awareness
-                                        .borrow()
-                                        .doc()
-                                        .transact()
-                                        .encode_state_as_update_v1(&sv);
+                                    let update = {
+                                        awareness
+                                            .borrow()
+                                            .doc()
+                                            .transact()
+                                            .encode_state_as_update_v1(&sv)
+                                    };
                                     if websocket
                                         .borrow()
                                         .send_with_u8_array(
@@ -222,6 +233,18 @@ impl AwarenessWebsocketSync {
                     }
                 }
             }) as Box<dyn FnMut(web_sys::MessageEvent)>)
+        };
+
+        let on_message = Rc::new(RefCell::new({
+            Closure::wrap(Box::new(move |message: web_sys::MessageEvent| {
+                let _ = window()
+                    .expect("EXPECTED WINDOW")
+                    .set_timeout_with_callback_and_timeout_and_arguments_1(
+                        on_message_processor.as_ref().unchecked_ref(),
+                        100,
+                        &message,
+                    );
+            }) as Box<dyn FnMut(web_sys::MessageEvent)>)
         }));
 
         let on_open = Rc::new(RefCell::new({
@@ -283,14 +306,16 @@ impl AwarenessWebsocketSync {
             let on_error = on_error.clone();
             let on_message = on_message.clone();
 
+            let client_id = awareness.borrow().client_id();
             let websocket = websocket.clone();
             let connect_path = connect_path.to_string();
             Closure::wrap(Box::new(move |message: web_sys::CloseEvent| {
                 // Reopen websocket connection if not cleanly closed
-                if message.code() != 1000 {
+                if message.code() == 1001 {
                     // TODO: Add some sort of backoff mechanism to prevent
                     // outages causing bad things to happen
-                    if let Ok(new_websocket) = create_websocket_connection(&connect_path) {
+                    if let Ok(new_websocket) = create_websocket_connection(&connect_path, client_id)
+                    {
                         websocket.replace(new_websocket);
                         install_listeners(
                             &websocket.borrow(),
@@ -380,7 +405,7 @@ impl Drop for AwarenessWebsocketSync {
         });
         let ws = self.websocket.borrow();
         if ws.ready_state() == 1 {
-            let _ = self.websocket.borrow().close_with_code(1000);
+            let _ = ws.close_with_code(1000);
         }
     }
 }

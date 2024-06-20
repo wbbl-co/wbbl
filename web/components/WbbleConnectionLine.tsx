@@ -44,7 +44,7 @@ export default function WbblConnectionLine(
   );
   const isWbblEffectEnabled = useIsWbblEffectEnabled();
   const preferencesStore = useContext(WbblPreferencesStoreContext);
-  const edgeStyle = useEdgeStyle(preferencesStore);
+  const edgeStyle = useEdgeStyle(preferencesStore!);
 
   const lastUpdate = useRef<number>(Date.now());
 

@@ -110,12 +110,12 @@ export default function KeybindingDialogContents() {
       keys.delete("enter");
       if (keys.size > 0 && currentItem) {
         if (currentItem[0] === "general_shortcut") {
-          store.set_keybinding(
+          store!.set_keybinding(
             currentItem[1],
             normalizeKeybinding([...keys.values()].join("+")),
           );
         } else {
-          store.set_node_keybinding(
+          store!.set_node_keybinding(
             nodeMetaData[currentItem[1]].type,
             normalizeKeybinding([...keys.values()].join("+")),
           );
@@ -139,9 +139,9 @@ export default function KeybindingDialogContents() {
             currentItem !== undefined
               ? () => {
                   if (currentItem[0] == "general_shortcut") {
-                    store.reset_keybinding(currentItem[1]);
+                    store!.reset_keybinding(currentItem[1]);
                   } else {
-                    store.reset_node_keybinding(
+                    store!.reset_node_keybinding(
                       nodeMetaData[currentItem[1]].type,
                     );
                   }
@@ -157,9 +157,9 @@ export default function KeybindingDialogContents() {
             currentItem !== undefined
               ? () => {
                   if (currentItem[0] == "general_shortcut") {
-                    store.set_keybinding(currentItem[1], undefined);
+                    store!.set_keybinding(currentItem[1], undefined);
                   } else {
-                    store.set_node_keybinding(
+                    store!.set_node_keybinding(
                       nodeMetaData[currentItem[1]].type,
                       undefined,
                     );
@@ -205,12 +205,12 @@ export default function KeybindingDialogContents() {
                 <Button
                   onClick={() => {
                     if (entry.type === "general_shortcut") {
-                      store.set_keybinding(
+                      store!.set_keybinding(
                         entry.key,
                         normalizeKeybinding([...keys.values()].join("+")),
                       );
                     } else {
-                      store.set_node_keybinding(
+                      store!.set_node_keybinding(
                         nodeMetaData[entry.key].type,
                         normalizeKeybinding([...keys.values()].join("+")),
                       );

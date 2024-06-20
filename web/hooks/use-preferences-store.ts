@@ -15,7 +15,7 @@ import {
 } from "../../pkg/wbbl";
 
 export const WbblPreferencesStoreContext =
-  createContext<WbblWebappPreferencesStore>(WbblWebappPreferencesStore.empty());
+  createContext<WbblWebappPreferencesStore | null>(null);
 
 export type ThemePreferences = {
   baseTheme: BaseTheme;
@@ -24,7 +24,7 @@ export type ThemePreferences = {
 };
 
 export function useThemePreferences(
-  store: WbblWebappPreferencesStore,
+  store: WbblWebappPreferencesStore | null,
 ): ThemePreferences {
   const data = useRef<Omit<ThemePreferences, "currentTheme">>();
   const count = useRef<number>(0);
@@ -33,18 +33,18 @@ export function useThemePreferences(
   const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
-        cacheHandle.current = store.subscribe(() => {
+        cacheHandle.current = store!.subscribe(() => {
           data.current = undefined;
         });
       }
       count.current = count.current + 1;
-      const handle = store.subscribe(subscriber);
+      const handle = store!.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
-          store.unsubscribe(cacheHandle.current);
+          store!.unsubscribe(cacheHandle.current);
         }
-        store.unsubscribe(handle);
+        store!.unsubscribe(handle);
       };
     },
     [store],
@@ -52,7 +52,7 @@ export function useThemePreferences(
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      const baseTheme = store.get_base_theme();
+      const baseTheme = store!.get_base_theme();
       data.current = { baseTheme, variables: {} };
     }
     return data.current;
@@ -105,7 +105,7 @@ export type KeyboardPreferences = {
 };
 
 export function useKeyboardPreferences(
-  store: WbblWebappPreferencesStore,
+  store: WbblWebappPreferencesStore | null,
 ): KeyboardPreferences {
   const data = useRef<KeyboardPreferences>();
   const count = useRef<number>(0);
@@ -114,18 +114,18 @@ export function useKeyboardPreferences(
   const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
-        cacheHandle.current = store.subscribe(() => {
+        cacheHandle.current = store!.subscribe(() => {
           data.current = undefined;
         });
       }
       count.current = count.current + 1;
-      const handle = store.subscribe(subscriber);
+      const handle = store!.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
-          store.unsubscribe(cacheHandle.current);
+          store!.unsubscribe(cacheHandle.current);
         }
-        store.unsubscribe(handle);
+        store!.unsubscribe(handle);
       };
     },
     [store],
@@ -133,11 +133,11 @@ export function useKeyboardPreferences(
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      const keys = store.get_keybindings() as Map<
+      const keys = store!.get_keybindings() as Map<
         KeyboardShortcut,
         string | null | undefined
       >;
-      const node_keys = store.get_node_keybindings() as Map<
+      const node_keys = store!.get_node_keybindings() as Map<
         string,
         string | null | undefined
       >;
@@ -152,7 +152,7 @@ export function useKeyboardPreferences(
 }
 
 export function useFavouritesPreferences(
-  store: WbblWebappPreferencesStore,
+  store: WbblWebappPreferencesStore | null,
 ): WbblWebappNodeType[] {
   const data = useRef<WbblWebappNodeType[]>();
   const count = useRef<number>(0);
@@ -161,18 +161,18 @@ export function useFavouritesPreferences(
   const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
-        cacheHandle.current = store.subscribe(() => {
+        cacheHandle.current = store!.subscribe(() => {
           data.current = undefined;
         });
       }
       count.current = count.current + 1;
-      const handle = store.subscribe(subscriber);
+      const handle = store!.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
-          store.unsubscribe(cacheHandle.current);
+          store!.unsubscribe(cacheHandle.current);
         }
-        store.unsubscribe(handle);
+        store!.unsubscribe(handle);
       };
     },
     [store],
@@ -180,7 +180,7 @@ export function useFavouritesPreferences(
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      const favourites = store.get_favourites();
+      const favourites = store!.get_favourites();
       data.current = favourites;
     }
     return data.current;
@@ -192,7 +192,7 @@ export function useFavouritesPreferences(
 }
 
 export function useIsFavouritePreference(
-  store: WbblWebappPreferencesStore,
+  store: WbblWebappPreferencesStore | null,
   type: WbblWebappNodeType | undefined,
   isOpen: boolean,
 ): boolean {
@@ -204,18 +204,18 @@ export function useIsFavouritePreference(
     (subscriber: () => void) => {
       if (type) {
         if (count.current == 0) {
-          cacheHandle.current = store.subscribe(() => {
+          cacheHandle.current = store!.subscribe(() => {
             data.current = undefined;
           });
         }
         count.current = count.current + 1;
-        const handle = store.subscribe(subscriber);
+        const handle = store!.subscribe(subscriber);
         return () => {
           count.current = count.current - 1;
           if (count.current === 0) {
-            store.unsubscribe(cacheHandle.current);
+            store!.unsubscribe(cacheHandle.current);
           }
-          store.unsubscribe(handle);
+          store!.unsubscribe(handle);
         };
       }
       return () => {};
@@ -225,13 +225,13 @@ export function useIsFavouritePreference(
 
   useEffect(() => {
     if (type) {
-      data.current = store.is_favourite(type);
+      data.current = store!.is_favourite(type);
     }
   }, [type, isOpen]);
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined && type) {
-      const favourite = store.is_favourite(type);
+      const favourite = store!.is_favourite(type);
       data.current = favourite;
     }
     return data.current;
@@ -243,7 +243,7 @@ export function useIsFavouritePreference(
 }
 
 export function useKeyBinding(
-  store: WbblWebappPreferencesStore,
+  store: WbblWebappPreferencesStore | null,
   shortcut: KeyboardShortcut,
 ): string | undefined | null {
   const data = useRef<string | undefined | null>(undefined);
@@ -253,30 +253,30 @@ export function useKeyBinding(
   const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
-        cacheHandle.current = store.subscribe(() => {
+        cacheHandle.current = store!.subscribe(() => {
           data.current = undefined;
         });
       }
       count.current = count.current + 1;
-      const handle = store.subscribe(subscriber);
+      const handle = store!.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
-          store.unsubscribe(cacheHandle.current);
+          store!.unsubscribe(cacheHandle.current);
         }
-        store.unsubscribe(handle);
+        store!.unsubscribe(handle);
       };
     },
     [store],
   );
 
   useEffect(() => {
-    data.current = store.get_keybinding(shortcut);
+    data.current = store!.get_keybinding(shortcut);
   }, [shortcut]);
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      data.current = store.get_keybinding(shortcut) ?? null;
+      data.current = store!.get_keybinding(shortcut) ?? null;
     }
     return data.current;
   }, [store, shortcut]);
@@ -287,7 +287,7 @@ export function useKeyBinding(
 }
 
 export function useNodeKeyBinding(
-  store: WbblWebappPreferencesStore,
+  store: WbblWebappPreferencesStore | null,
   node_type: WbblWebappNodeType,
 ): string | undefined | null {
   const data = useRef<string | undefined | null>(undefined);
@@ -297,30 +297,30 @@ export function useNodeKeyBinding(
   const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
-        cacheHandle.current = store.subscribe(() => {
+        cacheHandle.current = store!.subscribe(() => {
           data.current = undefined;
         });
       }
       count.current = count.current + 1;
-      const handle = store.subscribe(subscriber);
+      const handle = store!.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
-          store.unsubscribe(cacheHandle.current);
+          store!.unsubscribe(cacheHandle.current);
         }
-        store.unsubscribe(handle);
+        store!.unsubscribe(handle);
       };
     },
     [store],
   );
 
   useEffect(() => {
-    data.current = store.get_node_keybinding(node_type) ?? null;
+    data.current = store!.get_node_keybinding(node_type) ?? null;
   }, [node_type]);
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      data.current = store.get_node_keybinding(node_type) ?? null;
+      data.current = store!.get_node_keybinding(node_type) ?? null;
     }
     return data.current;
   }, [store, node_type]);
@@ -330,7 +330,9 @@ export function useNodeKeyBinding(
   return snapshot;
 }
 
-export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
+export function useEdgeStyle(
+  store: WbblWebappPreferencesStore | null,
+): EdgeStyle {
   const data = useRef<EdgeStyle>();
   const count = useRef<number>(0);
   const cacheHandle = useRef<number>(0);
@@ -338,18 +340,18 @@ export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
   const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
-        cacheHandle.current = store.subscribe(() => {
+        cacheHandle.current = store!.subscribe(() => {
           data.current = undefined;
         });
       }
       count.current = count.current + 1;
-      const handle = store.subscribe(subscriber);
+      const handle = store!.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
-          store.unsubscribe(cacheHandle.current);
+          store!.unsubscribe(cacheHandle.current);
         }
-        store.unsubscribe(handle);
+        store!.unsubscribe(handle);
       };
     },
     [store],
@@ -357,7 +359,7 @@ export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      const edgeStyle = store.get_edge_style();
+      const edgeStyle = store!.get_edge_style();
       if (edgeStyle === EdgeStyle.Default) {
         data.current = EdgeStyle.Default;
       } else if (edgeStyle === EdgeStyle.Bezier) {
@@ -375,7 +377,7 @@ export function useEdgeStyle(store: WbblWebappPreferencesStore): EdgeStyle {
 }
 
 export function useIsWobbleEffectEnabledInPreferences(
-  store: WbblWebappPreferencesStore,
+  store: WbblWebappPreferencesStore | null,
 ): boolean {
   const data = useRef<boolean>();
   const count = useRef<number>(0);
@@ -384,18 +386,18 @@ export function useIsWobbleEffectEnabledInPreferences(
   const subscribe = useCallback(
     (subscriber: () => void) => {
       if (count.current == 0) {
-        cacheHandle.current = store.subscribe(() => {
+        cacheHandle.current = store!.subscribe(() => {
           data.current = undefined;
         });
       }
       count.current = count.current + 1;
-      const handle = store.subscribe(subscriber);
+      const handle = store!.subscribe(subscriber);
       return () => {
         count.current = count.current - 1;
         if (count.current === 0) {
-          store.unsubscribe(cacheHandle.current);
+          store!.unsubscribe(cacheHandle.current);
         }
-        store.unsubscribe(handle);
+        store!.unsubscribe(handle);
       };
     },
     [store],
@@ -403,7 +405,7 @@ export function useIsWobbleEffectEnabledInPreferences(
 
   const getSnapshot = useCallback(() => {
     if (data.current === undefined) {
-      data.current = store.get_allow_wobble() ?? false;
+      data.current = store!.get_allow_wobble() ?? false;
     }
     return data.current;
   }, [store]);

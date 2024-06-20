@@ -3,8 +3,7 @@ name: Build Web Assembly
 on:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
+
 
 env:
   CARGO_TERM_COLOR: always
